@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card admin-card">
+    <div class="match-meta">
+      <p class="eyebrow">Admin | Tournament Setup</p>
+      <h1 class="match-title">Players &amp; Handicaps</h1>
+      <p class="match-sub">Use the PIN to configure each player’s division and handicap. These settings seed the standings and stay saved in the database.</p>
+    </div>
+
+    {% if not authorized %}
+      <div class="status">{{ setup_status }}</div>
+    {% else %}
+      {% if setup_status %}
+        <div class="status">{{ setup_status }}</div>
+      {% endif %}
+      <form class="setup-form" method="post" action="/admin/setup">
+        <input type="hidden" name="pin" value="{{ pin }}" />
+        <div class="setup-row setup-head-row">
+          <span>Name</span>
+          <span>Division</span>
+          <span>Seed</span>
+          <span>Handicap</span>
+        </div>
+        <div id="player-list">
+          {% for player in players %}
+            <div class="setup-row">
+              <input type="hidden" name="player_id" value="{{ player.id }}" />
+              <input class="setup-input" name="player_name" value="{{ player.name }}" placeholder="Name" required />
+              <input class="setup-input" name="player_division" value="{{ player.division }}" placeholder="Division" />
+              <input class="setup-input" name="player_seed" value="{{ player.seed }}" placeholder="Seed" inputmode="numeric" />
+              <input class="setup-input" name="player_handicap" value="{{ player.handicap }}" placeholder="Handicap" inputmode="numeric" />
+              <button type="button" class="remove-row-btn" aria-label="Remove player">✕</button>
+            </div>
+          {% endfor %}
+        </div>
+
+        <template id="player-row-template">
+          <div class="setup-row">
+            <input type="hidden" name="player_id" value="" />
+            <input class="setup-input" name="player_name" placeholder="Name" />
+            <input class="setup-input" name="player_division" placeholder="Division" />
+            <input class="setup-input" name="player_seed" placeholder="Seed" inputmode="numeric" />
+            <input class="setup-input" name="player_handicap" placeholder="Handicap" inputmode="numeric" />
+            <button type="button" class="remove-row-btn" aria-label="Remove player">✕</button>
+          </div>
+        </template>
+
+        <div class="setup-actions">
+          <button type="button" id="add-player-btn" class="add-player-btn">Add player</button>
+          <button type="submit" class="submit-btn">Save tournament setup</button>
+        </div>
+      </form>
+    {% endif %}
+  </section>
+  <script>
+    const addButton = document.getElementById("add-player-btn");
+    const playerList = document.getElementById("player-list");
+    const template = document.getElementById("player-row-template");
+
+    const removeRow = (button) => {
+      button.closest(".setup-row")?.remove();
+    };
+
+    document.addEventListener("click", (event) => {
+      if (event.target.matches(".remove-row-btn")) {
+        removeRow(event.target);
+      }
+    });
+
+    if (addButton && template && playerList) {
+      addButton.addEventListener("click", () => {
+        const clone = template.content.cloneNode(true);
+        playerList.appendChild(clone);
+      });
+    }
+  </script>
+{% endblock %}

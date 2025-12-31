@@ -238,6 +238,176 @@ body {
   display: block;
 }
 
+.page-nav {
+  margin: 0 auto 24px;
+  max-width: 520px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  padding: 0 2px;
+}
+
+.page-nav a {
+  text-decoration: none;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ink);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.page-nav a.is-active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 12px 24px var(--shadow);
+}
+
+.standings-card {
+  display: grid;
+  gap: 18px;
+}
+
+.division-card {
+  background: #fff7ef;
+  border-radius: 20px;
+  padding: 18px;
+  border: 1px solid #f1d5c2;
+  display: grid;
+  gap: 12px;
+}
+
+.division-card + .division-card {
+  margin-top: 12px;
+}
+
+.division-title {
+  font-size: 0.9rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.standings-table {
+  display: grid;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.standings-row {
+  display: grid;
+  grid-template-columns: 2.2fr 0.7fr 0.7fr 0.7fr 0.7fr 0.9fr 0.9fr 0.8fr;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #f5e3d5;
+  align-items: center;
+}
+
+.table-head {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.65rem;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.standing-cell.player {
+  font-weight: 600;
+}
+
+.seed-tag {
+  display: block;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.standing-cell {
+  font-family: "Libre Baskerville", Georgia, serif;
+  text-align: center;
+}
+
+.setup-card {
+  background: #fff7ef;
+  border-radius: 22px;
+  padding: 20px;
+  border: 1px solid #f1d5c2;
+  display: grid;
+  gap: 14px;
+}
+
+.setup-head {
+  display: grid;
+  gap: 6px;
+}
+
+.setup-form {
+  display: grid;
+  gap: 12px;
+}
+
+ .setup-row {
+   display: grid;
+   grid-template-columns: 1.3fr 0.8fr 0.6fr 0.8fr 0.3fr;
+   gap: 10px;
+   align-items: center;
+ }
+
+.setup-row input {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #f1d5c2;
+  padding: 8px 10px;
+  font-family: "Libre Baskerville", Georgia, serif;
+  font-size: 0.85rem;
+}
+
+.setup-row input:focus {
+  outline: 2px solid var(--accent);
+}
+
+.setup-head-row {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.setup-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.add-player-btn {
+  background: transparent;
+  border: 1px solid #f1d5c2;
+  border-radius: 14px;
+  padding: 10px 18px;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.remove-row-btn {
+  background: #fce8e1;
+  border: none;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+  color: #c24b32;
+  cursor: pointer;
+}
+
 .submit-btn {
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
   border: none;

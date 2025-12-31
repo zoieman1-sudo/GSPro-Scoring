@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card standings-card">
+    <div class="match-meta">
+      <p class="eyebrow">GSPro League Standings</p>
+      <h1 class="match-title">Division Leaderboard</h1>
+      <p class="match-sub">The table summarizes every match result so far. Tables refresh automatically each time you reload.</p>
+    </div>
+
+    {% if divisions %}
+      {% for division in divisions %}
+        <article class="division-card">
+          <div class="division-title">Division {{ division.division }}</div>
+          <div class="standings-table" role="presentation">
+            <div class="standings-row table-head">
+              <span class="standing-cell player">Player</span>
+              <span class="standing-cell">MP</span>
+              <span class="standing-cell">W</span>
+              <span class="standing-cell">T</span>
+              <span class="standing-cell">L</span>
+              <span class="standing-cell">PF</span>
+              <span class="standing-cell">PA</span>
+              <span class="standing-cell">±</span>
+            </div>
+            {% for player in division.players %}
+            <div class="standings-row">
+                <span class="standing-cell player">
+                  {{ player.name }}
+                  <span class="seed-tag">{{ player.division }}{{ player.seed }}</span>
+                </span>
+                <span class="standing-cell">{{ player.matches }}</span>
+                <span class="standing-cell">{{ player.wins }}</span>
+                <span class="standing-cell">{{ player.ties }}</span>
+                <span class="standing-cell">{{ player.losses }}</span>
+                <span class="standing-cell">{{ player.points_for }}</span>
+                <span class="standing-cell">{{ player.points_against }}</span>
+                <span class="standing-cell">{{ "+" if player.point_diff >= 0 else "" }}{{ player.point_diff }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        </article>
+      {% endfor %}
+    {% else %}
+      <p class="status">No results yet. Submit a match and reload to populate standings.</p>
+    {% endif %}
+  </section>
+{% endblock %}
