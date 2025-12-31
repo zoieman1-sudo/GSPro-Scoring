@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card admin-card">
+    <div class="match-meta">
+      <p class="eyebrow">Admin</p>
+      <h1 class="match-title">Recent Match Submissions</h1>
+      <p class="match-sub">Use `?pin=` to access this page.</p>
+    </div>
+
+    {% if not authorized %}
+      <div class="status">Invalid or missing PIN.</div>
+    {% else %}
+      <div class="admin-table">
+        <div class="admin-row admin-head">
+          <span>Match</span>
+          <span>Player A</span>
+          <span>Player B</span>
+          <span>Total</span>
+          <span>Winner</span>
+          <span>Time</span>
+        </div>
+        {% for row in results %}
+          <div class="admin-row">
+            <span>{{ row.match_name }}</span>
+            <span>{{ row.player_a_name }} ({{ row.player_a_total }})</span>
+            <span>{{ row.player_b_name }} ({{ row.player_b_total }})</span>
+            <span>{{ row.player_a_total }}-{{ row.player_b_total }}</span>
+            <span>{{ row.winner }}</span>
+            <span>{{ row.submitted_at }}</span>
+          </div>
+        {% endfor %}
+        {% if results|length == 0 %}
+          <div class="status">No submissions yet.</div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

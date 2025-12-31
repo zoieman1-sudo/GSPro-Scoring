@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card">
+    <div class="match-meta">
+      <p class="eyebrow">GSPro League Match</p>
+      <h1 class="match-title">{{ match_name }}</h1>
+      <p class="match-sub">Enter base points for each player, then submit with PIN.</p>
+    </div>
+
+    {% if status %}
+      <div class="status">{{ status }}</div>
+    {% endif %}
+
+    <form class="score-form" autocomplete="off" method="post" action="/submit">
+      <input type="hidden" name="match_name" value="{{ match_name }}" />
+      <input type="hidden" name="player_a" value="{{ player_a }}" />
+      <input type="hidden" name="player_b" value="{{ player_b }}" />
+      <label class="match-select">
+        <span class="match-label">Match</span>
+        <select name="match_id" class="match-dropdown" aria-label="Match">
+          {% for match in matches %}
+            <option
+              value="{{ match.match_id }}"
+              {% if match.match_id == match_id %}selected{% endif %}
+            >
+              Division {{ match.division }}: {{ match.player_a }} vs {{ match.player_b }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="player-grid">
+        <label class="player-tile" data-player="A">
+          <span class="player-name" data-player-name="A">{{ player_a }}</span>
+          <input
+            class="score-input"
+            name="player_a_points"
+            type="number"
+            inputmode="numeric"
+            placeholder="0"
+            required
+          />
+          <span class="hint">Base points</span>
+        </label>
+        <label class="player-tile" data-player="B">
+          <span class="player-name" data-player-name="B">{{ player_b }}</span>
+          <input
+            class="score-input"
+            name="player_b_points"
+            type="number"
+            inputmode="numeric"
+            placeholder="0"
+            required
+          />
+          <span class="hint">Base points</span>
+        </label>
+      </div>
+
+      <div class="bonus-row">
+        <div class="bonus-card">
+          <p class="bonus-title">Win Bonus</p>
+          <p class="bonus-value">+1 point</p>
+        </div>
+        <div class="bonus-card">
+          <p class="bonus-title">Tie Bonus</p>
+          <p class="bonus-value">0</p>
+        </div>
+      </div>
+
+      <div class="pin-row">
+        <label class="pin-label" for="pin-input">Scoring PIN</label>
+        <input
+          id="pin-input"
+          class="pin-input"
+          name="pin"
+          type="password"
+          inputmode="numeric"
+          maxlength="6"
+          placeholder="Enter PIN"
+          required
+        />
+      </div>
+
+      <button class="submit-btn" type="submit">Submit Match Result</button>
+    </form>
+
+    <script type="application/json" id="match-data">
+      [
+        {% for match in matches %}
+          {
+            "match_id": "{{ match.match_id }}",
+            "match_name": "Division {{ match.division }}: {{ match.player_a }} vs {{ match.player_b }}",
+            "player_a": "{{ match.player_a }}",
+            "player_b": "{{ match.player_b }}"
+          }{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ]
+    </script>
+  </section>
+{% endblock %}

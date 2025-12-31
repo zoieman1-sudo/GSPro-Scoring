@@ -1,0 +1,39 @@
+import os
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Settings:
+    database_url: str
+    scoring_pin: str
+
+
+def load_settings() -> Settings:
+    database_url = os.getenv("DATABASE_URL", "postgresql://postgres@localhost:5432/gspro_scoring")
+    scoring_pin = os.getenv("SCORING_PIN", "1234")
+    return Settings(database_url=database_url, scoring_pin=scoring_pin)
+
+
+def score_outcome(player_a_points: int, player_b_points: int) -> dict:
+    if player_a_points > player_b_points:
+        player_a_bonus = 1
+        player_b_bonus = 0
+        winner = "A"
+    elif player_b_points > player_a_points:
+        player_a_bonus = 0
+        player_b_bonus = 1
+        winner = "B"
+    else:
+        player_a_bonus = 0
+        player_b_bonus = 0
+        winner = "T"
+
+    player_a_total = player_a_points + player_a_bonus
+    player_b_total = player_b_points + player_b_bonus
+    return {
+        "player_a_bonus": player_a_bonus,
+        "player_b_bonus": player_b_bonus,
+        "player_a_total": player_a_total,
+        "player_b_total": player_b_total,
+        "winner": winner,
+    }

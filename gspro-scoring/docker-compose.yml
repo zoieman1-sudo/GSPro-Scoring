@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    container_name: gspro-scoring
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SCORING_PIN: ${SCORING_PIN}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
