@@ -48,28 +48,29 @@
           <label>Hole</label>
           <input type="number" name="hole_number" min="1" placeholder="1" required />
           <label class="hole-hcp-label">HCP</label>
-          <input type="number" class="hole-handicap" name="hole_handicap" min="1" max="18" placeholder="—" />
+          <input type="text" class="hole-handicap" name="hole_handicap" inputmode="numeric" pattern="[0-9]*" placeholder="—" readonly />
         </div>
         <div class="hole-field">
           <label><span data-hole-label-a>Player A gross</span></label>
-          <input type="number" name="player_a_score" min="0" required />
+          <input type="text" name="player_a_score" inputmode="numeric" pattern="[0-9]*" required />
           <small>Net <span data-net-role="a">0</span></small>
-          <label class="stroke-flag"><input type="checkbox" name="stroke_a" /> *</label>
+          <span class="stroke-star" data-stroke-star="a"></span>
         </div>
         <div class="hole-field">
           <label><span data-hole-label-b>Player B gross</span></label>
-          <input type="number" name="player_b_score" min="0" required />
+          <input type="text" name="player_b_score" inputmode="numeric" pattern="[0-9]*" required />
           <small>Net <span data-net-role="b">0</span></small>
-          <label class="stroke-flag"><input type="checkbox" name="stroke_b" /> *</label>
+          <span class="stroke-star" data-stroke-star="b"></span>
         </div>
-      <div class="hole-diff">
-        <label>Net diff</label>
-        <span data-diff-role>0</span>
+      <div class="hole-points-box">
+        <label>Points</label>
+        <div class="hole-points-stack" data-points-role>—</div>
       </div>
     </div>
   </template>
 
   <script>
+    let courseHoles = {{ course_holes | tojson }};
     const divisionChip = document.getElementById("scorecard-division-chip");
     const matchChip = document.getElementById("scorecard-match-chip");
     const headerPlayerAName = document.getElementById("scorecard-header-player-a");
@@ -129,6 +130,9 @@
       if (holePlayerBLabel) {
         holePlayerBLabel.textContent = summary.player_b;
       }
+      if (summary.course_holes) {
+        courseHoles = summary.course_holes;
+      }
       updateStrokeSummary(Number(summary.player_a_handicap), Number(summary.player_b_handicap));
       if (entrySection) {
         entrySection.dataset.playerAHandicap = summary.player_a_handicap;
@@ -138,10 +142,17 @@
       }
     };
 
-    const netAdjustment = (handicap, holeNumber) => {
+    const holeHandicapLookup = (holeNumber) => {
+      if (!courseHoles || !Array.isArray(courseHoles)) return null;
+      const found = courseHoles.find((h) => Number(h.hole_number) === Number(holeNumber));
+      return found ? Number(found.handicap) : null;
+    };
+
+    const strokeAllocationForHole = (handicap, holeHandicap) => {
+      if (!holeHandicap) return 0;
       const base = Math.floor(handicap / 18);
       const remainder = handicap % 18;
-      const extra = remainder && holeNumber <= remainder ? 1 : 0;
+      const extra = remainder && holeHandicap <= remainder ? 1 : 0;
       return base + extra;
     };
 
@@ -149,6 +160,7 @@
       const holeInput = row.querySelector('input[name="hole_number"]');
       const aInput = row.querySelector('input[name="player_a_score"]');
       const bInput = row.querySelector('input[name="player_b_score"]');
+      const hcpInput = row.querySelector('input[name="hole_handicap"]');
       const labelA = row.querySelector("[data-hole-label-a]");
       const labelB = row.querySelector("[data-hole-label-b]");
       if (labelA) {
@@ -162,25 +174,52 @@
           : "Player B gross";
       }
       const holeNumber = Number(holeInput.value) || Number(row.dataset.defaultHole) || 1;
+      const courseHcp = holeHandicapLookup(holeNumber);
+      if (hcpInput && courseHcp) {
+        hcpInput.value = courseHcp;
+      }
+      const holeHandicap = Number(hcpInput?.value) || null;
+      const strokesA = strokeAllocationForHole(Number(entrySection.dataset.playerAHandicap), holeHandicap);
+      const strokesB = strokeAllocationForHole(Number(entrySection.dataset.playerBHandicap), holeHandicap);
       const netA =
         aInput.value !== ""
-          ? Number(aInput.value) - netAdjustment(Number(entrySection.dataset.playerAHandicap), holeNumber)
+          ? Number(aInput.value) - strokesA
           : null;
       const netB =
         bInput.value !== ""
-          ? Number(bInput.value) - netAdjustment(Number(entrySection.dataset.playerBHandicap), holeNumber)
+          ? Number(bInput.value) - strokesB
           : null;
       const netSpanA = row.querySelector('[data-net-role="a"]');
       const netSpanB = row.querySelector('[data-net-role="b"]');
-      const diffSpan = row.querySelector('[data-diff-role]');
+      const strokeStarA = row.querySelector('[data-stroke-star="a"]');
+      const strokeStarB = row.querySelector('[data-stroke-star="b"]');
+      const pointsStack = row.querySelector('[data-points-role]');
       if (netSpanA) {
         netSpanA.textContent = netA !== null ? netA : "—";
       }
       if (netSpanB) {
         netSpanB.textContent = netB !== null ? netB : "—";
       }
-      if (diffSpan) {
-        diffSpan.textContent = netA !== null && netB !== null ? netA - netB : "—";
+      if (strokeStarA) {
+        strokeStarA.textContent = strokesA > 0 ? "*".repeat(strokesA) : "";
+      }
+      if (strokeStarB) {
+        strokeStarB.textContent = strokesB > 0 ? "*".repeat(strokesB) : "";
+      }
+      if (pointsStack) {
+        if (netA !== null && netB !== null) {
+          const nameA = (holePlayerALabel?.textContent || "Player A").split(" ").slice(-1).join(" ") || holePlayerALabel?.textContent || "Player A";
+          const nameB = (holePlayerBLabel?.textContent || "Player B").split(" ").slice(-1).join(" ") || holePlayerBLabel?.textContent || "Player B";
+          if (netA < netB) {
+            pointsStack.innerHTML = `<div>${nameA}: 1</div><div>${nameB}: 0</div>`;
+          } else if (netA > netB) {
+            pointsStack.innerHTML = `<div>${nameA}: 0</div><div>${nameB}: 1</div>`;
+          } else {
+            pointsStack.innerHTML = `<div>${nameA}: 0.5</div><div>${nameB}: 0.5</div>`;
+          }
+        } else {
+          pointsStack.textContent = "—";
+        }
       }
     };
 
@@ -203,25 +242,26 @@
       const aInput = row.querySelector('input[name="player_a_score"]');
       const bInput = row.querySelector('input[name="player_b_score"]');
       const hcpInput = row.querySelector('input[name="hole_handicap"]');
-      const strokeA = row.querySelector('input[name="stroke_a"]');
-      const strokeB = row.querySelector('input[name="stroke_b"]');
       if (data) {
         holeInput.value = data.hole_number || holeNumber;
         aInput.value = data.player_a_score;
         bInput.value = data.player_b_score;
         row.dataset.defaultHole = data.hole_number;
-        if (hcpInput && data.hole_handicap) {
-          hcpInput.value = data.hole_handicap;
-        }
-        if (strokeA && data.stroke_a) {
-          strokeA.checked = Boolean(data.stroke_a);
-        }
-        if (strokeB && data.stroke_b) {
-          strokeB.checked = Boolean(data.stroke_b);
+        if (hcpInput) {
+          if (data.hole_handicap) {
+            hcpInput.value = data.hole_handicap;
+          } else {
+            const courseHcp = holeHandicapLookup(holeInput.value || holeNumber);
+            if (courseHcp) hcpInput.value = courseHcp;
+          }
         }
       } else {
         holeInput.value = holeNumber || "";
         row.dataset.defaultHole = holeInput.value || holeNumber || "";
+        if (hcpInput) {
+          const courseHcp = holeHandicapLookup(holeNumber);
+          if (courseHcp) hcpInput.value = courseHcp;
+        }
       }
       holeContainer.appendChild(row);
       bindRow(row);
@@ -277,8 +317,6 @@
               player_a_score: aInput.value,
               player_b_score: bInput.value,
               hole_handicap: row.querySelector('input[name="hole_handicap"]')?.value || "",
-              stroke_a: row.querySelector('input[name="stroke_a"]')?.checked || false,
-              stroke_b: row.querySelector('input[name="stroke_b"]')?.checked || false,
             };
           })
           .filter(

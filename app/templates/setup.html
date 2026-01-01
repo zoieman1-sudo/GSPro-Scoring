@@ -96,7 +96,7 @@
                           data-course="{{ course.id }}"
                           {% if tee.id|string == selected_course_tee_id %}selected{% endif %}
                         >
-                          {{ tee.gender|capitalize }} — {{ tee.tee_name }}
+                          {{ tee.gender|capitalize }} — {{ tee.tee_name }}{% if tee.total_yards %} ({{ tee.total_yards }} yds){% endif %}
                         </option>
                       {% endif %}
                     {% endfor %}

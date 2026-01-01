@@ -177,6 +177,9 @@ def _active_course_holes(tournament_settings: dict | None = None) -> list[dict]:
 
 
 def _seed_default_players() -> list[dict]:
+    existing = fetch_players(settings.database_url)
+    if existing:
+        return existing
     roster = _default_player_roster()
     for division in sorted(DEFAULT_DIVISION_COUNT):
         players_in_division = [name for name, div in roster.items() if div == division]
@@ -343,7 +346,17 @@ def _build_match_summary(match: Match | None, key: str | None = None) -> dict:
         if match_result
         else []
     )
-    enriched, total_net_a, total_net_b = _enrich_holes_with_net(holes, handicap_a, handicap_b)
+    course_holes = _active_course_holes()
+    hole_hcp_map = {hole["hole_number"]: hole.get("handicap") for hole in course_holes}
+    for hole in holes:
+        if not hole.get("hole_handicap"):
+            hole["hole_handicap"] = hole_hcp_map.get(hole.get("hole_number"))
+    enriched, total_net_a, total_net_b = _enrich_holes_with_net(
+        holes,
+        handicap_a,
+        handicap_b,
+        course_holes,
+    )
     summary.update(
         {
             "holes": enriched,
@@ -352,6 +365,7 @@ def _build_match_summary(match: Match | None, key: str | None = None) -> dict:
             "player_a_handicap": handicap_a,
             "player_b_handicap": handicap_b,
             "hole_diff": total_net_a - total_net_b,
+            "course_holes": course_holes,
         }
     )
     return summary
@@ -373,6 +387,7 @@ def _render_scoring(request: Request) -> HTMLResponse:
             "status": None,
             "matches": matches,
             "tournament_settings": tournament_settings,
+            "course_holes": _active_course_holes(tournament_settings),
             "scorecard": summary,
         },
     )
@@ -773,12 +788,17 @@ async def matches_list(request: Request):
     )
 
 
-def _net_adjustment(handicap: int, hole_number: int) -> int:
-    if hole_number <= 0:
-        hole_number = 1
+def _net_adjustment_for_hole(handicap: int, hole_handicap: int | None) -> int:
+    """
+    Allocate strokes by hole handicap ranking (1 = hardest). Distribute any remainder
+    to the lowest handicap holes.
+    """
+    if handicap <= 0:
+        return 0
     base = handicap // 18
     remainder = handicap % 18
-    extra = 1 if remainder and hole_number <= remainder else 0
+    hole_hcp = hole_handicap or 18
+    extra = 1 if remainder and hole_hcp <= remainder else 0
     return base + extra
 
 
@@ -845,8 +865,10 @@ def _build_scorecard_rows(
         result = "—"
         points_a = 0.0
         points_b = 0.0
+        net_diff = None
         if net_a is not None and net_b is not None:
             diff = net_a - net_b
+            net_diff = diff
             if diff < 0:
                 result = "A"
                 points_a = 1.0
@@ -869,6 +891,7 @@ def _build_scorecard_rows(
                 "strokes_b": strokes_b,
                 "net_a": net_a,
                 "net_b": net_b,
+                "net_diff": net_diff,
                 "result": result,
                 "points_a": points_a,
                 "points_b": points_b,
@@ -889,14 +912,17 @@ def _enrich_holes_with_net(
     holes: list[dict],
     handicap_a: int,
     handicap_b: int,
+    course_holes: list[dict] | None = None,
 ) -> tuple[list[dict], int, int]:
     enriched: list[dict] = []
     total_net_a = 0
     total_net_b = 0
+    hole_hcp_map = {h["hole_number"]: h.get("handicap") for h in (course_holes or [])}
     for hole in holes:
         hole_number = hole.get("hole_number", 1) or 1
-        net_a = hole["player_a_score"] - _net_adjustment(handicap_a, hole_number)
-        net_b = hole["player_b_score"] - _net_adjustment(handicap_b, hole_number)
+        hole_hcp = hole.get("hole_handicap") or hole_hcp_map.get(hole_number)
+        net_a = hole["player_a_score"] - _net_adjustment_for_hole(handicap_a, hole_hcp)
+        net_b = hole["player_b_score"] - _net_adjustment_for_hole(handicap_b, hole_hcp)
         enriched.append(
             {
                 **hole,
@@ -977,10 +1003,12 @@ async def match_detail(request: Request, match_id: int):
     player_b = fetch_player_by_name(settings.database_url, result["player_b_name"])
     handicap_a = player_a["handicap"] if player_a else 0
     handicap_b = player_b["handicap"] if player_b else 0
+    course_holes = _active_course_holes()
     enriched_holes, total_net_a, total_net_b = _enrich_holes_with_net(
         holes,
         handicap_a,
         handicap_b,
+        course_holes,
     )
     return templates.TemplateResponse(
         "match_detail.html",

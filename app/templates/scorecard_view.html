@@ -70,11 +70,9 @@
         <span>HCP</span>
         <span>{{ scorecard.match.player_a_name }} Gross</span>
         <span>{{ scorecard.match.player_b_name }} Gross</span>
-        <span>{{ scorecard.match.player_a_name }} Strokes</span>
-        <span>{{ scorecard.match.player_b_name }} Strokes</span>
         <span>{{ scorecard.match.player_a_name }} Net</span>
         <span>{{ scorecard.match.player_b_name }} Net</span>
-        <span>Result</span>
+        <span>Net Diff</span>
         <span>{{ scorecard.match.player_a_name }} Pts</span>
         <span>{{ scorecard.match.player_b_name }} Pts</span>
       </div>
@@ -85,8 +83,6 @@
           <span>{{ hole.handicap }}</span>
           <span>{{ hole.gross_a if hole.gross_a is not none else "—" }}</span>
           <span>{{ hole.gross_b if hole.gross_b is not none else "—" }}</span>
-          <span>{{ hole.strokes_a if hole.strokes_a % 1 else hole.strokes_a|int }}</span>
-          <span>{{ hole.strokes_b if hole.strokes_b % 1 else hole.strokes_b|int }}</span>
           <span>
             {% if hole.net_a is none %}
               —
@@ -105,9 +101,12 @@
               {{ hole.net_b|int }}
             {% endif %}
           </span>
-          <span class="result-badge
-            {% if hole.result == 'A' %}result-a{% elif hole.result == 'B' %}result-b{% elif hole.result == 'Halved' %}result-half{% else %}result-empty{% endif %}">
-            {{ hole.result }}
+          <span>
+            {% if hole.net_diff is none %}
+              —
+            {% else %}
+              {{ hole.net_diff|round(1) if hole.net_diff % 1 else hole.net_diff|int }}
+            {% endif %}
           </span>
           <span>{{ hole.points_a if hole.points_a % 1 else hole.points_a|int }}</span>
           <span>{{ hole.points_b if hole.points_b % 1 else hole.points_b|int }}</span>

@@ -680,6 +680,16 @@ body {
   max-width: 5ch;
 }
 
+.hole-field input[type="number"]::-webkit-outer-spin-button,
+.hole-field input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.hole-field input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 .hole-handicap {
   max-width: 4ch;
   background: rgba(255, 204, 0, 0.2);
@@ -697,6 +707,15 @@ body {
 
 .hole-field small {
   color: var(--muted);
+}
+
+.stroke-star {
+  color: var(--accent);
+  margin-left: 8px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  font-size: 1.6rem;
+  line-height: 1;
 }
 
 .stroke-flag {
@@ -725,6 +744,23 @@ body {
   font-size: 1rem;
   letter-spacing: 0.2em;
   color: var(--accent);
+}
+
+.hole-points-box {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  min-width: 140px;
+  text-align: center;
+}
+
+.hole-points-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
 }
 .match-summary > div {
   border-radius: var(--radius-md);
@@ -910,7 +946,7 @@ body {
 .setup-row,
 .setup-head-row {
   display: grid;
-  grid-template-columns: minmax(70px, 110px) minmax(120px, 1fr) repeat(2, minmax(80px, 1fr)) 40px;
+  grid-template-columns: minmax(200px, 2.4fr) minmax(70px, 0.7fr) minmax(70px, 0.7fr) minmax(90px, 0.8fr) 40px;
   gap: 10px;
   align-items: center;
 }
@@ -941,6 +977,14 @@ body {
 
 .setup-row input:focus {
   outline: 2px solid rgba(67, 225, 255, 0.4);
+}
+
+/* Make division/seed/handicap bubbles smaller while keeping name wide */
+.setup-row input:nth-child(2),
+.setup-row input:nth-child(3),
+.setup-row input:nth-child(4) {
+  padding: 10px;
+  font-size: 0.8rem;
 }
 
 .setup-actions {
