@@ -14,17 +14,24 @@ def ensure_schema(database_url: str) -> None:
                     match_name text not null,
                     player_a_name text not null,
                     player_b_name text not null,
+                    match_key text not null,
                     player_a_points integer not null,
                     player_b_points integer not null,
                     player_a_bonus integer not null,
                     player_b_bonus integer not null,
-                    player_a_total integer not null,
+                player_a_total integer not null,
                     player_b_total integer not null,
                     winner text not null,
                     submitted_at timestamptz not null default now()
                     );
                     """
                 )
+            cur.execute(
+                """
+                alter table match_results
+                add column if not exists match_key text not null default '';
+                """
+            )
             cur.execute(
                 """
                 create table if not exists players (
@@ -52,6 +59,14 @@ def ensure_schema(database_url: str) -> None:
                 """
                 alter table players
                 add column if not exists seed integer not null default 0;
+                """
+            )
+            cur.execute(
+                """
+                create table if not exists tournament_settings (
+                    key text primary key,
+                    value text not null
+                );
                 """
             )
 
@@ -133,6 +148,30 @@ def fetch_players(database_url: str) -> list[dict]:
                 }
                 for row in rows
             ]
+
+
+def fetch_player_by_name(database_url: str, name: str) -> dict[str, int] | None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select id, name, division, handicap, seed
+                from players
+                where name = %s
+                limit 1;
+                """,
+                (name,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            return {
+                "id": row[0],
+                "name": row[1],
+                "division": row[2],
+                "handicap": row[3],
+                "seed": row[4],
+            }
 
 
 def upsert_player(
@@ -280,6 +319,7 @@ def insert_match_result(
     match_name: str,
     player_a: str,
     player_b: str,
+    match_key: str,
     player_a_points: int,
     player_b_points: int,
     player_a_bonus: int,
@@ -296,6 +336,7 @@ def insert_match_result(
                     match_name,
                     player_a_name,
                     player_b_name,
+                    match_key,
                     player_a_points,
                     player_b_points,
                     player_a_bonus,
@@ -304,13 +345,14 @@ def insert_match_result(
                     player_b_total,
                     winner
                 )
-                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 returning id;
                 """,
                 (
                     match_name,
                     player_a,
                     player_b,
+                    match_key,
                     player_a_points,
                     player_b_points,
                     player_a_bonus,
@@ -318,7 +360,69 @@ def insert_match_result(
                     player_a_total,
                     player_b_total,
                     winner,
-                ),
+            ),
+        )
+        row = cur.fetchone()
+        return row[0] if row else None
+
+
+def fetch_match_result_by_key(database_url: str, match_key: str) -> dict | None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select
+                    id,
+                    match_name,
+                    player_a_name,
+                    player_b_name,
+                    player_a_points,
+                    player_b_points,
+                    winner,
+                    submitted_at
+                from match_results
+                where match_key = %s
+                order by submitted_at desc
+                limit 1;
+                """,
+                (match_key,),
             )
             row = cur.fetchone()
-            return row[0] if row else None
+            if not row:
+                return None
+            return {
+                "id": row[0],
+                "match_name": row[1],
+                "player_a_name": row[2],
+                "player_b_name": row[3],
+                "player_a_points": row[4],
+                "player_b_points": row[5],
+                "winner": row[6],
+                "submitted_at": row[7],
+            }
+
+
+def upsert_setting(database_url: str, key: str, value: str) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                insert into tournament_settings (key, value)
+                values (%s, %s)
+                on conflict (key) do update
+                    set value = excluded.value;
+                """,
+                (key, value),
+            )
+
+
+def fetch_settings(database_url: str) -> dict[str, str]:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select key, value
+                from tournament_settings
+                """
+            )
+            return {row[0]: row[1] for row in cur.fetchall()}

@@ -66,7 +66,6 @@ if (form) {
       player_b: formData.get("player_b"),
       player_a_points: Number(formData.get("player_a_points")),
       player_b_points: Number(formData.get("player_b_points")),
-      pin: formData.get("pin"),
     };
 
     try {

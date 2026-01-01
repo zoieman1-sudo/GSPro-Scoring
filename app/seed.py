@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from itertools import combinations
 
@@ -20,11 +21,19 @@ def _division_matches(division: str, players: list[str], start_index: int) -> li
     return matches
 
 
-def get_matches() -> list[Match]:
-    division_a = [f"Player A{i}" for i in range(1, 6)]
-    division_b = [f"Player B{i}" for i in range(1, 6)]
-    matches = _division_matches("A", division_a, 1)
-    matches.extend(_division_matches("B", division_b, 1))
+def build_pairings_from_players(players: list[dict]) -> list[Match]:
+    division_roster: dict[str, list[dict]] = defaultdict(list)
+    for player in players:
+        division_roster[player["division"]].append(player)
+
+    matches: list[Match] = []
+    for division in sorted(division_roster):
+        roster = sorted(
+            division_roster[division],
+            key=lambda entry: (entry.get("seed", 0), entry["name"]),
+        )
+        names = [entry["name"] for entry in roster]
+        matches.extend(_division_matches(division, names, 1))
     return matches
 
 
@@ -32,10 +41,10 @@ def match_display(match: Match) -> str:
     return f"Division {match.division}: {match.player_a} vs {match.player_b}"
 
 
-def get_match_by_id(match_id: str) -> Match | None:
+def find_match(match_id: str, matches: list[Match]) -> Match | None:
     if not match_id:
         return None
-    for match in get_matches():
+    for match in matches:
         if match.match_id == match_id:
             return match
     return None

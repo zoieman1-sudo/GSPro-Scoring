@@ -50,6 +50,62 @@
           <button type="submit" class="submit-btn">Save tournament setup</button>
         </div>
       </form>
+      <section class="tournament-settings">
+        <form class="settings-form" method="post" action="/admin/setup/settings">
+          <input type="hidden" name="pin" value="{{ pin }}" />
+          <div class="setup-head">
+            <h2>Tournament Sheet Parameters</h2>
+            <p class="match-sub">These values mirror the top section of the Net Match Play sheet.</p>
+          </div>
+          <div class="settings-grid">
+            {% for key, label in [
+              ("a_handicap_index", "A Handicap Index"),
+              ("b_handicap_index", "B Handicap Index"),
+              ("match_allowance", "Match Allowance %"),
+              ("a_tee_slope", "A Tee Slope"),
+              ("b_tee_slope", "B Tee Slope"),
+              ("a_course_rating", "A Course Rating"),
+              ("b_course_rating", "B Course Rating"),
+              ("a_par", "A Par"),
+              ("b_par", "B Par"),
+            ] %}
+              <label class="settings-field">
+                <span>{{ label }}</span>
+                <input
+                  type="text"
+                  name="{{ key }}"
+                  value="{{ tournament_settings[key] }}"
+                  placeholder="Enter {{ label|lower }}"
+                />
+              </label>
+            {% endfor %}
+          </div>
+          <div class="setup-actions">
+            <button type="submit" class="submit-btn">Save tournament settings</button>
+          </div>
+        </form>
+      </section>
+      {% if pairings %}
+        <section class="pairings-section">
+          <div class="setup-head">
+            <h2>Round-robin pairings</h2>
+            <p class="match-sub">Each seed now plays every other seed in their division once. Use the match IDs when recording results.</p>
+          </div>
+          <div class="pairings-list">
+            {% set current_division = None %}
+            {% for pairing in pairings %}
+              {% if pairing.division != current_division %}
+                {% set current_division = pairing.division %}
+                <p class="pairings-division">Division {{ pairing.division }}</p>
+              {% endif %}
+              <div class="pairings-row">
+                <span class="pairings-id">{{ pairing.match_id }}</span>
+                <span>{{ pairing.player_a }} vs {{ pairing.player_b }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
     {% endif %}
   </section>
   <script>

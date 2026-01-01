@@ -4,7 +4,7 @@ Starter scaffold for the GSPro Tournament Scoring App (FastAPI + Jinja2).
 
 ## Quick start
 - Create venv and install requirements from `requirements.txt`.
-- Set `DATABASE_URL` and `SCORING_PIN` (see `.env.example`).
+- Set `DATABASE_URL` and `SCORING_PIN` (see `.env.example`); only the admin/admin setup pages still require the PIN, while scoring submissions are open for now.
 - Run FastAPI app locally with uvicorn.
 - Submit a few match scores via `/` or `/matches`; the `/matches` view summaries each encounter and lets you drill into `/matches/{id}` for hole-by-hole score entry.
 - Visit `/standings` to see the updated division leaderboard rendered as the familiar tabular format used in the `dashboard` sheet from `10-man_sim_golf_tournament_scoring_sheet_v2_single_round_robin_playoffs.xlsx`.
@@ -21,6 +21,7 @@ Starter scaffold for the GSPro Tournament Scoring App (FastAPI + Jinja2).
 
 ## Matches & hole scoring
 - `/matches` displays every recorded match with totals, while `/matches/{id}` exposes the hole scores captured in the `hole_scores` table.
+- `/scoring` now includes the drop-down matched to the Excel-style scorecard: after you select a pairing it shows the hole-by-hole list, the auto-net math, and HUD scores plus the base-point form still submits to the leaderboard.  
 - The hole form lets you stage multiple entries before submitting; each hole stores the pair of scores so you can populate the scoreboard exactly as the Excel “Match Results” section expects.
 
 ## Tests

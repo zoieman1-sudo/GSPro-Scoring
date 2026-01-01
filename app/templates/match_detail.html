@@ -25,111 +25,198 @@
       </div>
     </div>
 
-    <table class="detail-table">
-      <thead>
-        <tr>
-          <th>Hole</th>
-          <th>{{ match.player_a_name }}</th>
-          <th>{{ match.player_b_name }}</th>
-          <th>Diff</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if holes %}
-          {% for hole in holes %}
-            <tr>
-              <td>{{ hole.hole_number }}</td>
-              <td>{{ hole.player_a_score }}</td>
-              <td>{{ hole.player_b_score }}</td>
-              <td>{{ hole.player_a_score - hole.player_b_score }}</td>
-            </tr>
-          {% endfor %}
-        {% else %}
-          <tr>
-            <td colspan="4" class="status">No hole data yet.</td>
-          </tr>
-        {% endif %}
-      </tbody>
-    </table>
-
-    <section class="setup-card">
-      <div class="setup-head">
-        <h2>Add hole scores</h2>
-        <p class="match-sub">Enter hole-by-hole numbers for both players and submit to append.</p>
-      </div>
-      <form id="hole-form" class="setup-form">
-        <div id="hole-rows" class="setup-grid">
-          <div class="setup-row setup-head-row">
-            <span>Hole</span>
-            <span>{{ match.player_a_name }}</span>
-            <span>{{ match.player_b_name }}</span>
-            <span></span>
-          </div>
-        </div>
-        <div class="setup-actions">
-          <button type="button" id="add-hole-btn" class="add-player-btn">Add hole</button>
-          <button type="submit" class="submit-btn">Save hole scores</button>
-        </div>
-      </form>
-    </section>
   </section>
 
-  <template id="hole-template">
-    <div class="setup-row">
-      <input type="number" name="hole_number" placeholder="Hole" min="1" required />
-      <input type="number" name="player_a_score" placeholder="Player A" min="0" required />
-      <input type="number" name="player_b_score" placeholder="Player B" min="0" required />
-      <button type="button" class="remove-row-btn" aria-label="Remove hole row">×</button>
+  <section class="hole-section" aria-label="Recorded holes">
+    <div class="setup-head">
+      <h2>Hole list (1–18)</h2>
+      <p class="match-sub">Saved holes show gross, auto net, and the net differential.</p>
+    </div>
+    <div class="hole-list">
+      {% if holes %}
+        {% for hole in holes %}
+          <article class="hole-card">
+            <div class="hole-card-head">
+              <span>Hole {{ hole.hole_number }}</span>
+              <span class="hole-card-diff">{{ '+' if hole.net_diff > 0 else '' }}{{ hole.net_diff }}</span>
+            </div>
+            <div class="hole-card-scores">
+              <div>
+                <p>{{ match.player_a_name }}</p>
+                <strong>{{ hole.player_a_score }}</strong>
+                <small>Net {{ hole.player_a_net }}</small>
+              </div>
+              <div>
+                <p>{{ match.player_b_name }}</p>
+                <strong>{{ hole.player_b_score }}</strong>
+                <small>Net {{ hole.player_b_net }}</small>
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      {% else %}
+        <p class="status">No hole data yet.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section
+    class="hole-entry-section"
+    data-player-a-handicap="{{ player_a_handicap }}"
+    data-player-b-handicap="{{ player_b_handicap }}"
+  >
+    <div class="setup-head">
+      <h2>Enter hole scores</h2>
+      <p class="match-sub">Enter gross for each hole and the net is calculated automatically below.</p>
+    </div>
+    <form id="hole-form" class="hole-entry-form">
+      <div id="hole-rows" class="hole-inputs"></div>
+      <div class="setup-actions">
+        <button type="button" id="add-hole-btn" class="add-player-btn">Add hole</button>
+        <button type="submit" class="submit-btn">Save hole scores</button>
+      </div>
+    </form>
+  </section>
+
+  <footer class="hole-footer">
+    <div>
+      <span>{{ match.player_a_name }} Net</span>
+      <strong id="footer-total-a" data-base="{{ hole_total_a }}">{{ hole_total_a }}</strong>
+    </div>
+    <div>
+      <span>Match diff</span>
+      <strong id="footer-diff" data-base="{{ hole_total_a - hole_total_b }}">{{ hole_total_a - hole_total_b }}</strong>
+    </div>
+    <div>
+      <span>{{ match.player_b_name }} Net</span>
+      <strong id="footer-total-b" data-base="{{ hole_total_b }}">{{ hole_total_b }}</strong>
+    </div>
+  </footer>
+
+  <template id="hole-input-template">
+    <div class="hole-entry-row">
+      <label>Hole</label>
+      <input type="number" name="hole_number" min="1" placeholder="1" required />
+      <div class="hole-gross">
+        <label>{{ match.player_a_name }} gross</label>
+        <input type="number" name="player_a_score" min="0" required />
+        <small>Net <span data-net-role="a">0</span></small>
+      </div>
+      <div class="hole-gross">
+        <label>{{ match.player_b_name }} gross</label>
+        <input type="number" name="player_b_score" min="0" required />
+        <small>Net <span data-net-role="b">0</span></small>
+      </div>
     </div>
   </template>
 
   <script>
-    const form = document.getElementById("hole-form");
-    const holeContainer = document.getElementById("hole-rows");
-    const template = document.getElementById("hole-template");
+    const entrySection = document.querySelector(\".hole-entry-section\");
+    const form = document.getElementById(\"hole-form\");
+    const holeContainer = document.getElementById(\"hole-rows\");
+    const template = document.getElementById(\"hole-input-template\");
+    const footerA = document.getElementById(\"footer-total-a\");
+    const footerB = document.getElementById(\"footer-total-b\");
+    const footerDiff = document.getElementById(\"footer-diff\");
+    const playerAHandicap = Number(entrySection.dataset.playerAHandicap || 0);
+    const playerBHandicap = Number(entrySection.dataset.playerBHandicap || 0);
 
-    const addHoleRow = () => {
-      const clone = template.content.cloneNode(true);
-      const row = clone.querySelector(".setup-row");
-      const removeBtn = row.querySelector(".remove-row-btn");
-      removeBtn.addEventListener("click", () => {
-        const dataRows = Array.from(holeContainer.querySelectorAll(".setup-row")).filter(
-          (candidate) => candidate.querySelectorAll("input").length >= 3
-        );
-        if (dataRows.length <= 1) {
-          return;
-        }
-        row.remove();
-      });
-      holeContainer.appendChild(row);
+    const netAdjustment = (handicap, holeNumber) => {
+      const base = Math.floor(handicap / 18);
+      const remainder = handicap % 18;
+      const extra = remainder && holeNumber <= remainder ? 1 : 0;
+      return base + extra;
     };
 
-    document.getElementById("add-hole-btn").addEventListener("click", () => addHoleRow());
-    addHoleRow();
+    const updateRow = (row) => {
+      const holeInput = row.querySelector('input[name=\"hole_number\"]');
+      const aInput = row.querySelector('input[name=\"player_a_score\"]');
+      const bInput = row.querySelector('input[name=\"player_b_score\"]');
+      const holeNumber = Number(holeInput.value) || Number(row.dataset.defaultHole) || 1;
+      const netA =
+        aInput.value !== \"\"
+          ? Number(aInput.value) - netAdjustment(playerAHandicap, holeNumber)
+          : null;
+      const netB =
+        bInput.value !== \"\"
+          ? Number(bInput.value) - netAdjustment(playerBHandicap, holeNumber)
+          : null;
+      const netSpanA = row.querySelector('[data-net-role=\"a\"]');
+      const netSpanB = row.querySelector('[data-net-role=\"b\"]');
+      netSpanA.textContent = netA !== null ? netA : \"—\";
+      netSpanB.textContent = netB !== null ? netB : \"—\";
+    };
 
-    form.addEventListener("submit", async (event) => {
+    const updateFooter = () => {
+      const baseA = Number(footerA.dataset.base || 0);
+      const baseB = Number(footerB.dataset.base || 0);
+      let deltaA = 0;
+      let deltaB = 0;
+      holeContainer.querySelectorAll(\".hole-entry-row\").forEach((row) => {
+        const holeNumber = Number(row.querySelector('input[name=\"hole_number\"]').value) || 0;
+        const netA = Number(row.querySelector('[data-net-role=\"a\"]').textContent) || 0;
+        const netB = Number(row.querySelector('[data-net-role=\"b\"]').textContent) || 0;
+        if (holeNumber && row.querySelector('input[name=\"player_a_score\"]').value !== \"\") {
+          deltaA += netA;
+        }
+        if (holeNumber && row.querySelector('input[name=\"player_b_score\"]').value !== \"\") {
+          deltaB += netB;
+        }
+      });
+      const totalA = baseA + deltaA;
+      const totalB = baseB + deltaB;
+      footerA.textContent = totalA;
+      footerB.textContent = totalB;
+      footerDiff.textContent = totalA - totalB;
+    };
+
+    const bindRow = (row) => {
+      row.querySelectorAll(\"input\").forEach((input) => {
+        input.addEventListener(\"input\", () => {
+          updateRow(row);
+          updateFooter();
+        });
+      });
+      updateRow(row);
+    };
+
+    const addHoleRow = (holeNumber = \"\") => {
+      const clone = template.content.cloneNode(true);
+      const row = clone.querySelector(\".hole-entry-row\");
+      if (holeNumber) {
+        row.querySelector('input[name=\"hole_number\"]').value = holeNumber;
+        row.dataset.defaultHole = holeNumber;
+      }
+      holeContainer.appendChild(row);
+      bindRow(row);
+    };
+
+    document.getElementById(\"add-hole-btn\").addEventListener(\"click\", () => addHoleRow());
+    for (let i = 1; i <= 18; i += 1) {
+      addHoleRow(i);
+    }
+
+    form.addEventListener(\"submit\", async (event) => {
       event.preventDefault();
-      const rows = Array.from(holeContainer.querySelectorAll(".setup-row"))
+      const rows = Array.from(holeContainer.querySelectorAll(\".hole-entry-row\"))
         .map((row) => {
-          const inputs = row.querySelectorAll("input");
-          if (inputs.length < 3) {
+          const inputs = row.querySelectorAll(\"input\");
+          if (!row.dataset.defaultHole && !inputs[0].value) {
             return null;
           }
           return {
-            hole_number: inputs[0].value,
+            hole_number: inputs[0].value || row.dataset.defaultHole,
             player_a_score: inputs[1].value,
             player_b_score: inputs[2].value,
           };
         })
-        .filter(Boolean);
-
+        .filter((entry) => entry && entry.player_a_score !== \"\" && entry.player_b_score !== \"\");
       if (!rows.length) {
         return;
       }
-
       const response = await fetch(`/matches/{{ match.id }}/holes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: \"POST\",
+        headers: { \"Content-Type\": \"application/json\" },
         body: JSON.stringify({ holes: rows }),
       });
       if (response.ok) {
