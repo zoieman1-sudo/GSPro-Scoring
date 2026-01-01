@@ -5,42 +5,54 @@
     <div class="match-meta">
       <p class="eyebrow">GSPro League Standings</p>
       <h1 class="match-title">Division Leaderboard</h1>
-      <p class="match-sub">The table summarizes every match result so far. Tables refresh automatically each time you reload.</p>
+      <p class="match-sub">
+        Each division mirrors the official tournament sheet with rank, points, matches, and seed positions.
+        <a href="/matches" class="match-meta-link">Match sheets →</a>
+      </p>
     </div>
 
     {% if divisions %}
-      {% for division in divisions %}
-        <article class="division-card">
-          <div class="division-title">Division {{ division.division }}</div>
-          <div class="standings-table" role="presentation">
-            <div class="standings-row table-head">
-              <span class="standing-cell player">Player</span>
-              <span class="standing-cell">MP</span>
-              <span class="standing-cell">W</span>
-              <span class="standing-cell">T</span>
-              <span class="standing-cell">L</span>
-              <span class="standing-cell">PF</span>
-              <span class="standing-cell">PA</span>
-              <span class="standing-cell">±</span>
+      <div class="standings-grid">
+        {% for division in divisions %}
+          <article class="division-card">
+            <div class="division-title">
+              <span>Division {{ division.division }}</span>
+              <span class="division-label">Tabular dashboard</span>
             </div>
-            {% for player in division.players %}
-            <div class="standings-row">
-                <span class="standing-cell player">
-                  {{ player.name }}
-                  <span class="seed-tag">{{ player.division }}{{ player.seed }}</span>
-                </span>
-                <span class="standing-cell">{{ player.matches }}</span>
-                <span class="standing-cell">{{ player.wins }}</span>
-                <span class="standing-cell">{{ player.ties }}</span>
-                <span class="standing-cell">{{ player.losses }}</span>
-                <span class="standing-cell">{{ player.points_for }}</span>
-                <span class="standing-cell">{{ player.points_against }}</span>
-                <span class="standing-cell">{{ "+" if player.point_diff >= 0 else "" }}{{ player.point_diff }}</span>
-              </div>
-            {% endfor %}
-          </div>
-        </article>
-      {% endfor %}
+            <table class="standings-table" role="table" aria-label="Division {{ division.division }} standings">
+              <thead>
+                <tr class="table-head" role="row">
+                  <th class="standing-cell">Rank</th>
+                  <th class="standing-cell player">Player</th>
+                  <th class="standing-cell">Pts</th>
+                  <th class="standing-cell">Matches</th>
+                  <th class="standing-cell">W</th>
+                  <th class="standing-cell">L</th>
+                  <th class="standing-cell">T</th>
+                  <th class="standing-cell">W-L-T</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for player in division.players %}
+                <tr class="standings-row" role="row">
+                  <td class="standing-cell">{{ loop.index }}</td>
+                  <td class="standing-cell player">
+                    <strong>{{ player.name }}</strong>
+                    <span class="seed-tag">{{ player.division }}{{ player.seed }}</span>
+                  </td>
+                  <td class="standing-cell">{{ player.points_for }}</td>
+                  <td class="standing-cell">{{ player.matches }}</td>
+                  <td class="standing-cell">{{ player.wins }}</td>
+                  <td class="standing-cell">{{ player.losses }}</td>
+                  <td class="standing-cell">{{ player.ties }}</td>
+                  <td class="standing-cell">{{ player.wins }}-{{ player.losses }}-{{ player.ties }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </article>
+        {% endfor %}
+      </div>
     {% else %}
       <p class="status">No results yet. Submit a match and reload to populate standings.</p>
     {% endif %}

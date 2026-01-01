@@ -1,6 +1,7 @@
 from typing import Optional
 
 import psycopg
+from psycopg import sql
 
 
 def ensure_schema(database_url: str) -> None:
@@ -21,9 +22,9 @@ def ensure_schema(database_url: str) -> None:
                     player_b_total integer not null,
                     winner text not null,
                     submitted_at timestamptz not null default now()
-                );
-                """
-            )
+                    );
+                    """
+                )
             cur.execute(
                 """
                 create table if not exists players (
@@ -32,6 +33,18 @@ def ensure_schema(database_url: str) -> None:
                     division text not null,
                     handicap integer not null default 0,
                     seed integer not null default 0
+                );
+                """
+            )
+            cur.execute(
+                """
+                create table if not exists hole_scores (
+                    id serial primary key,
+                    match_result_id integer not null references match_results(id) on delete cascade,
+                    hole_number smallint not null,
+                    player_a_score smallint not null,
+                    player_b_score smallint not null,
+                    recorded_at timestamptz not null default now()
                 );
                 """
             )
@@ -160,6 +173,106 @@ def upsert_player(
                 )
             row = cur.fetchone()
             return row[0] if row else 0
+
+
+def delete_players_not_in(database_url: str, names: list[str]) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            if not names:
+                cur.execute("delete from players;")
+                return
+
+            placeholders = sql.SQL(", ").join(sql.Placeholder() * len(names))
+            query = sql.SQL(
+                """
+                delete from players
+                where name not in ({})
+                """
+            ).format(placeholders)
+            cur.execute(query, names)
+
+
+def insert_hole_scores(
+    database_url: str,
+    match_id: int,
+    hole_entries: list[dict],
+) -> None:
+    values = [
+        (
+            match_id,
+            entry["hole_number"],
+            entry["player_a_score"],
+            entry["player_b_score"],
+        )
+        for entry in hole_entries
+    ]
+    if not values:
+        return
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.executemany(
+                """
+                insert into hole_scores (match_result_id, hole_number, player_a_score, player_b_score)
+                values (%s, %s, %s, %s)
+                """,
+                values,
+            )
+
+
+def fetch_hole_scores(database_url: str, match_id: int) -> list[dict]:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select hole_number, player_a_score, player_b_score
+                from hole_scores
+                where match_result_id = %s
+                order by hole_number;
+                """,
+                (match_id,),
+            )
+            return [
+                {
+                    "hole_number": row[0],
+                    "player_a_score": row[1],
+                    "player_b_score": row[2],
+                }
+                for row in cur.fetchall()
+            ]
+
+
+def fetch_match_result(database_url: str, match_id: int) -> dict | None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select
+                    id,
+                    match_name,
+                    player_a_name,
+                    player_b_name,
+                    player_a_points,
+                    player_b_points,
+                    winner,
+                    submitted_at
+                from match_results
+                where id = %s;
+                """,
+                (match_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            return {
+                "id": row[0],
+                "match_name": row[1],
+                "player_a_name": row[2],
+                "player_b_name": row[3],
+                "player_a_points": row[4],
+                "player_b_points": row[5],
+                "winner": row[6],
+                "submitted_at": row[7],
+            }
 
 
 def insert_match_result(

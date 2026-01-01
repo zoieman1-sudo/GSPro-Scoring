@@ -3,7 +3,7 @@ services:
     build: .
     container_name: gspro-scoring
     ports:
-      - "8000:8000"
+      - "18000:8000"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:change_me@db:5432/gspro_scoring}
       SCORING_PIN: ${SCORING_PIN:-1234}
@@ -28,7 +28,7 @@ services:
       timeout: 5s
       retries: 5
     ports:
-      - "5432:5432" 
+      - "15433:5432"
 
 volumes:
   gspro-scoring-db:

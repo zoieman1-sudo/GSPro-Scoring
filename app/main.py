@@ -1,7 +1,7 @@
 from collections import defaultdict
 from itertools import zip_longest
 
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -10,9 +10,13 @@ from pydantic import BaseModel, ValidationError
 from app.db import (
     ensure_schema,
     fetch_all_match_results,
+    fetch_hole_scores,
+    fetch_match_result,
     fetch_players,
     fetch_recent_results,
+    insert_hole_scores,
     insert_match_result,
+    delete_players_not_in,
     upsert_player,
 )
 from app.seed import get_match_by_id, get_matches, match_display
@@ -360,6 +364,7 @@ async def admin_setup(
 
     processed = 0
     player_seed = player_seed or []
+    processed_names: list[str] = []
     for name, division, handicap, seed, pid in zip_longest(
         player_name,
         player_division,
@@ -389,7 +394,10 @@ async def admin_setup(
             parsed_handicap,
             parsed_seed,
         )
+        processed_names.append(cleaned_name)
         processed += 1
+
+    delete_players_not_in(settings.database_url, processed_names)
 
     setup_status = (
         f"Saved {processed} player{'s' if processed != 1 else ''}."
@@ -400,6 +408,60 @@ async def admin_setup(
         "setup.html",
         _setup_context(request, pin, True, setup_status=setup_status),
     )
+
+
+@app.get("/matches", response_class=HTMLResponse)
+async def matches_list(request: Request):
+    results = fetch_recent_results(settings.database_url, limit=20)
+    return templates.TemplateResponse(
+        "matches.html",
+        {"request": request, "matches": results},
+    )
+
+
+@app.get("/matches/{match_id}", response_class=HTMLResponse)
+async def match_detail(request: Request, match_id: int):
+    result = fetch_match_result(settings.database_url, match_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Match not found")
+    holes = fetch_hole_scores(settings.database_url, match_id)
+    total_a = sum(h["player_a_score"] for h in holes)
+    total_b = sum(h["player_b_score"] for h in holes)
+    return templates.TemplateResponse(
+        "match_detail.html",
+        {
+            "request": request,
+            "match": result,
+            "holes": holes,
+            "hole_total_a": total_a,
+            "hole_total_b": total_b,
+        },
+    )
+
+
+@app.post("/matches/{match_id}/holes")
+async def match_detail_submit(match_id: int, request: Request):
+    payload = await request.json()
+    entries = payload.get("holes", [])
+    cleaned = []
+    for entry in entries:
+        try:
+            hole_number = int(entry.get("hole_number", 0))
+            player_a_score = int(entry.get("player_a_score", 0))
+            player_b_score = int(entry.get("player_b_score", 0))
+        except (TypeError, ValueError):
+            continue
+        if hole_number <= 0:
+            continue
+        cleaned.append(
+            {
+                "hole_number": hole_number,
+                "player_a_score": player_a_score,
+                "player_b_score": player_b_score,
+            }
+        )
+    insert_hole_scores(settings.database_url, match_id, cleaned)
+    return JSONResponse({"added": len(cleaned)})
 
 
 @app.get("/standings", response_class=HTMLResponse)
