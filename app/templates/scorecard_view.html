@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card detail-card scorecard-panel">
+    <div class="match-meta">
+      <p class="eyebrow">Match Scorecard</p>
+      <h1 class="match-title">{{ scorecard.match.match_name }}</h1>
+      <p class="match-sub">
+        {{ scorecard.match.player_a_name }} (hcp {{ scorecard.player_a_handicap }})
+        vs
+        {{ scorecard.match.player_b_name }} (hcp {{ scorecard.player_b_handicap }})
+      </p>
+      {% if scorecard.course %}
+        <p class="match-subtle course-meta">
+          {{ scorecard.course.club_name }} — {{ scorecard.course.course_name }}
+          {% if scorecard.course.tee_name %}
+            | Tee: {{ scorecard.course.tee_name }}
+          {% endif %}
+          {% if scorecard.course.total_yards %}
+            | {{ scorecard.course.total_yards }} yds
+          {% endif %}
+          {% if scorecard.course.course_rating %}
+            | CR {{ scorecard.course.course_rating }} / SR {{ scorecard.course.slope_rating or "—" }}
+          {% endif %}
+        </p>
+      {% endif %}
+    </div>
+
+    <form class="scorecard-selector" method="get" action="/scorecard">
+      <label>
+        <span class="muted-label">Select match</span>
+        <select name="match_key" onchange="this.form.submit()">
+          {% for match_option in matches %}
+            <option value="{{ match_option.match_id }}" {% if match_option.match_id == active_match_key %}selected{% endif %}>
+              Division {{ match_option.division }}: {{ match_option.player_a }} vs {{ match_option.player_b }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+    </form>
+
+    <div class="scorecard-summary-grid">
+      <div>
+        <span class="muted-label">Stroke allocation</span>
+        <p class="match-subtle">
+          {% if scorecard.meta.stroke_owner %}
+            {{ scorecard.match.player_a_name if scorecard.meta.stroke_owner == 'A' else scorecard.match.player_b_name }}
+            receives {{ scorecard.meta.stroke_count if scorecard.meta.stroke_count % 1 else scorecard.meta.stroke_count|int }} stroke{{ 's' if scorecard.meta.stroke_count != 1 else '' }}
+            {% if scorecard.meta.is_nine_hole %}(9-hole allowance applied){% endif %}
+          {% else %}
+            No strokes allocated for this matchup.
+          {% endif %}
+        </p>
+      </div>
+      <div class="scorecard-points">
+        <div>
+          <span>{{ scorecard.match.player_a_name }} pts</span>
+          <strong>{{ scorecard.meta.total_points_a|round(1) }}</strong>
+        </div>
+        <div>
+          <span>{{ scorecard.match.player_b_name }} pts</span>
+          <strong>{{ scorecard.meta.total_points_b|round(1) }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <section class="match-scorecard-table" aria-label="Hole-by-hole scorecard">
+      <div class="match-scorecard-row match-scorecard-head">
+        <span>Hole</span>
+        <span>Par</span>
+        <span>HCP</span>
+        <span>{{ scorecard.match.player_a_name }} Gross</span>
+        <span>{{ scorecard.match.player_b_name }} Gross</span>
+        <span>{{ scorecard.match.player_a_name }} Strokes</span>
+        <span>{{ scorecard.match.player_b_name }} Strokes</span>
+        <span>{{ scorecard.match.player_a_name }} Net</span>
+        <span>{{ scorecard.match.player_b_name }} Net</span>
+        <span>Result</span>
+        <span>{{ scorecard.match.player_a_name }} Pts</span>
+        <span>{{ scorecard.match.player_b_name }} Pts</span>
+      </div>
+      {% for hole in scorecard.holes %}
+        <div class="match-scorecard-row">
+          <span>{{ hole.hole_number }}</span>
+          <span>{{ hole.par }}</span>
+          <span>{{ hole.handicap }}</span>
+          <span>{{ hole.gross_a if hole.gross_a is not none else "—" }}</span>
+          <span>{{ hole.gross_b if hole.gross_b is not none else "—" }}</span>
+          <span>{{ hole.strokes_a if hole.strokes_a % 1 else hole.strokes_a|int }}</span>
+          <span>{{ hole.strokes_b if hole.strokes_b % 1 else hole.strokes_b|int }}</span>
+          <span>
+            {% if hole.net_a is none %}
+              —
+            {% elif hole.net_a % 1 %}
+              {{ hole.net_a|round(1) }}
+            {% else %}
+              {{ hole.net_a|int }}
+            {% endif %}
+          </span>
+          <span>
+            {% if hole.net_b is none %}
+              —
+            {% elif hole.net_b % 1 %}
+              {{ hole.net_b|round(1) }}
+            {% else %}
+              {{ hole.net_b|int }}
+            {% endif %}
+          </span>
+          <span class="result-badge
+            {% if hole.result == 'A' %}result-a{% elif hole.result == 'B' %}result-b{% elif hole.result == 'Halved' %}result-half{% else %}result-empty{% endif %}">
+            {{ hole.result }}
+          </span>
+          <span>{{ hole.points_a if hole.points_a % 1 else hole.points_a|int }}</span>
+          <span>{{ hole.points_b if hole.points_b % 1 else hole.points_b|int }}</span>
+        </div>
+      {% endfor %}
+    </section>
+
+    <div class="scorecard-totals">
+      <div>
+        <span>{{ scorecard.match.player_a_name }} total points</span>
+        <strong>{{ scorecard.meta.total_points_a if scorecard.meta.total_points_a % 1 else scorecard.meta.total_points_a|int }}</strong>
+      </div>
+      <div>
+        <span>{{ scorecard.match.player_b_name }} total points</span>
+        <strong>{{ scorecard.meta.total_points_b if scorecard.meta.total_points_b % 1 else scorecard.meta.total_points_b|int }}</strong>
+      </div>
+      <div>
+        <span>Points differential</span>
+        <strong>
+          {% set diff = scorecard.meta.total_points_a - scorecard.meta.total_points_b %}
+          {{ diff if diff % 1 else diff|int }}
+        </strong>
+      </div>
+    </div>
+
+    <div class="scorecard-actions">
+      {% if scorecard.match.id %}
+        <a class="pill-link" href="/matches/{{ scorecard.match.id }}">Edit hole inputs</a>
+      {% else %}
+        <a class="pill-link" href="/scoring">Enter scores</a>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

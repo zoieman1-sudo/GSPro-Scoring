@@ -6,12 +6,18 @@ from dataclasses import dataclass
 class Settings:
     database_url: str
     scoring_pin: str
+    golf_api_key: str
 
 
 def load_settings() -> Settings:
     database_url = os.getenv("DATABASE_URL", "postgresql://postgres@localhost:5432/gspro_scoring")
     scoring_pin = os.getenv("SCORING_PIN", "1234")
-    return Settings(database_url=database_url, scoring_pin=scoring_pin)
+    golf_api_key = os.getenv("GOLF_API_KEY", "IGEEUMDFTUIYPPODWAO5XZSQNI")
+    return Settings(
+        database_url=database_url,
+        scoring_pin=scoring_pin,
+        golf_api_key=golf_api_key,
+    )
 
 
 def score_outcome(player_a_points: int, player_b_points: int) -> dict:

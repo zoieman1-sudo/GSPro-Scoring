@@ -8,6 +8,9 @@
         {{ match.player_a_name }} vs {{ match.player_b_name }} &middot;
         {{ match.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if match.submitted_at else 'Unknown time' }}
       </p>
+      <div class="scorecard-actions">
+        <a class="pill-link" href="/matches/{{ match.id }}/scorecard">View scorecard</a>
+      </div>
     </div>
     <div class="match-summary">
       <div>

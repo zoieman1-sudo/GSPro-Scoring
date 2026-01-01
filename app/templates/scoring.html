@@ -1,156 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
   <section class="card detail-card scorecard-panel">
-    <div class="scorecard-header">
-      <div class="scorecard-meta-block">
-        <div class="match-meta">
-          <p class="eyebrow">GSPro League Match</p>
-          <h1 class="match-title" id="scorecard-match-title">{{ scorecard.match_name }}</h1>
-          <p class="match-sub">Select a pairing and enter hole-by-hole scores below.</p>
+    <div class="scorecard-header scorecard-header--simple">
+      <div class="scorecard-summary">
+        <div class="scorecard-topline">
+          <span class="match-chip" id="scorecard-division-chip">Division {{ scorecard.division }}</span>
+          <span class="match-chip" id="scorecard-match-chip">Match {{ scorecard.match_key }}</span>
         </div>
-        <div class="scorecard-meta-grid">
-          <div class="meta-pill">
-            <span>Division</span>
-            <strong id="scorecard-division">{{ scorecard.division }}</strong>
-          </div>
-          <div class="meta-pill">
-            <span>Match key</span>
-            <strong id="scorecard-match-key">{{ scorecard.match_key }}</strong>
-          </div>
-          <div class="meta-pill">
-            <span>Player A handicap</span>
-            <strong>{{ scorecard.player_a_handicap }}</strong>
-          </div>
-          <div class="meta-pill">
-            <span>Player B handicap</span>
-            <strong>{{ scorecard.player_b_handicap }}</strong>
-          </div>
-        </div>
+        <p class="match-handicaps">
+          <span id="scorecard-header-player-a">{{ scorecard.player_a }}</span>
+          (hcp <span id="scorecard-header-a-handicap">{{ scorecard.player_a_handicap }}</span>)
+          vs
+          <span id="scorecard-header-player-b">{{ scorecard.player_b }}</span>
+          (hcp <span id="scorecard-header-b-handicap">{{ scorecard.player_b_handicap }}</span>)
+        </p>
         {% if status %}
           <div class="status score-status">{{ status }}</div>
         {% endif %}
-      </div>
-      <div class="scorecard-parameters">
-        <p class="scorecard-param-title">Tournament sheet parameters</p>
-        <div class="scorecard-param-grid">
-          {% set params = [
-            ("Match allowance", tournament_settings.match_allowance ~ "%"),
-            ("A course rating", tournament_settings.a_course_rating),
-            ("B course rating", tournament_settings.b_course_rating),
-            ("A tee slope", tournament_settings.a_tee_slope),
-            ("B tee slope", tournament_settings.b_tee_slope),
-            ("A par", tournament_settings.a_par),
-            ("B par", tournament_settings.b_par),
-            ("A handicap index", tournament_settings.a_handicap_index),
-            ("B handicap index", tournament_settings.b_handicap_index),
-          ] %}
-          {% for label, value in params %}
-            <div class="scorecard-param">
-              <span>{{ label }}</span>
-              <strong>{{ value }}</strong>
-            </div>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-
-    <form class="score-form" autocomplete="off" method="post" action="/submit">
-      <input type="hidden" name="match_name" value="{{ scorecard.match_name }}" />
-      <input type="hidden" name="player_a" value="{{ scorecard.player_a }}" />
-      <input type="hidden" name="player_b" value="{{ scorecard.player_b }}" />
-      <input type="hidden" name="match_id" value="{{ scorecard.match_key }}" />
-      <label class="match-select">
-        <span class="match-label">Match</span>
-        <select name="match_id" class="match-dropdown" aria-label="Match">
-          {% for match in matches %}
-            <option
-              value="{{ match.match_id }}"
-              {% if match.match_id == match_id %}selected{% endif %}
-            >
-              Division {{ match.division }}: {{ match.player_a }} vs {{ match.player_b }}
-            </option>
-          {% endfor %}
-        </select>
-      </label>
-      <div class="player-grid">
-        <label class="player-tile" data-player="A">
-          <span class="player-name" data-player-name="A">{{ scorecard.player_a }}</span>
-          <input
-            class="score-input"
-            name="player_a_points"
-            type="number"
-            inputmode="numeric"
-            placeholder="0"
-            required
-          />
-          <span class="hint">Base points</span>
-          <small class="player-handicap">HC {{ scorecard.player_a_handicap }}</small>
-        </label>
-        <label class="player-tile" data-player="B">
-          <span class="player-name" data-player-name="B">{{ scorecard.player_b }}</span>
-          <input
-            class="score-input"
-            name="player_b_points"
-            type="number"
-            inputmode="numeric"
-            placeholder="0"
-            required
-          />
-          <span class="hint">Base points</span>
-          <small class="player-handicap">HC {{ scorecard.player_b_handicap }}</small>
-        </label>
-      </div>
-      <div class="bonus-row">
-        <div class="bonus-card">
-          <p class="bonus-title">Win Bonus</p>
-          <p class="bonus-value">+1 point</p>
-        </div>
-        <div class="bonus-card">
-          <p class="bonus-title">Tie Bonus</p>
-          <p class="bonus-value">0</p>
-        </div>
-      </div>
-      <button class="submit-btn" type="submit">Submit Match Result</button>
-    </form>
-
-    <section class="scorecard-table" aria-label="Scorecard holes">
-      <div class="scorecard-table-head">
-        <span>Hole</span>
-        <span>Player A Gross</span>
-        <span>Player B Gross</span>
-        <span>Player A Net</span>
-        <span>Player B Net</span>
-        <span>Diff</span>
-      </div>
-      <div class="scorecard-table-body" id="scorecard-holes">
-        {% for hole in scorecard.holes %}
-          <article class="hole-card">
-            <div>{{ hole.hole_number }}</div>
-            <div>{{ hole.player_a_score }}</div>
-            <div>{{ hole.player_b_score }}</div>
-            <div>{{ hole.player_a_net }}</div>
-            <div>{{ hole.player_b_net }}</div>
-            <div>{{ hole.net_diff }}</div>
-          </article>
-        {% endfor %}
-        {% if scorecard.holes|length == 0 %}
-          <p class="status">No holes recorded yet.</p>
-        {% endif %}
-      </div>
-    </section>
-
-    <div class="scorecard-totals">
-      <div>
-        <span>Player A net total</span>
-        <strong id="scorecard-total-a">{{ scorecard.hole_total_a }}</strong>
-      </div>
-      <div>
-        <span>Player B net total</span>
-        <strong id="scorecard-total-b">{{ scorecard.hole_total_b }}</strong>
-      </div>
-      <div>
-        <span>Net differential</span>
-        <strong id="scorecard-total-diff">{{ scorecard.hole_diff }}</strong>
       </div>
     </div>
 
@@ -204,67 +70,21 @@
   </template>
 
   <script>
-    const matchDropdown = document.querySelector(".match-dropdown");
-    const holeBody = document.getElementById("scorecard-holes");
-    const matchTitle = document.getElementById("scorecard-match-title");
-    const playerAName = document.querySelector('[data-player-name="A"]');
-    const playerBName = document.querySelector('[data-player-name="B"]');
+    const divisionChip = document.getElementById("scorecard-division-chip");
+    const matchChip = document.getElementById("scorecard-match-chip");
+    const headerPlayerAName = document.getElementById("scorecard-header-player-a");
+    const headerPlayerBName = document.getElementById("scorecard-header-player-b");
+    const headerAHandicap = document.getElementById("scorecard-header-a-handicap");
+    const headerBHandicap = document.getElementById("scorecard-header-b-handicap");
     const holePlayerALabel = document.getElementById("hole-player-a-label");
     const holePlayerBLabel = document.getElementById("hole-player-b-label");
     const strokeSummary = document.getElementById("stroke-summary");
     const divisionTitle = document.getElementById("scorecard-division");
     const keyTitle = document.getElementById("scorecard-match-key");
-    const totalAEl = document.getElementById("scorecard-total-a");
-    const totalBEl = document.getElementById("scorecard-total-b");
-    const totalDiffEl = document.getElementById("scorecard-total-diff");
-    const hiddenMatch = document.querySelector('input[name="match_id"]');
-    const hiddenMatchName = document.querySelector('input[name="match_name"]');
-    const hiddenPlayerA = document.querySelector('input[name="player_a"]');
-    const hiddenPlayerB = document.querySelector('input[name="player_b"]');
     const entrySection = document.querySelector(".hole-entry-section");
     const holeContainer = document.getElementById("hole-rows");
     const template = document.getElementById("hole-input-template");
     const standardHoleCount = 18;
-
-    const renderHoles = (holes) => {
-      if (!holes.length) {
-        holeBody.innerHTML = '<p class="status">No holes recorded yet.</p>';
-        return;
-      }
-      holeBody.innerHTML = holes
-        .map(
-          (hole) => `
-          <article class="hole-card">
-            <div>${hole.hole_number}</div>
-            <div>${hole.player_a_score}</div>
-            <div>${hole.player_b_score}</div>
-            <div>${hole.player_a_net}</div>
-            <div>${hole.player_b_net}</div>
-            <div>${hole.net_diff}</div>
-          </article>
-        `
-        )
-        .join("");
-    };
-
-    const clampNumber = (value) => {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : 0;
-    };
-
-    const updateTotals = (a, b) => {
-      const netA = clampNumber(a);
-      const netB = clampNumber(b);
-      if (totalAEl) {
-        totalAEl.textContent = netA;
-      }
-      if (totalBEl) {
-        totalBEl.textContent = netB;
-      }
-      if (totalDiffEl) {
-        totalDiffEl.textContent = netA - netB;
-      }
-    };
 
     const updateStrokeSummary = (handicapA, handicapB) => {
       if (!strokeSummary) return;
@@ -279,12 +99,23 @@
     };
 
     const updateScorecard = (summary) => {
-      matchTitle.textContent = summary.match_name;
-      if (playerAName) {
-        playerAName.textContent = summary.player_a;
+      if (divisionChip) {
+        divisionChip.textContent = `Division ${summary.division || "A"}`;
       }
-      if (playerBName) {
-        playerBName.textContent = summary.player_b;
+      if (matchChip) {
+        matchChip.textContent = `Match ${summary.match_key || ""}`;
+      }
+      if (headerPlayerAName) {
+        headerPlayerAName.textContent = summary.player_a;
+      }
+      if (headerPlayerBName) {
+        headerPlayerBName.textContent = summary.player_b;
+      }
+      if (headerAHandicap) {
+        headerAHandicap.textContent = summary.player_a_handicap;
+      }
+      if (headerBHandicap) {
+        headerBHandicap.textContent = summary.player_b_handicap;
       }
       if (divisionTitle) {
         divisionTitle.textContent = summary.division || "Open";
@@ -292,12 +123,6 @@
       if (keyTitle) {
         keyTitle.textContent = summary.match_key || "";
       }
-      hiddenMatch.value = summary.match_key;
-      hiddenMatchName.value = summary.match_name;
-      hiddenPlayerA.value = summary.player_a;
-      hiddenPlayerB.value = summary.player_b;
-      renderHoles(summary.holes);
-      updateTotals(summary.hole_total_a, summary.hole_total_b);
       if (holePlayerALabel) {
         holePlayerALabel.textContent = summary.player_a;
       }
@@ -421,18 +246,6 @@
         .filter((hole) => Number(hole.hole_number) > standardHoleCount)
         .forEach((hole) => addHoleRow(Number(hole.hole_number), hole));
     };
-
-    if (matchDropdown) {
-      matchDropdown.addEventListener("change", async (event) => {
-        const key = event.target.value;
-        const response = await fetch(`/api/match-summary/${encodeURIComponent(key)}`);
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        updateScorecard(data);
-      });
-    }
 
     updateScorecard({{ scorecard | tojson }});
 

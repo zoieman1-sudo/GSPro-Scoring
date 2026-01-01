@@ -1,39 +1,60 @@
 {% extends "base.html" %}
 {% block content %}
-  <section class="card admin-card">
-    <div class="match-meta">
+  {% set sections = [
+    ("parameters", "Tournament Sheet"),
+    ("players", "Players & Handicaps"),
+    ("course", "Course Selection"),
+    ("holes", "Holes"),
+    ("tees", "Tees"),
+    ("pairings", "Pairings"),
+  ] %}
+  <section class="card admin-card setup-shell">
+    <aside class="setup-sidebar">
       <p class="eyebrow">Admin | Tournament Setup</p>
-      <h1 class="match-title">Players &amp; Handicaps</h1>
-      <p class="match-sub">Use the PIN to configure each player’s division and handicap. These settings seed the standings and stay saved in the database.</p>
-    </div>
-
-    {% if not authorized %}
-      <div class="status">{{ setup_status }}</div>
-    {% else %}
+      <h1 class="match-title">Tournament Setup</h1>
+      <nav class="setup-nav">
+        {% for key, label in sections %}
+          {% set href = "/admin/setup" if key == "parameters" else "/admin/setup/" ~ key %}
+          <a class="pill-link setup-nav-link{% if active_section == key %} active{% endif %}" href="{{ href }}{% if pin %}?pin={{ pin }}{% endif %}">
+            {{ loop.index }}. {{ label }}
+          </a>
+        {% endfor %}
+      </nav>
+    </aside>
+    <div class="setup-content">
       {% if setup_status %}
         <div class="status">{{ setup_status }}</div>
       {% endif %}
-      <form class="setup-form" method="post" action="/admin/setup">
-        <input type="hidden" name="pin" value="{{ pin }}" />
-        <div class="setup-row setup-head-row">
-          <span>Name</span>
-          <span>Division</span>
-          <span>Seed</span>
-          <span>Handicap</span>
-        </div>
-        <div id="player-list">
-          {% for player in players %}
-            <div class="setup-row">
-              <input type="hidden" name="player_id" value="{{ player.id }}" />
-              <input class="setup-input" name="player_name" value="{{ player.name }}" placeholder="Name" required />
-              <input class="setup-input" name="player_division" value="{{ player.division }}" placeholder="Division" />
-              <input class="setup-input" name="player_seed" value="{{ player.seed }}" placeholder="Seed" inputmode="numeric" />
-              <input class="setup-input" name="player_handicap" value="{{ player.handicap }}" placeholder="Handicap" inputmode="numeric" />
-              <button type="button" class="remove-row-btn" aria-label="Remove player">✕</button>
-            </div>
-          {% endfor %}
-        </div>
 
+      {% if active_section == "players" %}
+        <div class="match-meta">
+          <h2 class="match-title">Players &amp; Handicaps</h2>
+          <p class="match-sub">Configure divisions, handicaps, and seeds for every player.</p>
+        </div>
+        <form class="setup-form" method="post" action="/admin/setup">
+          <div class="setup-row setup-head-row">
+            <span>Name</span>
+            <span>Division</span>
+            <span>Seed</span>
+            <span>Handicap</span>
+          </div>
+          <div id="player-list">
+            {% for player in players %}
+              <div class="setup-row">
+                <input type="hidden" name="player_id" value="{{ player.id }}" />
+                <input class="setup-input" name="player_name" value="{{ player.name }}" placeholder="Name" required />
+                <input class="setup-input" name="player_division" value="{{ player.division }}" placeholder="Division" />
+                <input class="setup-input" name="player_seed" value="{{ player.seed }}" placeholder="Seed" inputmode="numeric" />
+                <input class="setup-input" name="player_handicap" value="{{ player.handicap }}" placeholder="Handicap" inputmode="numeric" />
+                <button type="button" class="remove-row-btn" aria-label="Remove player">✕</button>
+              </div>
+            {% endfor %}
+          </div>
+          <div class="setup-actions">
+            <button type="button" id="add-player-btn" class="add-player-btn">Add player</button>
+            <button type="submit" class="submit-btn">Save players</button>
+          </div>
+        </form>
         <template id="player-row-template">
           <div class="setup-row">
             <input type="hidden" name="player_id" value="" />
@@ -44,19 +65,157 @@
             <button type="button" class="remove-row-btn" aria-label="Remove player">✕</button>
           </div>
         </template>
-
-        <div class="setup-actions">
-          <button type="button" id="add-player-btn" class="add-player-btn">Add player</button>
-          <button type="submit" class="submit-btn">Save tournament setup</button>
+      {% elif active_section == "course" %}
+        <div class="match-meta">
+          <h2 class="match-title">Course Selection</h2>
+          <p class="match-sub">Import a course via the Golf Course API, then pick the course and tee to use.</p>
         </div>
-      </form>
-      <section class="tournament-settings">
-        <form class="settings-form" method="post" action="/admin/setup/settings">
-          <input type="hidden" name="pin" value="{{ pin }}" />
-          <div class="setup-head">
-            <h2>Tournament Sheet Parameters</h2>
-            <p class="match-sub">These values mirror the top section of the Net Match Play sheet.</p>
+        <form class="settings-form" method="post" action="/admin/setup/course">
+          <div class="course-select-row">
+            <label class="settings-field">
+              <span>Course</span>
+              <select id="course-select" name="course_id">
+                <option value="">-- Select course --</option>
+                {% for course in course_catalog %}
+                  <option value="{{ course.id }}" {% if course.id|string == selected_course_id %}selected{% endif %}>
+                    {{ course.club_name }} — {{ course.course_name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="settings-field">
+              <span>Tee</span>
+              <select id="tee-select" name="course_tee_id">
+                <option value="">-- Select tee --</option>
+                {% if course_catalog %}
+                  {% for course in course_catalog %}
+                    {% for tee in course.tees %}
+                      {% if tee.gender == "male" %}
+                        <option
+                          value="{{ tee.id }}"
+                          data-course="{{ course.id }}"
+                          {% if tee.id|string == selected_course_tee_id %}selected{% endif %}
+                        >
+                          {{ tee.gender|capitalize }} — {{ tee.tee_name }}
+                        </option>
+                      {% endif %}
+                    {% endfor %}
+                  {% endfor %}
+                {% endif %}
+              </select>
+            </label>
           </div>
+          <div class="setup-actions">
+            <button type="submit" class="submit-btn">Save course</button>
+          </div>
+        </form>
+        <div class="course-search">
+          <div class="setup-head">
+            <h3>Search &amp; Import</h3>
+            <p class="match-sub">Pull courses directly from GolfCourseAPI, then import the male tees.</p>
+          </div>
+          <div class="course-search-row">
+            <label class="settings-field">
+              <span>Search course (API)</span>
+              <input type="text" id="course-search-query" placeholder="Search by course or club name" />
+            </label>
+            <button type="button" class="submit-btn" id="course-search-btn">Search</button>
+          </div>
+          <div id="course-search-results" class="course-results"></div>
+        </div>
+      {% elif active_section == "holes" %}
+        <div class="match-meta">
+          <h2 class="match-title">Holes</h2>
+          <p class="match-sub">Front/back layout from the active course selection.</p>
+        </div>
+        {% if course_holes %}
+          <div class="hole-grid">
+            <div>
+              <h3>Front 9</h3>
+              <div class="hole-table">
+                <div class="hole-row hole-head">
+                  <span>Hole</span><span>Par</span><span>Handicap</span><span>Yardage</span>
+                </div>
+                {% for hole in course_holes[:9] %}
+                  <div class="hole-row">
+                    <span>{{ hole.hole_number }}</span>
+                    <span>{{ hole.par }}</span>
+                    <span>{{ hole.handicap }}</span>
+                    <span>{{ hole.yardage or "—" }}</span>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+            <div>
+              <h3>Back 9</h3>
+              <div class="hole-table">
+                <div class="hole-row hole-head">
+                  <span>Hole</span><span>Par</span><span>Handicap</span><span>Yardage</span>
+                </div>
+                {% for hole in course_holes[9:18] %}
+                  <div class="hole-row">
+                    <span>{{ hole.hole_number }}</span>
+                    <span>{{ hole.par }}</span>
+                    <span>{{ hole.handicap }}</span>
+                    <span>{{ hole.yardage or "—" }}</span>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <p class="status">No hole data found. Import a course first.</p>
+        {% endif %}
+      {% elif active_section == "tees" %}
+        <div class="match-meta">
+          <h2 class="match-title">Tees</h2>
+          <p class="match-sub">Male tees imported for the selected course.</p>
+        </div>
+        {% if selected_course %}
+          {% set tees = selected_course.tees | selectattr("gender", "equalto", "male") | list %}
+          {% if tees %}
+            <div class="tee-list">
+              {% for tee in tees %}
+                <div class="tee-card">
+                  <h3>{{ tee.tee_name }}</h3>
+                  <p class="match-sub">{{ tee.course_rating or "N/A" }} / {{ tee.slope_rating or "N/A" }} | Par {{ tee.par_total or "—" }}</p>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="status">No male tees imported yet. Use Course Selection to import.</p>
+          {% endif %}
+        {% else %}
+          <p class="status">Select a course first to view its tees.</p>
+        {% endif %}
+      {% elif active_section == "pairings" %}
+        <div class="match-meta">
+          <h2 class="match-title">Pairings</h2>
+          <p class="match-sub">Round-robin pairings by division.</p>
+        </div>
+        {% if pairings %}
+          <div class="pairings-list">
+            {% set current_division = None %}
+            {% for pairing in pairings %}
+              {% if pairing.division != current_division %}
+                {% set current_division = pairing.division %}
+                <p class="pairings-division">Division {{ pairing.division }}</p>
+              {% endif %}
+              <div class="pairings-row">
+                <span class="pairings-id">{{ pairing.match_id }}</span>
+                <span>{{ pairing.player_a }} vs {{ pairing.player_b }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="status">Add players to generate pairings.</p>
+        {% endif %}
+      {% else %}
+        <div class="match-meta">
+          <h2 class="match-title">Tournament Sheet Parameters</h2>
+          <p class="match-sub">Defaults for the Net Match Play sheet. This is the starting view.</p>
+        </div>
+        <form class="settings-form" method="post" action="/admin/setup/settings">
           <div class="settings-grid">
             {% for key, label in [
               ("a_handicap_index", "A Handicap Index"),
@@ -81,53 +240,134 @@
             {% endfor %}
           </div>
           <div class="setup-actions">
-            <button type="submit" class="submit-btn">Save tournament settings</button>
+            <button type="submit" class="submit-btn">Save tournament parameters</button>
           </div>
         </form>
-      </section>
-      {% if pairings %}
-        <section class="pairings-section">
-          <div class="setup-head">
-            <h2>Round-robin pairings</h2>
-            <p class="match-sub">Each seed now plays every other seed in their division once. Use the match IDs when recording results.</p>
-          </div>
-          <div class="pairings-list">
-            {% set current_division = None %}
-            {% for pairing in pairings %}
-              {% if pairing.division != current_division %}
-                {% set current_division = pairing.division %}
-                <p class="pairings-division">Division {{ pairing.division }}</p>
-              {% endif %}
-              <div class="pairings-row">
-                <span class="pairings-id">{{ pairing.match_id }}</span>
-                <span>{{ pairing.player_a }} vs {{ pairing.player_b }}</span>
-              </div>
-            {% endfor %}
-          </div>
-        </section>
       {% endif %}
-    {% endif %}
+    </div>
   </section>
-  <script>
-    const addButton = document.getElementById("add-player-btn");
-    const playerList = document.getElementById("player-list");
-    const template = document.getElementById("player-row-template");
 
-    const removeRow = (button) => {
-      button.closest(".setup-row")?.remove();
-    };
+  {% if active_section == "players" %}
+    <script>
+      const addButton = document.getElementById("add-player-btn");
+      const playerList = document.getElementById("player-list");
+      const template = document.getElementById("player-row-template");
 
-    document.addEventListener("click", (event) => {
-      if (event.target.matches(".remove-row-btn")) {
-        removeRow(event.target);
-      }
-    });
+      const removeRow = (button) => {
+        button.closest(".setup-row")?.remove();
+      };
 
-    if (addButton && template && playerList) {
-      addButton.addEventListener("click", () => {
-        const clone = template.content.cloneNode(true);
-        playerList.appendChild(clone);
+      document.addEventListener("click", (event) => {
+        if (event.target.matches(".remove-row-btn")) {
+          removeRow(event.target);
+        }
       });
-    }
-  </script>
+
+      if (addButton && template && playerList) {
+        addButton.addEventListener("click", () => {
+          const clone = template.content.cloneNode(true);
+          playerList.appendChild(clone);
+        });
+      }
+    </script>
+  {% elif active_section == "course" %}
+    <script>
+      const teeSelect = document.getElementById("tee-select");
+      const courseSelect = document.getElementById("course-select");
+      const courseResults = document.getElementById("course-search-results");
+      const courseSearchBtn = document.getElementById("course-search-btn");
+      const courseSearchInput = document.getElementById("course-search-query");
+
+      const filterTees = () => {
+        if (!teeSelect || !courseSelect) return;
+        const courseId = courseSelect.value;
+        Array.from(teeSelect.options).forEach((opt) => {
+          const courseForOpt = opt.getAttribute("data-course");
+          if (!courseForOpt || courseForOpt === courseId || opt.value === "") {
+            opt.hidden = false;
+          } else {
+            opt.hidden = true;
+            if (opt.selected) {
+              opt.selected = false;
+            }
+          }
+        });
+      };
+
+      if (courseSelect) {
+        courseSelect.addEventListener("change", filterTees);
+        filterTees();
+      }
+
+      const formatCourseLocation = (course) => {
+        const location = course.location || {};
+        const city = location.city || course.city || "";
+        const state = location.state || course.state || "";
+        const country = location.country || course.country || "";
+        const parts = [city, state, country].filter(Boolean);
+        return parts.join(", ");
+      };
+
+      const renderResults = (courses) => {
+        if (!courseResults) return;
+        if (!courses.length) {
+          courseResults.innerHTML = "<p class='status'>No courses found.</p>";
+          return;
+        }
+        courseResults.innerHTML = courses
+          .map(
+            (course) => `
+            <div class="course-result">
+              <div>
+                <strong>${course.club_name || ""}</strong>
+                <p>${course.course_name || ""}</p>
+                ${formatCourseLocation(course) ? `<p class="course-location">${formatCourseLocation(course)}</p>` : ""}
+              </div>
+              <button type="button" data-course-id="${course.id}" class="pill-link course-import-btn">Import</button>
+            </div>
+          `
+          )
+          .join("");
+      };
+
+      const searchCourses = async () => {
+        if (!courseSearchInput || !courseSearchInput.value.trim()) return;
+        courseResults.innerHTML = "<p class='status'>Searching…</p>";
+        try {
+          const response = await fetch(`/api/courses/search?query=${encodeURIComponent(courseSearchInput.value.trim())}`);
+          if (!response.ok) {
+            courseResults.innerHTML = "<p class='status'>Search failed.</p>";
+            return;
+          }
+          const data = await response.json();
+          renderResults(data.courses || []);
+        } catch (error) {
+          courseResults.innerHTML = "<p class='status'>Search failed.</p>";
+        }
+      };
+
+      if (courseSearchBtn) {
+        courseSearchBtn.addEventListener("click", searchCourses);
+      }
+
+      document.addEventListener("click", async (event) => {
+        if (!event.target.matches(".course-import-btn")) return;
+        const courseId = event.target.getAttribute("data-course-id");
+        if (!courseId) return;
+        event.target.disabled = true;
+        event.target.textContent = "Importing...";
+        try {
+          const response = await fetch(`/api/courses/import/${courseId}`, { method: "POST" });
+          if (response.ok) {
+            location.reload();
+            return;
+          }
+          const data = await response.json().catch(() => ({}));
+          event.target.textContent = data.detail ? `Failed: ${data.detail}` : "Import failed";
+        } catch (error) {
+          event.target.textContent = "Import failed";
+        }
+      });
+    </script>
+  {% endif %}
 {% endblock %}

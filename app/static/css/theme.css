@@ -242,16 +242,56 @@ body {
 
 .scorecard-header {
   display: flex;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 24px;
+  padding-bottom: 18px;
 }
 
-.scorecard-meta-block {
-  flex: 1;
-  min-width: 240px;
+.scorecard-header--simple .match-title {
+  margin-bottom: 0;
+}
+
+.scorecard-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  text-align: center;
+}
+
+.scorecard-topline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.match-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.95rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.match-handicaps {
+  margin: 0;
+  font-size: 1.4rem;
+  color: var(--text);
+}
+
+.scorecard-meta-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .scorecard-meta-grid {
@@ -275,7 +315,13 @@ body {
   color: var(--muted);
 }
 
-.meta-pill strong {
+.meta-pill--inline {
+  padding: 8px 10px;
+  font-size: 0.65rem;
+}
+
+.meta-pill strong,
+.meta-pill--inline strong {
   color: var(--text);
   font-size: 1.2rem;
   letter-spacing: normal;
@@ -286,6 +332,10 @@ body {
   flex: 1;
 }
 
+.scorecard-parameters--compact {
+  width: 100%;
+}
+
 .scorecard-param-title {
   margin: 0;
   font-size: 0.75rem;
@@ -294,11 +344,25 @@ body {
   color: var(--muted);
 }
 
+.scorecard-parameters--compact .scorecard-param-title {
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+}
+
 .scorecard-param-grid {
   margin-top: 12px;
   display: grid;
   gap: 10px;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.scorecard-parameters--compact .scorecard-param-grid {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(120px, 1fr);
+  overflow-x: auto;
+  gap: 8px;
+  padding-bottom: 6px;
 }
 
 .scorecard-param {
@@ -312,10 +376,29 @@ body {
   color: var(--muted);
 }
 
+.scorecard-parameters--compact .scorecard-param {
+  padding: 6px 8px;
+  font-size: 0.65rem;
+  gap: 2px;
+  min-width: 140px;
+}
+
 .scorecard-param strong {
   font-size: 1.1rem;
   color: var(--text);
   letter-spacing: normal;
+}
+
+.scorecard-parameters--compact .scorecard-param strong {
+  font-size: 0.85rem;
+}
+
+.section-label {
+  margin: 8px 0 4px;
+  font-size: 0.75rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .scorecard-table {
@@ -385,6 +468,141 @@ body {
   font-size: 1.6rem;
   letter-spacing: normal;
   color: var(--text);
+}
+
+.scorecard-summary-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.scorecard-summary-grid .muted-label {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.scorecard-points {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.scorecard-points div {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  min-width: 120px;
+}
+
+.scorecard-points span {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.scorecard-points strong {
+  display: block;
+  font-size: 1.8rem;
+  color: var(--text);
+}
+
+.match-scorecard-table {
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  background: rgba(7, 13, 30, 0.8);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4);
+}
+
+.match-scorecard-row {
+  display: grid;
+  grid-template-columns: 0.6fr 0.6fr 0.6fr repeat(3, 1fr) repeat(3, 1fr) 0.9fr 0.9fr 0.9fr;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  align-items: center;
+  text-align: center;
+}
+
+.match-scorecard-head {
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.72rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.match-scorecard-row:nth-child(even):not(.match-scorecard-head) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.result-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  min-height: 32px;
+}
+
+.result-a {
+  background: rgba(0, 255, 163, 0.08);
+  border: 1px solid rgba(0, 255, 163, 0.4);
+  color: #35f2b5;
+}
+
+.result-b {
+  background: rgba(64, 181, 255, 0.08);
+  border: 1px solid rgba(64, 181, 255, 0.4);
+  color: #7bc4ff;
+}
+
+.result-half {
+  background: rgba(255, 200, 80, 0.08);
+  border: 1px solid rgba(255, 200, 80, 0.4);
+  color: #ffd28f;
+}
+
+.result-empty {
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+
+.scorecard-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pill-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.pill-link:hover {
+  border-color: rgba(0, 255, 163, 0.45);
+  background: rgba(0, 255, 163, 0.08);
+  color: #c8fff0;
 }
 
 .hole-entry-section {
@@ -730,6 +948,51 @@ body {
   gap: 12px;
   flex-wrap: wrap;
   margin-top: 12px;
+}
+
+.course-select {
+  margin-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.course-select-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.course-search {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.course-results {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.course-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.course-result p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .pairings-section {
