@@ -17,16 +17,16 @@
           <div class="scorecard-header-row">
             <div class="match-meta">
               <p class="eyebrow">Match Scorecard</p>
-              <h1 class="match-title">Division {{ scorecard.match.division }}</h1>
-              <div class="match-sub match-sub--stacked">
-                <span class="match-player">{{ scorecard.match.player_a_name }}</span>
-                <span class="match-hcp">hcp {{ scorecard.player_a_handicap }}</span>
+              <h1 class="match-title" id="match-division">Division {{ scorecard.match.division }}</h1>
+              <div class="match-sub match-sub--stacked" id="match-player-stack">
+                <span class="match-player" id="match-player-a">{{ scorecard.match.player_a_name }}</span>
+                <span class="match-hcp" id="match-hcp-a">hcp {{ scorecard.player_a_handicap }}</span>
                 <span class="match-vs">vs</span>
-                <span class="match-player">{{ scorecard.match.player_b_name }}</span>
-                <span class="match-hcp">hcp {{ scorecard.player_b_handicap }}</span>
+                <span class="match-player" id="match-player-b">{{ scorecard.match.player_b_name }}</span>
+                <span class="match-hcp" id="match-hcp-b">hcp {{ scorecard.player_b_handicap }}</span>
               </div>
               {% if scorecard.course %}
-                <p class="match-subtle course-meta">
+                <p class="match-subtle course-meta" id="course-meta">
                   {{ scorecard.course.club_name }} — {{ scorecard.course.course_name }}
                   {% if scorecard.course.tee_name %}
                     | Tee: {{ scorecard.course.tee_name }}
@@ -39,6 +39,30 @@
                   {% endif %}
                 </p>
               {% endif %}
+              <div class="match-status-row">
+                <span class="status-pill status-pill--{{ scorecard.match.status }}" id="match-status-pill">
+                  {{ scorecard.match.status_label }}
+                </span>
+                <span class="status-detail" id="match-status-detail">
+                  {{ scorecard.match.holes_recorded }} / {{ scorecard.match.total_holes }} holes recorded
+                </span>
+              </div>
+              <div class="match-status-control" id="match-status-control">
+                {% if active_matches %}
+                  {% for entry in active_matches %}
+                    <button
+                      type="button"
+                      class="match-status-btn {% if entry.match_key == active_match_key %}active{% endif %}"
+                      data-match-key="{{ entry.match_key }}"
+                    >
+                      <span class="match-status-btn__title">{{ entry.display }}</span>
+                      <span class="match-status-btn__meta">{{ entry.status_label }} · {{ entry.holes }} holes recorded</span>
+                    </button>
+                  {% endfor %}
+                {% else %}
+                  <p class="muted-label match-status-control__empty">No matches currently in progress.</p>
+                {% endif %}
+              </div>
             </div>
             <div class="scorecard-tabs" role="tablist">
               <button type="button" class="tab-btn active" data-tab="front">Holes 1-9</button>
@@ -46,10 +70,10 @@
             </div>
           </div>
 
-          <form class="scorecard-selector" method="get" action="/scorecard">
+          <form class="scorecard-selector" id="scorecard-selector-form" method="get" action="/scorecard">
             <label>
               <span class="muted-label">Select match</span>
-              <select name="match_key" onchange="this.form.submit()">
+              <select id="match-select" name="match_key" onchange="this.form.submit()">
                 {% for match_option in matches %}
                   <option value="{{ match_option.match_id }}" {% if match_option.match_id == active_match_key %}selected{% endif %}>
                     Division {{ match_option.division }}: {{ match_option.player_a }} vs {{ match_option.player_b }}
@@ -85,7 +109,7 @@
         </div>
 
         <div class="scorecard-column scorecard-holes-column">
-          <div class="scorecard-pane scorecard-pane--front active" data-section="front">
+        <div class="scorecard-pane scorecard-pane--front active" data-section="front">
             <h3 class="scorecard-column-title">Holes 1-9</h3>
             <section class="match-scorecard-table" aria-label="Front nine scorecard">
               <div class="match-scorecard-row match-scorecard-head">
@@ -108,10 +132,10 @@
                 <abbr title="{{ scorecard.match.player_b_name }}">B</abbr>
                 <abbr title="Net">Net</abbr>
               </span>
-                <span class="col-label">Net Diff</span>
             <span class="col-label">Pts A</span>
             <span class="col-label">Pts B</span>
               </div>
+              <div class="match-scorecard-body" id="front-rows">
               {% for hole in front_holes %}
                 <div class="match-scorecard-row" data-hole="{{ hole.hole_number }}">
                   <span class="hole-number">{{ hole.hole_number }}</span>
@@ -137,13 +161,6 @@
                       {{ hole.net_b|int }}
                     {% endif %}
                   </span>
-                  <span class="net-diff">
-                    {% if hole.net_diff is none %}
-                      —
-                    {% else %}
-                      {{ hole.net_diff|round(1) if hole.net_diff % 1 else hole.net_diff|int }}
-                    {% endif %}
-                  </span>
                   <span class="points-a">{{ hole.points_a if hole.points_a % 1 else hole.points_a|int }}</span>
                   <span class="points-b">{{ hole.points_b if hole.points_b % 1 else hole.points_b|int }}</span>
                 </div>
@@ -156,9 +173,9 @@
                 <span class="gross-b">{{ sum_attr(front_holes, 'gross_b') }}</span>
                 <span class="net-a">{{ sum_attr(front_holes, 'net_a') }}</span>
                 <span class="net-b">{{ sum_attr(front_holes, 'net_b') }}</span>
-                <span></span>
                 <span class="points-a">{{ sum_attr(front_holes, 'points_a') }}</span>
                 <span class="points-b">{{ sum_attr(front_holes, 'points_b') }}</span>
+              </div>
               </div>
             </section>
           </div>
@@ -185,10 +202,10 @@
               <abbr title="{{ scorecard.match.player_b_name }}">B</abbr>
               <abbr title="Net">Net</abbr>
             </span>
-            <span>Net Diff</span>
             <span>Pts A</span>
             <span>Pts B</span>
           </div>
+              <div class="match-scorecard-body" id="back-rows">
               {% for hole in back_holes %}
                 <div class="match-scorecard-row" data-hole="{{ hole.hole_number }}">
                   <span class="hole-number">{{ hole.hole_number }}</span>
@@ -214,13 +231,6 @@
                       {{ hole.net_b|int }}
                     {% endif %}
                   </span>
-                  <span class="net-diff">
-                    {% if hole.net_diff is none %}
-                      —
-                    {% else %}
-                      {{ hole.net_diff|round(1) if hole.net_diff % 1 else hole.net_diff|int }}
-                    {% endif %}
-                  </span>
                   <span class="points-a">{{ hole.points_a if hole.points_a % 1 else hole.points_a|int }}</span>
                   <span class="points-b">{{ hole.points_b if hole.points_b % 1 else hole.points_b|int }}</span>
                 </div>
@@ -233,20 +243,34 @@
                 <span class="gross-b">{{ sum_attr(back_holes, 'gross_b') }}</span>
                 <span class="net-a">{{ sum_attr(back_holes, 'net_a') }}</span>
                 <span class="net-b">{{ sum_attr(back_holes, 'net_b') }}</span>
-                <span></span>
                 <span class="points-a">{{ sum_attr(back_holes, 'points_a') }}</span>
                 <span class="points-b">{{ sum_attr(back_holes, 'points_b') }}</span>
+              </div>
               </div>
             </section>
           </div>
             <div class="scorecard-points-row scorecard-points-row--centered">
               <div class="scorecard-points-chip">
-                <span>{{ scorecard.match.player_a_name }}</span>
-                <strong id="points-a">{{ scorecard.meta.total_points_a|round(1) }}</strong>
+                <span id="points-player-a">{{ scorecard.match.player_a_name }}</span>
+                <strong id="points-a">
+                  {% set chip_a = scorecard.point_chip_a %}
+                  {% if chip_a % 1 %}
+                    {{ chip_a|round(1) }}
+                  {% else %}
+                    {{ chip_a|int }}
+                  {% endif %}
+                </strong>
               </div>
               <div class="scorecard-points-chip">
-                <span>{{ scorecard.match.player_b_name }}</span>
-                <strong id="points-b">{{ scorecard.meta.total_points_b|round(1) }}</strong>
+                <span id="points-player-b">{{ scorecard.match.player_b_name }}</span>
+                <strong id="points-b">
+                  {% set chip_b = scorecard.point_chip_b %}
+                  {% if chip_b % 1 %}
+                    {{ chip_b|round(1) }}
+                  {% else %}
+                    {{ chip_b|int }}
+                  {% endif %}
+                </strong>
               </div>
             </div>
         </div>
@@ -257,7 +281,23 @@
           const strokeText = document.getElementById("stroke-allocation");
           const pointsAEl = document.getElementById("points-a");
           const pointsBEl = document.getElementById("points-b");
-          const matchKey = {{ active_match_key | tojson }};
+          const pointsLabelA = document.getElementById("points-player-a");
+          const pointsLabelB = document.getElementById("points-player-b");
+          const frontRows = document.getElementById("front-rows");
+          const backRows = document.getElementById("back-rows");
+          const matchSelect = document.getElementById("match-select");
+          const selectorForm = document.getElementById("scorecard-selector-form");
+          const matchStatusControl = document.getElementById("match-status-control");
+          const matchDivisionEl = document.getElementById("match-division");
+          const playerANameEl = document.getElementById("match-player-a");
+          const playerBNameEl = document.getElementById("match-player-b");
+          const playerAHcpEl = document.getElementById("match-hcp-a");
+          const playerBHcpEl = document.getElementById("match-hcp-b");
+          const courseMetaEl = document.getElementById("course-meta");
+          const statusPill = document.getElementById("match-status-pill");
+          const statusDetail = document.getElementById("match-status-detail");
+          const activeMatchesData = {{ active_matches | tojson }};
+          let activeMatchKey = {{ active_match_key | tojson }};
 
           tabs.forEach((tab) => {
             tab.addEventListener("click", () => {
@@ -271,32 +311,88 @@
           });
 
           const formatNumber = (value) => {
-            if (value === null || value === undefined) {
+            if (value === null || value === undefined || value === "") {
               return "—";
             }
             const num = Number(value);
             if (Number.isFinite(num)) {
-              return Number.isInteger(num) ? num : num.toFixed(1);
+              return Number.isInteger(num) ? `${num}` : num.toFixed(1);
             }
             return value;
           };
 
-          const updateHoleRow = (hole) => {
-            const row = document.querySelector(`.match-scorecard-row[data-hole="${hole.hole_number}"]`);
-            if (!row) {
+          const sumColumn = (rows, key) =>
+            (rows || []).reduce((total, hole) => {
+              const value = Number(hole?.[key]);
+              return total + (Number.isFinite(value) ? value : 0);
+            }, 0);
+
+          const formatCourseMeta = (course) => {
+            if (!course) {
+              return "";
+            }
+            const parts = [];
+            if (course.club_name) {
+              parts.push(course.club_name);
+            }
+            if (course.course_name) {
+              parts.push(course.course_name);
+            }
+            const details = [];
+            if (course.tee_name) {
+              details.push(`Tee: ${course.tee_name}`);
+            }
+            if (course.total_yards) {
+              details.push(`${course.total_yards} yds`);
+            }
+            if (course.course_rating) {
+              details.push(`CR ${course.course_rating} / SR ${course.slope_rating || "—"}`);
+            }
+            return parts.join(" — ") + (details.length ? ` | ${details.join(" | ")}` : "");
+          };
+
+          const buildHoleRows = (holes) =>
+            (holes || [])
+              .map(
+                (hole) => `
+                  <div class="match-scorecard-row" data-hole="${hole.hole_number}">
+                    <span class="hole-number">${hole.hole_number ?? "—"}</span>
+                    <span class="hole-par">${hole.par ?? "—"}</span>
+                    <span class="hole-hcp">${hole.handicap ?? "—"}</span>
+                    <span class="gross-a">${formatNumber(hole.gross_a)}</span>
+                    <span class="gross-b">${formatNumber(hole.gross_b)}</span>
+                    <span class="net-a">${formatNumber(hole.net_a)}</span>
+                    <span class="net-b">${formatNumber(hole.net_b)}</span>
+                    <span class="points-a">${formatNumber(hole.points_a)}</span>
+                    <span class="points-b">${formatNumber(hole.points_b)}</span>
+                  </div>
+                `
+              )
+              .join("");
+
+          const renderHoleSection = (container, holes) => {
+            if (!container) {
               return;
             }
-            row.querySelector(".gross-a").textContent = formatNumber(hole.gross_a);
-            row.querySelector(".gross-b").textContent = formatNumber(hole.gross_b);
-            row.querySelector(".net-a").textContent = formatNumber(hole.net_a);
-            row.querySelector(".net-b").textContent = formatNumber(hole.net_b);
-            row.querySelector(".net-diff").textContent = formatNumber(hole.net_diff);
-            row.querySelector(".points-a").textContent = formatNumber(hole.points_a);
-            row.querySelector(".points-b").textContent = formatNumber(hole.points_b);
+            const rows = buildHoleRows(holes);
+              const totals = `
+                <div class="match-scorecard-row match-scorecard-totals">
+                  <span></span>
+                  <span class="hole-par">${formatNumber(sumColumn(holes, "par"))}</span>
+                  <span></span>
+                  <span class="gross-a">${formatNumber(sumColumn(holes, "gross_a"))}</span>
+                  <span class="gross-b">${formatNumber(sumColumn(holes, "gross_b"))}</span>
+                  <span class="net-a">${formatNumber(sumColumn(holes, "net_a"))}</span>
+                  <span class="net-b">${formatNumber(sumColumn(holes, "net_b"))}</span>
+                  <span class="points-a">${formatNumber(sumColumn(holes, "points_a"))}</span>
+                  <span class="points-b">${formatNumber(sumColumn(holes, "points_b"))}</span>
+              </div>
+            `;
+            container.innerHTML = rows + totals;
           };
 
           const composeStrokeMessage = (meta, match) => {
-            if (!meta.stroke_owner) {
+            if (!meta?.stroke_owner) {
               return "No strokes allocated for this matchup.";
             }
             const owner = meta.stroke_owner === "A" ? match.player_a_name : match.player_b_name;
@@ -306,31 +402,118 @@
             return `${owner} receives ${count} stroke${suffix}${nineHole}`;
           };
 
-          const refreshScorecard = async () => {
+          const updateHeader = (payload) => {
+            const match = payload.match || {};
+            if (matchDivisionEl) {
+              matchDivisionEl.textContent = match.division ? `Division ${match.division}` : "Match Scorecard";
+            }
+            if (playerANameEl) {
+              playerANameEl.textContent = match.player_a_name || "Player A";
+            }
+            if (playerBNameEl) {
+              playerBNameEl.textContent = match.player_b_name || "Player B";
+            }
+            if (playerAHcpEl) {
+              playerAHcpEl.textContent = `hcp ${payload.player_a_handicap ?? 0}`;
+            }
+            if (playerBHcpEl) {
+              playerBHcpEl.textContent = `hcp ${payload.player_b_handicap ?? 0}`;
+            }
+            if (courseMetaEl) {
+              courseMetaEl.textContent = formatCourseMeta(payload.course);
+            }
+            const status = match.status || "not_started";
+            if (statusPill) {
+              statusPill.textContent = match.status_label || "Not started";
+              statusPill.className = `status-pill status-pill--${status}`;
+            }
+            if (statusDetail) {
+              statusDetail.textContent = `${match.holes_recorded || 0} / ${match.total_holes || 18} holes recorded`;
+            }
+            if (pointsLabelA) {
+              pointsLabelA.textContent = match.player_a_name || "Player A";
+            }
+            if (pointsLabelB) {
+              pointsLabelB.textContent = match.player_b_name || "Player B";
+            }
+          };
+
+          const renderActiveMatchControls = (selectedKey) => {
+            if (!matchStatusControl || !activeMatchesData.length) {
+              return;
+            }
+            matchStatusControl.innerHTML = "";
+            activeMatchesData.forEach((item) => {
+              const button = document.createElement("button");
+              button.type = "button";
+              button.className = "match-status-btn";
+              if (item.match_key === selectedKey) {
+                button.classList.add("active");
+              }
+              button.dataset.matchKey = item.match_key;
+              button.innerHTML = `
+                <span class="match-status-btn__title">${item.display}</span>
+                <span class="match-status-btn__meta">${item.status_label} · ${item.holes} holes recorded</span>
+              `;
+              button.addEventListener("click", () => {
+                setActiveMatchKey(item.match_key);
+              });
+              matchStatusControl.appendChild(button);
+            });
+          };
+
+          const setActiveMatchKey = (matchKey) => {
             if (!matchKey) {
               return;
             }
+            activeMatchKey = matchKey;
+            if (matchSelect) {
+              matchSelect.value = matchKey;
+            }
+            renderActiveMatchControls(matchKey);
+            refreshScorecard();
+          };
+
+          if (selectorForm) {
+            selectorForm.addEventListener("submit", (event) => {
+              event.preventDefault();
+              if (matchSelect) {
+                setActiveMatchKey(matchSelect.value);
+              }
+            });
+          }
+          const refreshScorecard = async () => {
+            if (!activeMatchKey) {
+              return;
+            }
             try {
-              const response = await fetch(`/api/scorecard/${matchKey}`);
+              const response = await fetch(`/api/scorecard/${activeMatchKey}`);
               if (!response.ok) {
                 return;
               }
               const payload = await response.json();
-              payload.holes?.forEach(updateHoleRow);
+              if (frontRows) {
+                renderHoleSection(frontRows, payload.holes?.slice(0, 9) || []);
+              }
+              if (backRows) {
+                renderHoleSection(backRows, payload.holes?.slice(9) || []);
+              }
               if (strokeText) {
                 strokeText.textContent = composeStrokeMessage(payload.meta || {}, payload.match || {});
               }
               if (pointsAEl) {
-                pointsAEl.textContent = formatNumber(payload.meta?.total_points_a);
+                pointsAEl.textContent = formatNumber(payload.point_chip_a);
               }
               if (pointsBEl) {
-                pointsBEl.textContent = formatNumber(payload.meta?.total_points_b);
+                pointsBEl.textContent = formatNumber(payload.point_chip_b);
               }
+              updateHeader(payload);
             } catch (error) {
               console.error("Unable to refresh scorecard:", error);
             }
           };
 
+          renderActiveMatchControls(activeMatchKey);
           refreshScorecard();
           setInterval(refreshScorecard, 8000);
         });

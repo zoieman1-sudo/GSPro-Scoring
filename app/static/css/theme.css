@@ -389,6 +389,91 @@ body {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
 }
 
+.match-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.status-pill {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.status-pill--in_progress {
+  background: rgba(255, 199, 44, 0.15);
+  border-color: rgba(255, 199, 44, 0.4);
+  color: #ffc72c;
+}
+
+.status-pill--not_started {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.status-pill--completed {
+  background: rgba(0, 255, 152, 0.12);
+  border-color: rgba(0, 255, 152, 0.35);
+  color: #00ff98;
+}
+
+.status-detail {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.match-status-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.match-status-btn {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-pill);
+  padding: 6px 12px;
+  color: inherit;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  min-width: 160px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.match-status-btn.active {
+  border-color: rgba(67, 225, 255, 0.6);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+}
+
+.match-status-btn__title {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.match-status-btn__meta {
+  font-size: 0.55rem;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.15em;
+}
+
+.match-status-control__empty {
+  margin: 0;
+  font-size: 0.65rem;
+}
+
 .scorecard-pane {
   flex: 1;
   display: none;

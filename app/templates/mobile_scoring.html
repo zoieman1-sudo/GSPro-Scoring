@@ -4,101 +4,382 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Mobile Scoring</title>
-  <style>
-      :root { font-family: "Inter", system-ui, -apple-system, sans-serif; }
-      body { margin: 0; background: #f7f7f7; color: #111; }
-      .mobile-shell { min-height: 100vh; display: flex; flex-direction: column; }
-      .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 10; }
-      .modal-card { background: #fff; border-radius: 12px; padding: 16px; width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-      .modal-card h2 { margin: 0 0 12px; font-size: 1.2rem; }
-      .modal-card select { width: 100%; padding: 10px; font-size: 1rem; border-radius: 8px; border: 1px solid #ccc; }
-      .modal-actions { margin-top: 12px; display: flex; justify-content: flex-end; gap: 10px; }
-      .btn { border: none; padding: 10px 14px; border-radius: 8px; font-weight: 700; cursor: pointer; }
-      .btn.primary { background: #ff8800; color: #fff; }
-      .header { padding: 12px 16px; border-bottom: 1px solid #e0e0e0; }
-      .match-line { font-size: 0.95rem; color: #555; }
-      .hole-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; background: #4d4d4d; color: #fff; padding: 10px 12px; }
-      .hole-nav { border: none; background: transparent; color: #fff; font-weight: 700; font-size: 0.95rem; }
-      .hole-info { text-align: center; }
-      .hole-title { font-size: 1.1rem; font-weight: 700; }
-      .hole-sub { font-size: 0.9rem; color: #e2e2e2; }
-      .players { background: #fff; display: flex; flex-direction: column; }
-      .player { padding: 16px; border-bottom: 1px solid #ededed; }
-      .player-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-      .player-name { font-size: 1.1rem; font-weight: 700; }
-      .player-hcp { color: #777; font-size: 0.95rem; }
-      .player-score { display: flex; align-items: center; gap: 8px; }
-      .player-score input { width: 64px; text-align: center; font-size: 1.2rem; padding: 6px; border: 1px solid #ccc; border-radius: 6px; }
-      .player-stroke { color: #ff8800; font-weight: 700; min-width: 24px; text-align: center; }
-      .save-bar { padding: 12px; background: #f2f2f2; border-top: 1px solid #ddd; }
-      .save-actions { display: flex; gap: 10px; }
-      .save-btn { flex: 1; padding: 14px; border: none; border-radius: 10px; font-weight: 700; font-size: 1rem; background: #ff8800; color: #fff; }
-      .change-btn { padding: 14px; border-radius: 10px; border: 1px solid #ccc; background: #fff; font-weight: 700; }
+    <style>
+      :root {
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+        color: #f5f7ff;
+      }
+      body {
+        margin: 0;
+        font-size: 16px;
+        background: #050811;
+      }
+      .mobile-shell {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+        background: linear-gradient(180deg, #040612 0%, #070b1c 60%, #05060f 100%);
+      }
+      .header {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .page-title {
+        margin: 0;
+        font-size: 1.3rem;
+        letter-spacing: 0.05em;
+      }
+      .page-subtitle {
+        margin: 0;
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .hole-bar {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        background: #10223a;
+        border-radius: 14px;
+        padding: 10px 14px;
+        gap: 8px;
+        box-shadow: inset 0 0 30px rgba(6, 13, 33, 0.6);
+      }
+      .hole-nav {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: transparent;
+        color: #f5f7ff;
+        border-radius: 12px;
+        padding: 6px 10px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .hole-info {
+        text-align: center;
+      }
+      .hole-number {
+        display: block;
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+      .hole-meta {
+        display: block;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .status-row {
+        background: #0d1323;
+        border-radius: 14px;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .status-label {
+        font-size: 0.85rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .status-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .pill {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        padding: 6px 10px;
+        min-width: 130px;
+      }
+      .pill strong {
+        display: block;
+        font-size: 0.95rem;
+      }
+      .pill span {
+        display: block;
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .match-panels {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .match-panel {
+        background: #0b1426;
+        border-radius: 18px;
+        padding: 16px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .match-panel + .match-panel {
+        border-top: 2px solid rgba(255, 255, 255, 0.08);
+      }
+      .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .panel-division {
+        margin: 0;
+        font-size: 0.8rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .panel-match-name {
+        margin: 4px 0 0;
+        font-size: 1.05rem;
+        font-weight: 700;
+      }
+      .panel-status {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .player-stack {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 12px 0;
+      }
+      .player-stack strong {
+        display: block;
+        font-size: 1rem;
+      }
+      .player-hcp {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .vs-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .player-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+      }
+      .player-row + .player-row {
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .player-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .player-name {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 700;
+      }
+      .player-score {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .player-score input {
+        width: 68px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+        font-size: 1.2rem;
+        text-align: center;
+        padding: 6px 8px;
+      }
+      .player-score input:focus {
+        outline: 2px solid rgba(255, 169, 89, 0.7);
+      }
+      .stroke-indicator {
+        width: 20px;
+        text-align: center;
+        font-weight: 700;
+        color: #ffbb00;
+      }
+      .points-row {
+        margin-top: 16px;
+        display: flex;
+        gap: 12px;
+      }
+      .points-chip {
+        flex: 1;
+        background: rgba(76, 209, 255, 0.08);
+        border-radius: 12px;
+        padding: 10px;
+        text-align: center;
+      }
+      .points-chip strong {
+        display: block;
+        font-size: 1.5rem;
+        margin-top: 6px;
+      }
+      .save-row {
+        display: flex;
+        gap: 12px;
+      }
+      .save-btn,
+      .ghost-btn {
+        flex: 1;
+        border-radius: 12px;
+        border: none;
+        font-weight: 700;
+        font-size: 1rem;
+        padding: 12px;
+        cursor: pointer;
+      }
+      .save-btn {
+        background: #ff8800;
+        color: #fff;
+        border: 1px solid #ff8800;
+      }
+      .save-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .ghost-btn {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #fff;
+      }
+      .note {
+        margin: 0;
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.6);
+        text-align: center;
+      }
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(4, 6, 17, 0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+      }
+      .modal.hidden {
+        display: none;
+      }
+      .modal-card {
+        width: min(420px, 90%);
+        background: #0b1426;
+        border-radius: 18px;
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      }
+      .modal-card h2 {
+        margin: 0 0 10px;
+        font-size: 1.3rem;
+      }
+      .modal-card p {
+        margin: 0 0 12px;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.9rem;
+      }
+      .match-options {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 260px;
+        overflow-y: auto;
+        padding-right: 8px;
+      }
+      .match-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .match-option input {
+        width: 16px;
+        height: 16px;
+        accent-color: #4cd1ff;
+      }
+      .match-option strong {
+        display: block;
+      }
+      .match-option span {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .modal-actions {
+        margin-top: 16px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+      .modal-actions .btn {
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+      }
+      .modal-actions .btn.primary {
+        background: #4cd1ff;
+        color: #051b2c;
+      }
+      .modal-actions .btn.secondary {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        color: #fff;
+      }
     </style>
   </head>
   <body>
     <div class="mobile-shell">
-      <div class="modal" id="match-modal">
+      <div class="modal hidden" id="match-modal">
         <div class="modal-card">
-          <h2>Select match to score</h2>
-          <select id="match-select">
-            {% for m in matches %}
-              <option value="{{ m.match_key }}">{{ m.display }}</option>
-            {% endfor %}
-          </select>
+          <h2>Pick matches to score</h2>
+          <p>Select up to two matches that are active or in progress.</p>
+          <div class="match-options" id="match-options"></div>
           <div class="modal-actions">
-            <button class="btn primary" id="match-confirm">Start</button>
+            <button class="btn secondary" id="modal-cancel">Cancel</button>
+            <button class="btn primary" id="modal-confirm">Done</button>
           </div>
         </div>
       </div>
 
       <div class="header">
-        <div id="match-name" class="match-line"></div>
-        <div id="match-meta" class="match-line"></div>
+        <p class="page-title">Mobile Scoring</p>
+        <p class="page-subtitle">All score entry happens here, no refresh required.</p>
       </div>
 
       <div class="hole-bar">
         <button class="hole-nav" id="hole-prev">‹ Hole</button>
         <div class="hole-info">
-          <div class="hole-title">Hole <span id="hole-number">1</span></div>
-          <div class="hole-sub" id="hole-sub">Par —</div>
+          <span class="hole-number" id="hole-number">1</span>
+          <span class="hole-meta" id="hole-meta">Par — · HCP —</span>
         </div>
         <button class="hole-nav" id="hole-next">Hole ›</button>
       </div>
 
-      <div class="players">
-        <div class="player">
-          <div class="player-row">
-            <div>
-              <div class="player-name" id="player-a-name"></div>
-              <div class="player-hcp" id="player-a-hcp"></div>
-            </div>
-            <div class="player-score">
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="score-a" />
-              <div class="player-stroke" id="stroke-a"></div>
-            </div>
-          </div>
-        </div>
-        <div class="player">
-          <div class="player-row">
-            <div>
-              <div class="player-name" id="player-b-name"></div>
-              <div class="player-hcp" id="player-b-hcp"></div>
-            </div>
-            <div class="player-score">
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="score-b" />
-              <div class="player-stroke" id="stroke-b"></div>
-            </div>
-          </div>
-        </div>
+      <div class="status-row">
+        <span class="status-label">Active matches</span>
+        <div class="status-pills" id="status-pills"></div>
       </div>
 
-      <div class="save-bar">
-        <div class="save-actions">
-          <button type="button" id="save" class="save-btn">Save Scores</button>
-          <button type="button" id="change-match" class="change-btn">Change Match</button>
-        </div>
+      <div class="match-panels" id="match-panels"></div>
+
+      <div class="save-row">
+        <button id="save-scores" class="save-btn">Save Scores</button>
+        <button id="change-matches" class="ghost-btn">Change Matches</button>
       </div>
+
+      <p class="note">Hit save to update both matches; standings refresh automatically.</p>
     </div>
 
     <script>
@@ -126,6 +407,8 @@
       const matchModal = document.getElementById("match-modal");
       const matchSelect = document.getElementById("match-select");
       const matchConfirm = document.getElementById("match-confirm");
+      const mobileStatusEl = document.getElementById("mobile-status");
+      const mobileActiveButtons = document.querySelectorAll(".mobile-active-match-btn");
       const changeMatch = document.getElementById("change-match");
       const holeNumberEl = document.getElementById("hole-number");
       const holeSubEl = document.getElementById("hole-sub");
@@ -143,6 +426,21 @@
       const holeMeta = (num) => {
         const found = summary.course_holes?.find((h) => Number(h.hole_number) === Number(num));
         return found || {};
+      };
+
+      const updateMobileStatus = () => {
+        if (!mobileStatusEl) {
+          return;
+        }
+        const label = summary.status_label || "Not started";
+        const holesRecorded = summary.holes_recorded || 0;
+        mobileStatusEl.textContent = `${label} · ${holesRecorded} holes recorded`;
+      };
+
+      const highlightActiveMobileButton = (matchKey) => {
+        mobileActiveButtons.forEach((button) => {
+          button.classList.toggle("active", button.dataset.matchKey === matchKey);
+        });
       };
 
       const strokesFor = (handicap, holeHandicap) => {
@@ -207,20 +505,31 @@
         } catch {
           normalizeSummary();
         }
+        if (matchSelect) {
+          matchSelect.value = matchKey;
+        }
         matchNameEl.textContent = summary.match.match_name || "";
-        matchMetaEl.textContent = `Match ${summary.match.match_key || ""} • ${summary.division || ""}`.trim();
+        const metaParts = [
+          summary.match.match_key ? `Match ${summary.match.match_key}` : "",
+          summary.division || "",
+          summary.status_label || "",
+        ].filter(Boolean);
+        matchMetaEl.textContent = metaParts.join(" • ");
         playerAName.textContent = summary.match.player_a_name || "Player A";
         playerBName.textContent = summary.match.player_b_name || "Player B";
         playerAHcp.textContent = `HCP ${summary.player_a_handicap ?? 0}`;
         playerBHcp.textContent = `HCP ${summary.player_b_handicap ?? 0}`;
         activeHole = 1;
         setHole(activeHole);
+        updateMobileStatus();
+        highlightActiveMobileButton(matchKey);
       };
 
       if (matchConfirm) {
         matchConfirm.onclick = () => {
           const key = matchSelect.value;
           matchModal.style.display = "none";
+          highlightActiveMobileButton(key);
           loadMatch(key);
         };
       }
@@ -230,6 +539,21 @@
           matchModal.style.display = "flex";
         };
       }
+
+      mobileActiveButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const key = button.dataset.matchKey;
+          if (!key) {
+            return;
+          }
+          matchModal.style.display = "none";
+          if (matchSelect) {
+            matchSelect.value = key;
+          }
+          highlightActiveMobileButton(key);
+          loadMatch(key);
+        });
+      });
 
       loadMatch(matchSelect.value);
     </script>
