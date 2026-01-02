@@ -1,5 +1,7 @@
 from typing import Optional
 
+import random
+
 import psycopg
 from psycopg import sql
 from psycopg.types.json import Json
@@ -8,6 +10,12 @@ from psycopg.types.json import Json
 def ensure_schema(database_url: str) -> None:
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
+            cur.execute(
+                """
+                alter table match_results
+                add column if not exists match_code text not null default '';
+                """
+            )
             cur.execute(
                 """
                 create table if not exists match_results (
@@ -31,6 +39,18 @@ def ensure_schema(database_url: str) -> None:
                 """
                 alter table match_results
                 add column if not exists match_key text not null default '';
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
+                add column if not exists match_code text not null default '';
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
+                add column if not exists match_code text not null default '';
                 """
             )
             cur.execute(
@@ -546,8 +566,13 @@ def insert_hole_scores(
     ]
     if not values:
         return
+    hole_numbers = [entry["hole_number"] for entry in hole_entries]
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
+            cur.execute(
+                "delete from hole_scores where match_result_id = %s and hole_number = any(%s);",
+                (match_id, hole_numbers),
+            )
             cur.executemany(
                 """
                 insert into hole_scores (match_result_id, hole_number, player_a_score, player_b_score)
@@ -589,6 +614,8 @@ def fetch_match_result(database_url: str, match_id: int) -> dict | None:
                     match_name,
                     player_a_name,
                     player_b_name,
+                    match_key,
+                    match_code,
                     player_a_points,
                     player_b_points,
                     winner,
@@ -606,10 +633,12 @@ def fetch_match_result(database_url: str, match_id: int) -> dict | None:
                 "match_name": row[1],
                 "player_a_name": row[2],
                 "player_b_name": row[3],
-                "player_a_points": row[4],
-                "player_b_points": row[5],
-                "winner": row[6],
-                "submitted_at": row[7],
+                "match_key": row[4],
+                "match_code": row[5],
+                "player_a_points": row[6],
+                "player_b_points": row[7],
+                "winner": row[8],
+                "submitted_at": row[9],
             }
 
 
@@ -619,6 +648,7 @@ def insert_match_result(
     player_a: str,
     player_b: str,
     match_key: str,
+    match_code: str | None,
     player_a_points: int,
     player_b_points: int,
     player_a_bonus: int,
@@ -627,8 +657,16 @@ def insert_match_result(
     player_b_total: int,
     winner: str,
 ) -> Optional[int]:
+    def _next_code(cur) -> str:
+        while True:
+            code = "".join(str(random.randint(0, 9)) for _ in range(9))
+            cur.execute("select 1 from match_results where match_code = %s limit 1;", (code,))
+            if not cur.fetchone():
+                return code
+
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
+            code = match_code or _next_code(cur)
             cur.execute(
                 """
                 insert into match_results (
@@ -636,6 +674,7 @@ def insert_match_result(
                     player_a_name,
                     player_b_name,
                     match_key,
+                    match_code,
                     player_a_points,
                     player_b_points,
                     player_a_bonus,
@@ -644,7 +683,7 @@ def insert_match_result(
                     player_b_total,
                     winner
                 )
-                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 returning id;
                 """,
                 (
@@ -652,6 +691,7 @@ def insert_match_result(
                     player_a,
                     player_b,
                     match_key,
+                    code,
                     player_a_points,
                     player_b_points,
                     player_a_bonus,
@@ -675,6 +715,8 @@ def fetch_match_result_by_key(database_url: str, match_key: str) -> dict | None:
                     match_name,
                     player_a_name,
                     player_b_name,
+                    match_key,
+                    match_code,
                     player_a_points,
                     player_b_points,
                     winner,
@@ -694,10 +736,52 @@ def fetch_match_result_by_key(database_url: str, match_key: str) -> dict | None:
                 "match_name": row[1],
                 "player_a_name": row[2],
                 "player_b_name": row[3],
-                "player_a_points": row[4],
-                "player_b_points": row[5],
-                "winner": row[6],
-                "submitted_at": row[7],
+                "match_key": row[4],
+                "match_code": row[5],
+                "player_a_points": row[6],
+                "player_b_points": row[7],
+                "winner": row[8],
+                "submitted_at": row[9],
+            }
+
+
+def fetch_match_result_by_code(database_url: str, match_code: str) -> dict | None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select
+                    id,
+                    match_name,
+                    player_a_name,
+                    player_b_name,
+                    match_key,
+                    match_code,
+                    player_a_points,
+                    player_b_points,
+                    winner,
+                    submitted_at
+                from match_results
+                where match_code = %s
+                order by submitted_at desc
+                limit 1;
+                """,
+                (match_code,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            return {
+                "id": row[0],
+                "match_name": row[1],
+                "player_a_name": row[2],
+                "player_b_name": row[3],
+                "match_key": row[4],
+                "match_code": row[5],
+                "player_a_points": row[6],
+                "player_b_points": row[7],
+                "winner": row[8],
+                "submitted_at": row[9],
             }
 
 

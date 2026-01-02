@@ -18,6 +18,7 @@ from app.db import (
     fetch_hole_scores,
     fetch_match_result,
     fetch_match_result_by_key,
+    fetch_match_result_by_code,
     fetch_player_by_name,
     fetch_players,
     fetch_recent_results,
@@ -34,6 +35,7 @@ from app.db import (
     replace_course_tee_holes,
     fetch_course_catalog,
     fetch_course_tee_holes,
+    fetch_match_result_by_code,
 )
 from app.course_sync import import_course_to_db
 from app.seed import (
@@ -211,6 +213,33 @@ def _load_tournament_settings() -> dict[str, str]:
     return result
 
 
+def _ensure_match_results_for_pairings() -> None:
+    """
+    Ensure every pairing has a persistent match_result with match_key and match_code.
+    """
+    matches = _load_pairings()
+    for pairing in matches:
+        try:
+            existing = fetch_match_result_by_key(settings.database_url, pairing.match_id)
+            if existing:
+                continue
+            outcome = score_outcome(0, 0)
+            insert_match_result(
+                settings.database_url,
+                match_name=match_display(pairing),
+                player_a=pairing.player_a,
+                player_b=pairing.player_b,
+                match_key=pairing.match_id,
+                match_code=None,
+                player_a_points=0,
+                player_b_points=0,
+                **outcome,
+            )
+        except Exception as exc:  # noqa: BLE001
+            # Don't block startup if seeding fails; log and continue.
+            print(f"WARNING: could not seed match_result for {pairing.match_id}: {exc}")
+
+
 def _resolve_match(match_id: str, matches: list[Match], match_name: str, player_a: str, player_b: str):
     resolved = find_match(match_id, matches)
     if resolved:
@@ -327,6 +356,7 @@ def _build_match_summary(match: Match | None, key: str | None = None) -> dict:
         "player_b_handicap": 0,
         "division": match.division if match else "Open",
         "match_key": match_key,
+        "match_code": "",
         "hole_diff": 0,
     }
     if match_result:
@@ -335,6 +365,7 @@ def _build_match_summary(match: Match | None, key: str | None = None) -> dict:
                 "match_name": match_result["match_name"],
                 "player_a": match_result["player_a_name"],
                 "player_b": match_result["player_b_name"],
+                "match_code": match_result.get("match_code", "") if isinstance(match_result, dict) else "",
             }
         )
     player_a_info = fetch_player_by_name(settings.database_url, summary["player_a"]) or {}
@@ -403,6 +434,31 @@ async def scoring_page(request: Request):
     return _render_scoring(request)
 
 
+@app.get("/scoring/mobile", response_class=HTMLResponse)
+async def scoring_mobile_page(request: Request):
+    matches = _load_pairings()
+    default_match = matches[0] if matches else None
+    summary = _build_match_summary(default_match, default_match.match_id if default_match else None)
+    match_options: list[dict] = []
+    for m in matches:
+        pa = fetch_player_by_name(settings.database_url, m.player_a) or {}
+        pb = fetch_player_by_name(settings.database_url, m.player_b) or {}
+        match_options.append(
+            {
+                "match_key": m.match_id,
+                "display": f"{match_display(m)} ({pa.get('handicap', 0)}/{pb.get('handicap', 0)})",
+            }
+        )
+    return templates.TemplateResponse(
+        "mobile_scoring.html",
+        {
+            "request": request,
+            "scorecard": summary,
+            "matches": match_options,
+        },
+    )
+
+
 @app.get("/scorecard", response_class=HTMLResponse)
 async def scorecard_latest(request: Request, match_key: str | None = None):
     context = _scorecard_context(match_key)
@@ -452,6 +508,7 @@ def startup() -> None:
     ensure_schema(settings.database_url)
     _seed_default_players()
     _load_course_holes()
+    _ensure_match_results_for_pairings()
 
 
 @app.post("/submit", response_class=HTMLResponse)
@@ -477,6 +534,7 @@ async def submit(
         player_a=player_a,
         player_b=player_b,
         match_key=match_id,
+        match_code=None,
         player_a_points=player_a_points,
         player_b_points=player_b_points,
         **outcome,
@@ -528,6 +586,7 @@ async def api_scores(request: Request):
         player_a=player_a,
         player_b=player_b,
         match_key=payload.match_id or "",
+        match_code=None,
         player_a_points=payload.player_a_points,
         player_b_points=payload.player_b_points,
         **outcome,
@@ -545,7 +604,15 @@ async def api_scores(request: Request):
 async def api_match_summary(match_key: str):
     matches = _load_pairings()
     match = next((item for item in matches if item.match_id == match_key), None)
-    return _build_match_summary(match, match_key)
+    resolved_key = match_key
+    if not match:
+        match_result = fetch_match_result_by_key(settings.database_url, match_key) or fetch_match_result_by_code(
+            settings.database_url, match_key
+        )
+        if match_result and match_result.get("match_key"):
+            resolved_key = match_result["match_key"]
+            match = next((item for item in matches if item.match_id == resolved_key), None)
+    return _build_match_summary(match, resolved_key)
 
 
 def _admin_context(
@@ -953,6 +1020,8 @@ def _scorecard_context(match_key: str | None) -> dict:
         if course and selected_course_tee_id:
             tee = next((t for t in course.get("tees", []) if str(t.get("id")) == str(selected_course_tee_id)), None)
     match_result = fetch_match_result_by_key(settings.database_url, selected.match_id)
+    if not match_result:
+        match_result = fetch_match_result_by_code(settings.database_url, selected.match_id)
     hole_records = (
         fetch_hole_scores(settings.database_url, match_result["id"])
         if match_result
@@ -973,6 +1042,7 @@ def _scorecard_context(match_key: str | None) -> dict:
             "match": {
                 "id": match_result["id"] if match_result else None,
                 "match_key": selected.match_id,
+                "match_code": match_result.get("match_code") if match_result else "",
                 "match_name": match_name,
                 "player_a_name": player_a_name,
                 "player_b_name": player_b_name,
@@ -1035,6 +1105,52 @@ async def match_scorecard(request: Request, match_id: int):
 
 @app.post("/matches/{match_id}/holes")
 async def match_detail_submit(match_id: int, request: Request):
+    payload = await request.json()
+    entries = payload.get("holes", [])
+    cleaned = []
+    for entry in entries:
+        try:
+            hole_number = int(entry.get("hole_number", 0))
+            player_a_score = int(entry.get("player_a_score", 0))
+            player_b_score = int(entry.get("player_b_score", 0))
+        except (TypeError, ValueError):
+            continue
+        if hole_number <= 0:
+            continue
+        cleaned.append(
+            {
+                "hole_number": hole_number,
+                "player_a_score": player_a_score,
+                "player_b_score": player_b_score,
+            }
+        )
+    insert_hole_scores(settings.database_url, match_id, cleaned)
+    return JSONResponse({"added": len(cleaned)})
+
+
+@app.post("/matches/key/{match_key}/holes")
+async def match_detail_submit_by_key(match_key: str, request: Request):
+    match_result = fetch_match_result_by_key(settings.database_url, match_key)
+    if not match_result:
+        match_result = fetch_match_result_by_code(settings.database_url, match_key)
+    if not match_result:
+        pairing = next((m for m in _load_pairings() if m.match_id == match_key), None)
+        if not pairing:
+            raise HTTPException(status_code=404, detail="Match not found")
+        outcome = score_outcome(0, 0)
+        match_id = insert_match_result(
+            settings.database_url,
+            match_name=match_display(pairing),
+            player_a=pairing.player_a,
+            player_b=pairing.player_b,
+            match_key=pairing.match_id,
+            match_code=None,
+            player_a_points=0,
+            player_b_points=0,
+            **outcome,
+        )
+        match_result = fetch_match_result(settings.database_url, match_id)
+    match_id = match_result["id"]
     payload = await request.json()
     entries = payload.get("holes", [])
     cleaned = []

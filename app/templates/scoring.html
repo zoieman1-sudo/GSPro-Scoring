@@ -33,12 +33,77 @@
           <span class="hole-player-pill" id="hole-player-b-label">{{ scorecard.player_b }}</span>
         </div>
       </div>
-      <form id="hole-form" class="hole-entry-form">
-        <div id="hole-rows" class="hole-inputs"></div>
-        <div class="setup-actions">
-          <button type="button" id="add-hole-btn" class="add-player-btn">Add hole</button>
+      <div class="mobile-hole-shell">
+        <div class="mobile-hole-header" id="mobile-hole-header">
+          <button type="button" class="mobile-hole-nav-btn" id="mobile-hole-prev">◀</button>
+          <div class="mobile-hole-meta">
+            <div class="mobile-hole-title">Hole <span id="mobile-hole-number">1</span></div>
+            <div class="mobile-hole-sub" id="mobile-hole-sub">Par —</div>
+          </div>
+          <button type="button" class="mobile-hole-nav-btn" id="mobile-hole-next">▶</button>
         </div>
-      </form>
+        <div class="mobile-hole-nav" id="mobile-hole-nav"></div>
+        <form id="hole-form" class="hole-entry-form">
+          <div id="hole-rows" class="hole-inputs"></div>
+          <div class="setup-actions">
+            <button type="button" id="add-hole-btn" class="add-player-btn">Add hole</button>
+          </div>
+        </form>
+      </div>
+      <div id="mobile-scoring" class="mobile-scoring">
+        <div class="mobile-hole-bar">
+          <button type="button" class="mobile-hole-nav-btn" id="mobile-hole-prev2">‹ Hole</button>
+          <div class="mobile-hole-info">
+            <div class="mobile-hole-title">Hole <span id="mobile-hole-number-2">1</span></div>
+            <div class="mobile-hole-sub" id="mobile-hole-sub-2">Par —</div>
+          </div>
+          <button type="button" class="mobile-hole-nav-btn" id="mobile-hole-next2">Hole ›</button>
+        </div>
+        <div class="mobile-player-list">
+          <div class="mobile-player" data-role="a">
+            <div class="mobile-player-row">
+              <div class="mobile-player-name" id="mobile-player-a-name">Player A</div>
+              <div class="mobile-player-hcp" id="mobile-player-a-hcp"></div>
+              <div class="mobile-player-stroke" id="mobile-player-a-stroke"></div>
+            </div>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="mobile-input-a" />
+          </div>
+          <div class="mobile-player" data-role="b">
+            <div class="mobile-player-row">
+              <div class="mobile-player-name" id="mobile-player-b-name">Player B</div>
+              <div class="mobile-player-hcp" id="mobile-player-b-hcp"></div>
+              <div class="mobile-player-stroke" id="mobile-player-b-stroke"></div>
+            </div>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="mobile-input-b" />
+          </div>
+        </div>
+      </div>
+      <div class="mobile-keypad" id="mobile-keypad">
+        <div class="mobile-keypad-row">
+          <button type="button" data-key="1">1</button>
+          <button type="button" data-key="2">2</button>
+          <button type="button" data-key="3">3</button>
+        </div>
+        <div class="mobile-keypad-row">
+          <button type="button" data-key="4">4</button>
+          <button type="button" data-key="5">5</button>
+          <button type="button" data-key="6">6</button>
+        </div>
+        <div class="mobile-keypad-row">
+          <button type="button" data-key="7">7</button>
+          <button type="button" data-key="8">8</button>
+          <button type="button" data-key="9">9</button>
+        </div>
+        <div class="mobile-keypad-row">
+          <button type="button" data-key="clear" class="ghost">Clear</button>
+          <button type="button" data-key="0">0</button>
+          <button type="button" data-key="back" class="ghost">⌫</button>
+        </div>
+        <div class="mobile-keypad-row actions">
+          <button type="button" id="mobile-undo" class="ghost">Undo Changes</button>
+          <button type="button" id="mobile-save" class="solid">Save Scores</button>
+        </div>
+      </div>
     </section>
   </section>
 
@@ -84,8 +149,33 @@
     const keyTitle = document.getElementById("scorecard-match-key");
     const entrySection = document.querySelector(".hole-entry-section");
     const holeContainer = document.getElementById("hole-rows");
+    const mobileNav = document.getElementById("mobile-hole-nav");
+    const mobileHeader = document.getElementById("mobile-hole-header");
+    const mobileHoleNumber = document.getElementById("mobile-hole-number");
+    const mobileHoleSub = document.getElementById("mobile-hole-sub");
+    const mobilePrev = document.getElementById("mobile-hole-prev");
+    const mobileNext = document.getElementById("mobile-hole-next");
+    const mobileKeypad = document.getElementById("mobile-keypad");
+    const mobileSave = document.getElementById("mobile-save");
+    const mobileUndo = document.getElementById("mobile-undo");
+    const mobileContainer = document.getElementById("mobile-scoring");
+    const mobileHoleNumber2 = document.getElementById("mobile-hole-number-2");
+    const mobileHoleSub2 = document.getElementById("mobile-hole-sub-2");
+    const mobilePrev2 = document.getElementById("mobile-hole-prev2");
+    const mobileNext2 = document.getElementById("mobile-hole-next2");
+    const mobilePlayerAName = document.getElementById("mobile-player-a-name");
+    const mobilePlayerBName = document.getElementById("mobile-player-b-name");
+    const mobilePlayerAHcp = document.getElementById("mobile-player-a-hcp");
+    const mobilePlayerBHcp = document.getElementById("mobile-player-b-hcp");
+    const mobilePlayerAStroke = document.getElementById("mobile-player-a-stroke");
+    const mobilePlayerBStroke = document.getElementById("mobile-player-b-stroke");
+    const mobileInputA = document.getElementById("mobile-input-a");
+    const mobileInputB = document.getElementById("mobile-input-b");
     const template = document.getElementById("hole-input-template");
     const standardHoleCount = 18;
+    let mobileActiveHole = 1;
+    let activeInput = null;
+    let lastValues = new Map();
 
     const updateStrokeSummary = (handicapA, handicapB) => {
       if (!strokeSummary) return;
@@ -129,6 +219,18 @@
       }
       if (holePlayerBLabel) {
         holePlayerBLabel.textContent = summary.player_b;
+      }
+      if (mobilePlayerAName) {
+        mobilePlayerAName.textContent = summary.player_a;
+      }
+      if (mobilePlayerBName) {
+        mobilePlayerBName.textContent = summary.player_b;
+      }
+      if (mobilePlayerAHcp) {
+        mobilePlayerAHcp.textContent = `(${summary.player_a_handicap})`;
+      }
+      if (mobilePlayerBHcp) {
+        mobilePlayerBHcp.textContent = `(${summary.player_b_handicap})`;
       }
       if (summary.course_holes) {
         courseHoles = summary.course_holes;
@@ -174,6 +276,7 @@
           : "Player B gross";
       }
       const holeNumber = Number(holeInput.value) || Number(row.dataset.defaultHole) || 1;
+      row.dataset.holeNumber = holeNumber;
       const courseHcp = holeHandicapLookup(holeNumber);
       if (hcpInput && courseHcp) {
         hcpInput.value = courseHcp;
@@ -206,6 +309,12 @@
       if (strokeStarB) {
         strokeStarB.textContent = strokesB > 0 ? "*".repeat(strokesB) : "";
       }
+      if (mobilePlayerAStroke && number === mobileActiveHole) {
+        mobilePlayerAStroke.textContent = strokesA > 0 ? "*".repeat(strokesA) : "";
+      }
+      if (mobilePlayerBStroke && number === mobileActiveHole) {
+        mobilePlayerBStroke.textContent = strokesB > 0 ? "*".repeat(strokesB) : "";
+      }
       if (pointsStack) {
         if (netA !== null && netB !== null) {
           const nameA = (holePlayerALabel?.textContent || "Player A").split(" ").slice(-1).join(" ") || holePlayerALabel?.textContent || "Player A";
@@ -227,6 +336,9 @@
       row.querySelectorAll("input").forEach((input) => {
         input.addEventListener("input", () => {
           updateRow(row);
+        });
+        input.addEventListener("focus", () => {
+          activeInput = input;
         });
       });
       updateRow(row);
@@ -263,6 +375,7 @@
           if (courseHcp) hcpInput.value = courseHcp;
         }
       }
+      row.dataset.holeNumber = holeInput.value || holeNumber || "";
       holeContainer.appendChild(row);
       bindRow(row);
     };
@@ -285,6 +398,7 @@
       holes
         .filter((hole) => Number(hole.hole_number) > standardHoleCount)
         .forEach((hole) => addHoleRow(Number(hole.hole_number), hole));
+      refreshMobileNav();
     };
 
     updateScorecard({{ scorecard | tojson }});
@@ -295,6 +409,79 @@
     if (addHoleButton) {
       addHoleButton.addEventListener("click", () => addHoleRow());
     }
+
+    const refreshMobileNav = () => {
+      if (!mobileNav || !holeContainer) return;
+      mobileNav.innerHTML = "";
+      const rows = Array.from(holeContainer.querySelectorAll(".hole-entry-row"));
+      const seen = new Set();
+      rows.forEach((row) => {
+        const num = Number(row.dataset.holeNumber) || Number(row.dataset.defaultHole) || 1;
+        if (seen.has(num)) return;
+        seen.add(num);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = num;
+        btn.className = "mobile-hole-btn" + (num === mobileActiveHole ? " active" : "");
+        btn.addEventListener("click", () => {
+          mobileActiveHole = num;
+          applyMobileActive();
+          refreshMobileNav();
+        });
+        mobileNav.appendChild(btn);
+      });
+      applyMobileActive();
+    };
+
+    const applyMobileActive = () => {
+      if (!holeContainer) return;
+      const rows = Array.from(holeContainer.querySelectorAll(".hole-entry-row"));
+      const isMobile = window.matchMedia("(max-width: 900px)").matches;
+      rows.forEach((row) => {
+        const num = Number(row.dataset.holeNumber) || Number(row.dataset.defaultHole) || 1;
+        if (isMobile) {
+          row.classList.toggle("mobile-hidden", num !== mobileActiveHole);
+        } else {
+          row.classList.remove("mobile-hidden");
+        }
+      });
+      if (mobileHoleNumber) {
+        mobileHoleNumber.textContent = mobileActiveHole;
+      }
+      if (mobileHoleNumber2) {
+        mobileHoleNumber2.textContent = mobileActiveHole;
+      }
+      if (mobileHoleSub && courseHoles) {
+        const holeMeta = courseHoles.find((h) => Number(h.hole_number) === Number(mobileActiveHole));
+        const par = holeMeta?.par ? `Par ${holeMeta.par}` : "";
+        const yards = holeMeta?.yardage ? `${holeMeta.yardage} yds` : "";
+        const bits = [par, yards].filter(Boolean).join(" • ");
+        mobileHoleSub.textContent = bits || "";
+      }
+      if (mobileHoleSub2 && courseHoles) {
+        const holeMeta = courseHoles.find((h) => Number(h.hole_number) === Number(mobileActiveHole));
+        const par = holeMeta?.par ? `Par ${holeMeta.par}` : "";
+        const yards = holeMeta?.yardage ? `${holeMeta.yardage} yds` : "";
+        const bits = [par, yards].filter(Boolean).join(" • ");
+        mobileHoleSub2.textContent = bits || "";
+      }
+      if (isMobile) {
+        setTimeout(() => {
+          const activeRow = rows.find((row) => !(row.classList.contains("mobile-hidden")));
+          if (activeRow) {
+            const grossA = activeRow.querySelector('input[name="player_a_score"]');
+            const grossB = activeRow.querySelector('input[name="player_b_score"]');
+            activeInput = grossB || grossA || activeInput;
+            if (mobileInputA && grossA && num === mobileActiveHole) {
+              mobileInputA.value = grossA.value || "";
+            }
+            if (mobileInputB && grossB && num === mobileActiveHole) {
+              mobileInputB.value = grossB.value || "";
+            }
+          }
+        }, 0);
+      }
+    };
 
     if (saveHolesButton) {
       saveHolesButton.addEventListener("click", async () => {
@@ -337,6 +524,98 @@
             updateScorecard(data);
           }
         }
+      });
+    }
+
+    window.addEventListener("resize", applyMobileActive);
+
+    if (mobilePrev) {
+      mobilePrev.addEventListener("click", () => {
+        mobileActiveHole = Math.max(1, mobileActiveHole - 1);
+        applyMobileActive();
+        refreshMobileNav();
+      });
+    }
+    if (mobileNext) {
+      mobileNext.addEventListener("click", () => {
+        const maxHole = Math.max(
+          ...Array.from(holeContainer?.querySelectorAll(".hole-entry-row") || []).map((r) => Number(r.dataset.holeNumber) || 1)
+        );
+        mobileActiveHole = Math.min(maxHole, mobileActiveHole + 1);
+        applyMobileActive();
+        refreshMobileNav();
+      });
+    }
+    if (mobilePrev2) {
+      mobilePrev2.addEventListener("click", () => {
+        mobileActiveHole = Math.max(1, mobileActiveHole - 1);
+        applyMobileActive();
+        refreshMobileNav();
+      });
+    }
+    if (mobileNext2) {
+      mobileNext2.addEventListener("click", () => {
+        const maxHole = Math.max(
+          ...Array.from(holeContainer?.querySelectorAll(".hole-entry-row") || []).map((r) => Number(r.dataset.holeNumber) || 1)
+        );
+        mobileActiveHole = Math.min(maxHole, mobileActiveHole + 1);
+        applyMobileActive();
+        refreshMobileNav();
+      });
+    }
+
+    const keypadHandler = (key) => {
+      if (!activeInput) {
+        // try selecting mobile inputs on the active hole
+        const rows = Array.from(holeContainer?.querySelectorAll(".hole-entry-row") || []);
+        const activeRow = rows.find((row) => Number(row.dataset.holeNumber) === mobileActiveHole && !row.classList.contains("mobile-hidden"));
+        if (activeRow) {
+          activeInput =
+            (key && key !== "clear" && key !== "back" ? activeRow.querySelector('input[name="player_b_score"]') : null) ||
+            activeRow.querySelector('input[name="player_a_score"]');
+        }
+      }
+      if (!activeInput) return;
+      const current = activeInput.value || "";
+      if (!lastValues.has(activeInput)) {
+        lastValues.set(activeInput, current);
+      }
+      if (key === "clear") {
+        activeInput.value = "";
+      } else if (key === "back") {
+        activeInput.value = current.slice(0, -1);
+      } else {
+        activeInput.value = current + key;
+      }
+      activeInput.dispatchEvent(new Event("input"));
+      if (activeInput === (document.activeElement)) {
+        activeInput.blur();
+      }
+      if (activeInput === (mobileInputA) && mobileInputA) {
+        mobileInputA.value = activeInput.value;
+      }
+      if (activeInput === (mobileInputB) && mobileInputB) {
+        mobileInputB.value = activeInput.value;
+      }
+    };
+
+    if (mobileKeypad) {
+      mobileKeypad.querySelectorAll("button[data-key]").forEach((btn) => {
+        btn.addEventListener("click", () => keypadHandler(btn.dataset.key));
+      });
+    }
+
+    if (mobileSave) {
+      mobileSave.addEventListener("click", () => saveHolesButton?.click());
+    }
+
+    if (mobileUndo) {
+      mobileUndo.addEventListener("click", () => {
+        lastValues.forEach((val, input) => {
+          input.value = val;
+          input.dispatchEvent(new Event("input"));
+        });
+        lastValues.clear();
       });
     }
   </script>

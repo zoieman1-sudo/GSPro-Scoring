@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Mobile Scoring</title>
+  <style>
+      :root { font-family: "Inter", system-ui, -apple-system, sans-serif; }
+      body { margin: 0; background: #f7f7f7; color: #111; }
+      .mobile-shell { min-height: 100vh; display: flex; flex-direction: column; }
+      .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 10; }
+      .modal-card { background: #fff; border-radius: 12px; padding: 16px; width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+      .modal-card h2 { margin: 0 0 12px; font-size: 1.2rem; }
+      .modal-card select { width: 100%; padding: 10px; font-size: 1rem; border-radius: 8px; border: 1px solid #ccc; }
+      .modal-actions { margin-top: 12px; display: flex; justify-content: flex-end; gap: 10px; }
+      .btn { border: none; padding: 10px 14px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+      .btn.primary { background: #ff8800; color: #fff; }
+      .header { padding: 12px 16px; border-bottom: 1px solid #e0e0e0; }
+      .match-line { font-size: 0.95rem; color: #555; }
+      .hole-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; background: #4d4d4d; color: #fff; padding: 10px 12px; }
+      .hole-nav { border: none; background: transparent; color: #fff; font-weight: 700; font-size: 0.95rem; }
+      .hole-info { text-align: center; }
+      .hole-title { font-size: 1.1rem; font-weight: 700; }
+      .hole-sub { font-size: 0.9rem; color: #e2e2e2; }
+      .players { background: #fff; display: flex; flex-direction: column; }
+      .player { padding: 16px; border-bottom: 1px solid #ededed; }
+      .player-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .player-name { font-size: 1.1rem; font-weight: 700; }
+      .player-hcp { color: #777; font-size: 0.95rem; }
+      .player-score { display: flex; align-items: center; gap: 8px; }
+      .player-score input { width: 64px; text-align: center; font-size: 1.2rem; padding: 6px; border: 1px solid #ccc; border-radius: 6px; }
+      .player-stroke { color: #ff8800; font-weight: 700; min-width: 24px; text-align: center; }
+      .save-bar { padding: 12px; background: #f2f2f2; border-top: 1px solid #ddd; }
+      .save-actions { display: flex; gap: 10px; }
+      .save-btn { flex: 1; padding: 14px; border: none; border-radius: 10px; font-weight: 700; font-size: 1rem; background: #ff8800; color: #fff; }
+      .change-btn { padding: 14px; border-radius: 10px; border: 1px solid #ccc; background: #fff; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <div class="mobile-shell">
+      <div class="modal" id="match-modal">
+        <div class="modal-card">
+          <h2>Select match to score</h2>
+          <select id="match-select">
+            {% for m in matches %}
+              <option value="{{ m.match_key }}">{{ m.display }}</option>
+            {% endfor %}
+          </select>
+          <div class="modal-actions">
+            <button class="btn primary" id="match-confirm">Start</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="header">
+        <div id="match-name" class="match-line"></div>
+        <div id="match-meta" class="match-line"></div>
+      </div>
+
+      <div class="hole-bar">
+        <button class="hole-nav" id="hole-prev">‹ Hole</button>
+        <div class="hole-info">
+          <div class="hole-title">Hole <span id="hole-number">1</span></div>
+          <div class="hole-sub" id="hole-sub">Par —</div>
+        </div>
+        <button class="hole-nav" id="hole-next">Hole ›</button>
+      </div>
+
+      <div class="players">
+        <div class="player">
+          <div class="player-row">
+            <div>
+              <div class="player-name" id="player-a-name"></div>
+              <div class="player-hcp" id="player-a-hcp"></div>
+            </div>
+            <div class="player-score">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="score-a" />
+              <div class="player-stroke" id="stroke-a"></div>
+            </div>
+          </div>
+        </div>
+        <div class="player">
+          <div class="player-row">
+            <div>
+              <div class="player-name" id="player-b-name"></div>
+              <div class="player-hcp" id="player-b-hcp"></div>
+            </div>
+            <div class="player-score">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="score-b" />
+              <div class="player-stroke" id="stroke-b"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="save-bar">
+        <div class="save-actions">
+          <button type="button" id="save" class="save-btn">Save Scores</button>
+          <button type="button" id="change-match" class="change-btn">Change Match</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const matches = {{ matches | tojson }};
+      let summary = {{ scorecard | tojson }};
+      let activeHole = 1;
+      let activeInput = null;
+      let lastValues = {};
+
+      const normalizeSummary = () => {
+        summary = summary || {};
+        summary.match = summary.match || {};
+        summary.holes = summary.holes || [];
+        summary.course_holes = summary.course_holes || [];
+        summary.player_a_handicap = Number(summary.player_a_handicap || summary.match.player_a_handicap || 0);
+        summary.player_b_handicap = Number(summary.player_b_handicap || summary.match.player_b_handicap || 0);
+        summary.match.match_key = summary.match.match_key || summary.match_key || "";
+        summary.match.match_code = summary.match.match_code || summary.match_code || "";
+        summary.match.player_a_name = summary.match.player_a_name || summary.player_a || "Player A";
+        summary.match.player_b_name = summary.match.player_b_name || summary.player_b || "Player B";
+        summary.match.match_name = summary.match.match_name || summary.match_name || "Match";
+      };
+      normalizeSummary();
+
+      const matchModal = document.getElementById("match-modal");
+      const matchSelect = document.getElementById("match-select");
+      const matchConfirm = document.getElementById("match-confirm");
+      const changeMatch = document.getElementById("change-match");
+      const holeNumberEl = document.getElementById("hole-number");
+      const holeSubEl = document.getElementById("hole-sub");
+      const matchNameEl = document.getElementById("match-name");
+      const matchMetaEl = document.getElementById("match-meta");
+      const playerAName = document.getElementById("player-a-name");
+      const playerBName = document.getElementById("player-b-name");
+      const playerAHcp = document.getElementById("player-a-hcp");
+      const playerBHcp = document.getElementById("player-b-hcp");
+      const strokeA = document.getElementById("stroke-a");
+      const strokeB = document.getElementById("stroke-b");
+      const scoreA = document.getElementById("score-a");
+      const scoreB = document.getElementById("score-b");
+
+      const holeMeta = (num) => {
+        const found = summary.course_holes?.find((h) => Number(h.hole_number) === Number(num));
+        return found || {};
+      };
+
+      const strokesFor = (handicap, holeHandicap) => {
+        const base = Math.floor(handicap / 18);
+        const rem = handicap % 18;
+        return base + (rem && holeHandicap <= rem ? 1 : 0);
+      };
+
+      const currentHoleEntry = () => summary.holes.find((h) => Number(h.hole_number) === Number(activeHole));
+
+      const setHole = (num) => {
+        activeHole = num;
+        holeNumberEl.textContent = num;
+        const meta = holeMeta(num);
+        holeSubEl.textContent = meta.par ? `Par ${meta.par}${meta.yardage ? " • " + meta.yardage + " yds" : ""}` : "";
+        const entry = currentHoleEntry() || {};
+        scoreA.value = entry.player_a_score || "";
+        scoreB.value = entry.player_b_score || "";
+        const hcp = meta.handicap || entry.hole_handicap || 18;
+        strokeA.textContent = strokesFor(summary.player_a_handicap, hcp) ? "★".repeat(strokesFor(summary.player_a_handicap, hcp)) : "";
+        strokeB.textContent = strokesFor(summary.player_b_handicap, hcp) ? "★".repeat(strokesFor(summary.player_b_handicap, hcp)) : "";
+      };
+
+      const record = () => {
+        const idx = summary.holes.findIndex((h) => Number(h.hole_number) === Number(activeHole));
+        const meta = holeMeta(activeHole);
+        const entry = {
+          hole_number: activeHole,
+          hole_handicap: meta.handicap || 18,
+          player_a_score: scoreA.value,
+          player_b_score: scoreB.value,
+        };
+        if (idx >= 0) summary.holes[idx] = entry; else summary.holes.push(entry);
+      };
+
+      document.getElementById("hole-prev").onclick = () => setHole(Math.max(1, activeHole - 1));
+      document.getElementById("hole-next").onclick = () => setHole(Math.min(18, activeHole + 1));
+
+      [scoreA, scoreB].forEach((inp) => {
+        inp.addEventListener("focus", () => activeInput = inp);
+        inp.addEventListener("input", record);
+      });
+
+      document.getElementById("save").onclick = async () => {
+        record();
+        const payload = { holes: summary.holes.filter((h) => h.player_a_score !== "" && h.player_b_score !== "") };
+        const saveKey = summary.match.match_code || summary.match.match_key;
+        await fetch(`/matches/key/${saveKey}/holes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        lastValues = {};
+      };
+
+      const loadMatch = async (matchKey) => {
+        try {
+          const res = await fetch(`/api/match-summary/${matchKey}`);
+          const data = await res.json();
+          summary = data;
+          normalizeSummary();
+        } catch {
+          normalizeSummary();
+        }
+        matchNameEl.textContent = summary.match.match_name || "";
+        matchMetaEl.textContent = `Match ${summary.match.match_key || ""} • ${summary.division || ""}`.trim();
+        playerAName.textContent = summary.match.player_a_name || "Player A";
+        playerBName.textContent = summary.match.player_b_name || "Player B";
+        playerAHcp.textContent = `HCP ${summary.player_a_handicap ?? 0}`;
+        playerBHcp.textContent = `HCP ${summary.player_b_handicap ?? 0}`;
+        activeHole = 1;
+        setHole(activeHole);
+      };
+
+      if (matchConfirm) {
+        matchConfirm.onclick = () => {
+          const key = matchSelect.value;
+          matchModal.style.display = "none";
+          loadMatch(key);
+        };
+      }
+
+      if (changeMatch) {
+        changeMatch.onclick = () => {
+          matchModal.style.display = "flex";
+        };
+      }
+
+      loadMatch(matchSelect.value);
+    </script>
+  </body>
+</html>

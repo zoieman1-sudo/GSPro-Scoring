@@ -124,19 +124,21 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 26px;
+  margin-bottom: 14px;
 }
 
 .match-title {
   margin: 0;
-  font-size: clamp(2rem, 2vw + 1rem, 3rem);
+  font-size: clamp(1.3rem, 1vw + 0.4rem, 1.7rem);
   font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
 }
 
 .match-sub,
 .eyebrow {
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.4;
 }
 
 .eyebrow {
@@ -224,28 +226,102 @@ body {
 }
 
 .detail-card {
-  margin-top: 20px;
+  margin: 0 auto 18px;
+  width: min(1180px, 100%);
+  padding: 20px 24px;
 }
 
 .match-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .scorecard-panel {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 14px;
+  background: linear-gradient(180deg, rgba(8, 18, 40, 0.95), rgba(4, 9, 22, 0.95));
+  border-radius: var(--radius-lg);
+  padding: 32px 30px 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45), inset 0 0 30px rgba(255, 255, 255, 0.04);
+}
+
+.scorecard-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.33fr) repeat(2, minmax(250px, 0.335fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.scorecard-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  min-width: 0;
+  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.4);
+}
+
+.scorecard-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scorecard-column-title {
+  margin: 0;
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  text-align: left;
+}
+
+.scorecard-column-title::after {
+  content: "";
+  display: block;
+  height: 1px;
+  width: 80px;
+  margin-top: 5px;
+  background: linear-gradient(90deg, rgba(67, 225, 255, 0.5), rgba(255, 255, 255, 0));
+}
+
+.scorecard-selector {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.scorecard-selector select {
+  width: 100%;
+  border: none;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-size: 0.9rem;
+  appearance: none;
+  font-weight: 600;
+}
+
+.scorecard-selector select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(67, 225, 255, 0.3);
 }
 
 .scorecard-header {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 18px;
+  padding-bottom: 12px;
 }
 
 .scorecard-header--simple .match-title {
@@ -436,8 +512,8 @@ body {
 }
 
 .scorecard-table-body .hole-card div {
-  padding: 6px 4px;
-  font-size: 0.95rem;
+  padding: 4px 2px;
+  font-size: 0.8rem;
   text-align: center;
 }
 
@@ -448,34 +524,34 @@ body {
 
 .scorecard-totals {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 16px 18px;
+  padding: 10px 12px;
   background: rgba(255, 255, 255, 0.03);
 }
 
 .scorecard-totals span {
   display: block;
-  font-size: 0.65rem;
-  letter-spacing: 0.3em;
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .scorecard-totals strong {
-  font-size: 1.6rem;
+  font-size: 1.2rem;
   letter-spacing: normal;
   color: var(--text);
 }
 
 .scorecard-summary-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 16px;
-  align-items: center;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 10px;
 }
 
 .scorecard-summary-grid .muted-label {
@@ -485,6 +561,16 @@ body {
   text-transform: uppercase;
   color: var(--muted);
   margin-bottom: 6px;
+}
+
+.scorecard-summary-block {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .scorecard-points {
@@ -497,16 +583,16 @@ body {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-md);
-  padding: 10px 14px;
-  min-width: 120px;
+  padding: 10px 12px;
+  min-width: 100px;
 }
 
 .scorecard-points span {
   display: block;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  font-size: 0.7rem;
-  color: var(--muted);
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .scorecard-points strong {
@@ -517,26 +603,27 @@ body {
 
 .match-scorecard-table {
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   overflow: hidden;
-  background: rgba(7, 13, 30, 0.8);
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(145deg, rgba(8, 16, 34, 0.92), rgba(4, 9, 23, 0.95));
+  box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.55);
 }
 
 .match-scorecard-row {
   display: grid;
-  grid-template-columns: 0.6fr 0.6fr 0.6fr repeat(3, 1fr) repeat(3, 1fr) 0.9fr 0.9fr 0.9fr;
+  grid-template-columns: repeat(10, minmax(38px, 1fr));
   gap: 6px;
-  padding: 10px 12px;
-  font-size: 0.95rem;
+  padding: 8px 12px;
+  font-size: 0.78rem;
   align-items: center;
   text-align: center;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .match-scorecard-head {
   background: rgba(255, 255, 255, 0.03);
-  font-size: 0.72rem;
-  letter-spacing: 0.24em;
+  font-size: 0.65rem;
+  letter-spacing: 0.25em;
   text-transform: uppercase;
   color: var(--muted);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -544,6 +631,12 @@ body {
 
 .match-scorecard-row:nth-child(even):not(.match-scorecard-head) {
   background: rgba(255, 255, 255, 0.02);
+}
+
+.match-scorecard-table abbr {
+  border-bottom: 1px dotted rgba(255, 255, 255, 0.4);
+  cursor: help;
+  letter-spacing: 0.1em;
 }
 
 .result-badge {
@@ -582,7 +675,7 @@ body {
 .scorecard-actions {
   margin-top: 18px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .pill-link {
@@ -609,8 +702,168 @@ body {
   margin-top: 0;
   border-radius: var(--radius-lg);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 24px;
+  padding: 24px 28px 24px 24px;
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+}
+
+.mobile-scoring {
+  display: none;
+}
+
+.mobile-scoring-page .sidebar {
+  display: none;
+}
+
+.mobile-scoring-page .shell {
+  padding: 0;
+}
+
+.mobile-score-wrapper {
+  background: #f7f7f7;
+  min-height: 100vh;
+  color: #222;
+}
+
+.mobile-score-header {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.mobile-score-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.mobile-score-sub {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.mobile-score-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.mobile-hole-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #4d4d4d;
+  color: #fff;
+  padding: 10px 14px;
+}
+
+.mobile-hole-nav-btn {
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-weight: 700;
+}
+
+.mobile-hole-info {
+  text-align: center;
+  flex: 1;
+}
+
+.mobile-hole-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.mobile-hole-sub {
+  font-size: 0.9rem;
+  color: #e2e2e2;
+}
+
+.mobile-player-list-simple {
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobile-player {
+  padding: 14px 16px;
+  border-bottom: 1px solid #ededed;
+}
+
+.mobile-player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-player-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.mobile-player-hcp {
+  color: #777;
+  font-size: 0.9rem;
+}
+
+.mobile-player-score {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobile-player-score input {
+  width: 64px;
+  text-align: center;
+  font-size: 1.2rem;
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.mobile-player-stroke {
+  color: #ff8800;
+  font-weight: 700;
+}
+
+.mobile-keypad {
+  display: none;
+  gap: 8px;
+  flex-direction: column;
+  padding: 12px;
+  background: #f2f2f2;
+}
+
+.mobile-keypad-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.mobile-keypad-row.actions {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.mobile-keypad button {
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #111;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.mobile-keypad button.solid {
+  background: #ff8800;
+  color: #fff;
+  border-color: #ff8800;
+}
+
+.mobile-keypad button.ghost {
+  background: #f8f8f8;
 }
 
 .hole-entry-form {
@@ -639,33 +892,33 @@ body {
 .hole-inputs {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-height: 620px;
+  gap: 8px;
+  max-height: 450px;
   overflow-y: auto;
 }
 
 .hole-entry-row {
   display: grid;
-  grid-template-columns: 100px repeat(2, minmax(140px, 1fr)) 90px;
-  gap: 12px;
+  grid-template-columns: 70px repeat(2, minmax(110px, 1fr)) 70px;
+  gap: 6px;
   align-items: center;
   border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 12px 14px;
+  padding: 6px 8px;
   background: rgba(3, 9, 20, 0.8);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
 }
 
 .hole-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .hole-field label,
 .hole-diff label {
-  font-size: 0.65rem;
-  letter-spacing: 0.28em;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -673,11 +926,11 @@ body {
 .hole-field input {
   border: none;
   border-radius: 10px;
-  padding: 8px 10px;
+  padding: 4px 6px;
   background: rgba(255, 255, 255, 0.08);
   color: var(--text);
-  font-size: 0.9rem;
-  max-width: 5ch;
+  font-size: 0.78rem;
+  max-width: 3.6ch;
 }
 
 .hole-field input[type="number"]::-webkit-outer-spin-button,
@@ -761,6 +1014,124 @@ body {
   gap: 4px;
   font-weight: 600;
   letter-spacing: 0.05em;
+}
+
+.mobile-hole-shell {
+  display: flex;
+  gap: 10px;
+}
+
+.mobile-hole-header {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.mobile-hole-title {
+  font-weight: 700;
+}
+
+.mobile-hole-sub {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.mobile-hole-nav-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  font-weight: 700;
+}
+
+.mobile-hole-nav {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 6px;
+}
+
+.mobile-hole-btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px;
+  width: 44px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.mobile-hole-btn.active {
+  background: var(--accent);
+  color: #001622;
+}
+
+.mobile-hidden {
+  display: none;
+}
+
+.mobile-keypad {
+  display: none;
+  gap: 6px;
+  flex-direction: column;
+  margin-top: 10px;
+}
+
+.mobile-keypad-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.mobile-keypad-row.actions {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.mobile-keypad button {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.mobile-keypad button.solid {
+  background: var(--accent);
+  color: #001622;
+}
+
+.mobile-keypad button.ghost {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+@media (max-width: 900px) {
+  .mobile-hole-shell {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .mobile-hole-nav {
+    display: flex;
+    position: sticky;
+    top: 0;
+  }
+  .mobile-hole-header {
+    display: flex;
+  }
+  .hole-inputs {
+    max-height: none;
+  }
+  .mobile-keypad {
+    display: flex;
+  }
 }
 .match-summary > div {
   border-radius: var(--radius-md);
@@ -1227,7 +1598,7 @@ body {
   }
 
   .hole-entry-section {
-    padding: 18px;
+    padding: 18px 22px 18px 18px;
   }
 }
 
@@ -1246,5 +1617,20 @@ body {
 
   .shell {
     padding: 24px 20px 60px;
+  }
+
+  .hole-entry-section {
+    display: none;
+  }
+  .mobile-scoring {
+    display: block;
+  }
+
+  .shell {
+    width: 100%;
+  }
+
+  .scorecard-layout {
+    grid-template-columns: 1fr;
   }
 }
