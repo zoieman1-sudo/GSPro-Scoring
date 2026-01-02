@@ -2,31 +2,48 @@
 {% block content %}
   {% set front_holes = scorecard.holes[:9] %}
   {% set back_holes = scorecard.holes[9:] %}
+    {% macro sum_attr(holes, attr) -%}
+      {%- set total = 0 -%}
+      {%- for hole in holes -%}
+        {%- set value = hole[attr] if hole[attr] is not none else 0 -%}
+        {%- set total = total + value -%}
+      {%- endfor -%}
+      {{ total }}
+    {%- endmacro %}
+
     <section class="card detail-card scorecard-panel">
       <div class="scorecard-layout">
         <div class="scorecard-info">
-          <div class="match-meta">
-            <p class="eyebrow">Match Scorecard</p>
-            <h1 class="match-title">{{ scorecard.match.match_name }}</h1>
-            <p class="match-sub">
-              {{ scorecard.match.player_a_name }} (hcp {{ scorecard.player_a_handicap }})
-              vs
-              {{ scorecard.match.player_b_name }} (hcp {{ scorecard.player_b_handicap }})
-            </p>
-            {% if scorecard.course %}
-              <p class="match-subtle course-meta">
-                {{ scorecard.course.club_name }} — {{ scorecard.course.course_name }}
-                {% if scorecard.course.tee_name %}
-                  | Tee: {{ scorecard.course.tee_name }}
-                {% endif %}
-                {% if scorecard.course.total_yards %}
-                  | {{ scorecard.course.total_yards }} yds
-                {% endif %}
-                {% if scorecard.course.course_rating %}
-                  | CR {{ scorecard.course.course_rating }} / SR {{ scorecard.course.slope_rating or "—" }}
-                {% endif %}
-              </p>
-            {% endif %}
+          <div class="scorecard-header-row">
+            <div class="match-meta">
+              <p class="eyebrow">Match Scorecard</p>
+              <h1 class="match-title">Division {{ scorecard.match.division }}</h1>
+              <div class="match-sub match-sub--stacked">
+                <span class="match-player">{{ scorecard.match.player_a_name }}</span>
+                <span class="match-hcp">hcp {{ scorecard.player_a_handicap }}</span>
+                <span class="match-vs">vs</span>
+                <span class="match-player">{{ scorecard.match.player_b_name }}</span>
+                <span class="match-hcp">hcp {{ scorecard.player_b_handicap }}</span>
+              </div>
+              {% if scorecard.course %}
+                <p class="match-subtle course-meta">
+                  {{ scorecard.course.club_name }} — {{ scorecard.course.course_name }}
+                  {% if scorecard.course.tee_name %}
+                    | Tee: {{ scorecard.course.tee_name }}
+                  {% endif %}
+                  {% if scorecard.course.total_yards %}
+                    | {{ scorecard.course.total_yards }} yds
+                  {% endif %}
+                  {% if scorecard.course.course_rating %}
+                    | CR {{ scorecard.course.course_rating }} / SR {{ scorecard.course.slope_rating or "—" }}
+                  {% endif %}
+                </p>
+              {% endif %}
+            </div>
+            <div class="scorecard-tabs" role="tablist">
+              <button type="button" class="tab-btn active" data-tab="front">Holes 1-9</button>
+              <button type="button" class="tab-btn" data-tab="back">Holes 10-18</button>
+            </div>
           </div>
 
           <form class="scorecard-selector" method="get" action="/scorecard">
@@ -45,7 +62,7 @@
           <div class="scorecard-summary-grid">
             <div class="scorecard-summary-block">
               <span class="muted-label">Stroke allocation</span>
-              <p class="match-subtle">
+              <p class="match-subtle" id="stroke-allocation">
                 {% if scorecard.meta.stroke_owner %}
                   {{ scorecard.match.player_a_name if scorecard.meta.stroke_owner == 'A' else scorecard.match.player_b_name }}
                   receives
@@ -55,16 +72,6 @@
                   No strokes allocated for this matchup.
                 {% endif %}
               </p>
-            </div>
-            <div class="scorecard-points">
-              <div>
-                <span>{{ scorecard.match.player_a_name }} pts</span>
-                <strong>{{ scorecard.meta.total_points_a|round(1) }}</strong>
-              </div>
-              <div>
-                <span>{{ scorecard.match.player_b_name }} pts</span>
-                <strong>{{ scorecard.meta.total_points_b|round(1) }}</strong>
-              </div>
             </div>
           </div>
 
@@ -77,113 +84,256 @@
           </div>
         </div>
 
-      <div class="scorecard-column">
-        <h3 class="scorecard-column-title">Holes 1-9</h3>
-        <section class="match-scorecard-table" aria-label="Front nine scorecard">
+        <div class="scorecard-column scorecard-holes-column">
+          <div class="scorecard-pane scorecard-pane--front active" data-section="front">
+            <h3 class="scorecard-column-title">Holes 1-9</h3>
+            <section class="match-scorecard-table" aria-label="Front nine scorecard">
+              <div class="match-scorecard-row match-scorecard-head">
+                <span class="col-label">Hole</span>
+                <span class="col-label">Par</span>
+                <span class="col-label">HCP</span>
+              <span class="col-label col-label--stacked">
+                <abbr title="{{ scorecard.match.player_a_name }}">A</abbr>
+                <abbr title="Gross">Gross</abbr>
+              </span>
+              <span class="col-label col-label--stacked">
+                <abbr title="{{ scorecard.match.player_b_name }}">B</abbr>
+                <abbr title="Gross">Gross</abbr>
+              </span>
+              <span class="col-label col-label--stacked">
+                <abbr title="{{ scorecard.match.player_a_name }}">A</abbr>
+                <abbr title="Net">Net</abbr>
+              </span>
+              <span class="col-label col-label--stacked">
+                <abbr title="{{ scorecard.match.player_b_name }}">B</abbr>
+                <abbr title="Net">Net</abbr>
+              </span>
+                <span class="col-label">Net Diff</span>
+            <span class="col-label">Pts A</span>
+            <span class="col-label">Pts B</span>
+              </div>
+              {% for hole in front_holes %}
+                <div class="match-scorecard-row" data-hole="{{ hole.hole_number }}">
+                  <span class="hole-number">{{ hole.hole_number }}</span>
+                  <span class="hole-par">{{ hole.par }}</span>
+                  <span class="hole-hcp">{{ hole.handicap }}</span>
+                  <span class="gross-a">{{ hole.gross_a if hole.gross_a is not none else "—" }}</span>
+                  <span class="gross-b">{{ hole.gross_b if hole.gross_b is not none else "—" }}</span>
+                  <span class="net-a">
+                    {% if hole.net_a is none %}
+                      —
+                    {% elif hole.net_a % 1 %}
+                      {{ hole.net_a|round(1) }}
+                    {% else %}
+                      {{ hole.net_a|int }}
+                    {% endif %}
+                  </span>
+                  <span class="net-b">
+                    {% if hole.net_b is none %}
+                      —
+                    {% elif hole.net_b % 1 %}
+                      {{ hole.net_b|round(1) }}
+                    {% else %}
+                      {{ hole.net_b|int }}
+                    {% endif %}
+                  </span>
+                  <span class="net-diff">
+                    {% if hole.net_diff is none %}
+                      —
+                    {% else %}
+                      {{ hole.net_diff|round(1) if hole.net_diff % 1 else hole.net_diff|int }}
+                    {% endif %}
+                  </span>
+                  <span class="points-a">{{ hole.points_a if hole.points_a % 1 else hole.points_a|int }}</span>
+                  <span class="points-b">{{ hole.points_b if hole.points_b % 1 else hole.points_b|int }}</span>
+                </div>
+              {% endfor %}
+              <div class="match-scorecard-row match-scorecard-totals">
+                <span></span>
+                <span class="hole-par">{{ sum_attr(front_holes, 'par') }}</span>
+                <span></span>
+                <span class="gross-a">{{ sum_attr(front_holes, 'gross_a') }}</span>
+                <span class="gross-b">{{ sum_attr(front_holes, 'gross_b') }}</span>
+                <span class="net-a">{{ sum_attr(front_holes, 'net_a') }}</span>
+                <span class="net-b">{{ sum_attr(front_holes, 'net_b') }}</span>
+                <span></span>
+                <span class="points-a">{{ sum_attr(front_holes, 'points_a') }}</span>
+                <span class="points-b">{{ sum_attr(front_holes, 'points_b') }}</span>
+              </div>
+            </section>
+          </div>
+          <div class="scorecard-pane scorecard-pane--back" data-section="back">
+            <h3 class="scorecard-column-title">Holes 10-18</h3>
+            <section class="match-scorecard-table" aria-label="Back nine scorecard">
           <div class="match-scorecard-row match-scorecard-head">
             <span>Hole</span>
             <span>Par</span>
             <span>HCP</span>
-            <span><abbr title="{{ scorecard.match.player_a_name }} Gross">A Gross</abbr></span>
-            <span><abbr title="{{ scorecard.match.player_b_name }} Gross">B Gross</abbr></span>
-            <span><abbr title="{{ scorecard.match.player_a_name }} Net">A Net</abbr></span>
-            <span><abbr title="{{ scorecard.match.player_b_name }} Net">B Net</abbr></span>
+            <span class="col-label col-label--stacked">
+              <abbr title="{{ scorecard.match.player_a_name }}">A</abbr>
+              <abbr title="Gross">Gross</abbr>
+            </span>
+            <span class="col-label col-label--stacked">
+              <abbr title="{{ scorecard.match.player_b_name }}">B</abbr>
+              <abbr title="Gross">Gross</abbr>
+            </span>
+            <span class="col-label col-label--stacked">
+              <abbr title="{{ scorecard.match.player_a_name }}">A</abbr>
+              <abbr title="Net">Net</abbr>
+            </span>
+            <span class="col-label col-label--stacked">
+              <abbr title="{{ scorecard.match.player_b_name }}">B</abbr>
+              <abbr title="Net">Net</abbr>
+            </span>
             <span>Net Diff</span>
-            <span>{{ scorecard.match.player_a_name }} Pts</span>
-            <span>{{ scorecard.match.player_b_name }} Pts</span>
+            <span>Pts A</span>
+            <span>Pts B</span>
           </div>
-          {% for hole in front_holes %}
-            <div class="match-scorecard-row">
-              <span>{{ hole.hole_number }}</span>
-              <span>{{ hole.par }}</span>
-              <span>{{ hole.handicap }}</span>
-              <span>{{ hole.gross_a if hole.gross_a is not none else "—" }}</span>
-              <span>{{ hole.gross_b if hole.gross_b is not none else "—" }}</span>
-              <span>
-                {% if hole.net_a is none %}
-                  —
-                {% elif hole.net_a % 1 %}
-                  {{ hole.net_a|round(1) }}
-                {% else %}
-                  {{ hole.net_a|int }}
-                {% endif %}
-              </span>
-              <span>
-                {% if hole.net_b is none %}
-                  —
-                {% elif hole.net_b % 1 %}
-                  {{ hole.net_b|round(1) }}
-                {% else %}
-                  {{ hole.net_b|int }}
-                {% endif %}
-              </span>
-              <span>
-                {% if hole.net_diff is none %}
-                  —
-                {% else %}
-                  {{ hole.net_diff|round(1) if hole.net_diff % 1 else hole.net_diff|int }}
-                {% endif %}
-              </span>
-              <span>{{ hole.points_a if hole.points_a % 1 else hole.points_a|int }}</span>
-              <span>{{ hole.points_b if hole.points_b % 1 else hole.points_b|int }}</span>
+              {% for hole in back_holes %}
+                <div class="match-scorecard-row" data-hole="{{ hole.hole_number }}">
+                  <span class="hole-number">{{ hole.hole_number }}</span>
+                  <span class="hole-par">{{ hole.par }}</span>
+                  <span class="hole-hcp">{{ hole.handicap }}</span>
+                  <span class="gross-a">{{ hole.gross_a if hole.gross_a is not none else "—" }}</span>
+                  <span class="gross-b">{{ hole.gross_b if hole.gross_b is not none else "—" }}</span>
+                  <span class="net-a">
+                    {% if hole.net_a is none %}
+                      —
+                    {% elif hole.net_a % 1 %}
+                      {{ hole.net_a|round(1) }}
+                    {% else %}
+                      {{ hole.net_a|int }}
+                    {% endif %}
+                  </span>
+                  <span class="net-b">
+                    {% if hole.net_b is none %}
+                      —
+                    {% elif hole.net_b % 1 %}
+                      {{ hole.net_b|round(1) }}
+                    {% else %}
+                      {{ hole.net_b|int }}
+                    {% endif %}
+                  </span>
+                  <span class="net-diff">
+                    {% if hole.net_diff is none %}
+                      —
+                    {% else %}
+                      {{ hole.net_diff|round(1) if hole.net_diff % 1 else hole.net_diff|int }}
+                    {% endif %}
+                  </span>
+                  <span class="points-a">{{ hole.points_a if hole.points_a % 1 else hole.points_a|int }}</span>
+                  <span class="points-b">{{ hole.points_b if hole.points_b % 1 else hole.points_b|int }}</span>
+                </div>
+              {% endfor %}
+              <div class="match-scorecard-row match-scorecard-totals">
+                <span></span>
+                <span class="hole-par">{{ sum_attr(back_holes, 'par') }}</span>
+                <span></span>
+                <span class="gross-a">{{ sum_attr(back_holes, 'gross_a') }}</span>
+                <span class="gross-b">{{ sum_attr(back_holes, 'gross_b') }}</span>
+                <span class="net-a">{{ sum_attr(back_holes, 'net_a') }}</span>
+                <span class="net-b">{{ sum_attr(back_holes, 'net_b') }}</span>
+                <span></span>
+                <span class="points-a">{{ sum_attr(back_holes, 'points_a') }}</span>
+                <span class="points-b">{{ sum_attr(back_holes, 'points_b') }}</span>
+              </div>
+            </section>
+          </div>
+            <div class="scorecard-points-row scorecard-points-row--centered">
+              <div class="scorecard-points-chip">
+                <span>{{ scorecard.match.player_a_name }}</span>
+                <strong id="points-a">{{ scorecard.meta.total_points_a|round(1) }}</strong>
+              </div>
+              <div class="scorecard-points-chip">
+                <span>{{ scorecard.match.player_b_name }}</span>
+                <strong id="points-b">{{ scorecard.meta.total_points_b|round(1) }}</strong>
+              </div>
             </div>
-          {% endfor %}
-        </section>
-      </div>
+        </div>
+      <script>
+        document.addEventListener("DOMContentLoaded", () => {
+          const tabs = document.querySelectorAll(".tab-btn");
+          const panes = document.querySelectorAll(".scorecard-pane[data-section]");
+          const strokeText = document.getElementById("stroke-allocation");
+          const pointsAEl = document.getElementById("points-a");
+          const pointsBEl = document.getElementById("points-b");
+          const matchKey = {{ active_match_key | tojson }};
 
-      <div class="scorecard-column">
-        <h3 class="scorecard-column-title">Holes 10-18</h3>
-        <section class="match-scorecard-table" aria-label="Back nine scorecard">
-          <div class="match-scorecard-row match-scorecard-head">
-            <span>Hole</span>
-            <span>Par</span>
-            <span>HCP</span>
-            <span><abbr title="{{ scorecard.match.player_a_name }} Gross">A Gross</abbr></span>
-            <span><abbr title="{{ scorecard.match.player_b_name }} Gross">B Gross</abbr></span>
-            <span><abbr title="{{ scorecard.match.player_a_name }} Net">A Net</abbr></span>
-            <span><abbr title="{{ scorecard.match.player_b_name }} Net">B Net</abbr></span>
-            <span>Net Diff</span>
-            <span>{{ scorecard.match.player_a_name }} Pts</span>
-            <span>{{ scorecard.match.player_b_name }} Pts</span>
-          </div>
-          {% for hole in back_holes %}
-            <div class="match-scorecard-row">
-              <span>{{ hole.hole_number }}</span>
-              <span>{{ hole.par }}</span>
-              <span>{{ hole.handicap }}</span>
-              <span>{{ hole.gross_a if hole.gross_a is not none else "—" }}</span>
-              <span>{{ hole.gross_b if hole.gross_b is not none else "—" }}</span>
-              <span>
-                {% if hole.net_a is none %}
-                  —
-                {% elif hole.net_a % 1 %}
-                  {{ hole.net_a|round(1) }}
-                {% else %}
-                  {{ hole.net_a|int }}
-                {% endif %}
-              </span>
-              <span>
-                {% if hole.net_b is none %}
-                  —
-                {% elif hole.net_b % 1 %}
-                  {{ hole.net_b|round(1) }}
-                {% else %}
-                  {{ hole.net_b|int }}
-                {% endif %}
-              </span>
-              <span>
-                {% if hole.net_diff is none %}
-                  —
-                {% else %}
-                  {{ hole.net_diff|round(1) if hole.net_diff % 1 else hole.net_diff|int }}
-                {% endif %}
-              </span>
-              <span>{{ hole.points_a if hole.points_a % 1 else hole.points_a|int }}</span>
-              <span>{{ hole.points_b if hole.points_b % 1 else hole.points_b|int }}</span>
-            </div>
-          {% endfor %}
-        </section>
-      </div>
-    </div>
-  </section>
+          tabs.forEach((tab) => {
+            tab.addEventListener("click", () => {
+              const target = tab.dataset.tab;
+              tabs.forEach((btn) => btn.classList.toggle("active", btn === tab));
+              panes.forEach((pane) => {
+                const isTarget = pane.dataset.section === target;
+                pane.classList.toggle("active", isTarget);
+              });
+            });
+          });
+
+          const formatNumber = (value) => {
+            if (value === null || value === undefined) {
+              return "—";
+            }
+            const num = Number(value);
+            if (Number.isFinite(num)) {
+              return Number.isInteger(num) ? num : num.toFixed(1);
+            }
+            return value;
+          };
+
+          const updateHoleRow = (hole) => {
+            const row = document.querySelector(`.match-scorecard-row[data-hole="${hole.hole_number}"]`);
+            if (!row) {
+              return;
+            }
+            row.querySelector(".gross-a").textContent = formatNumber(hole.gross_a);
+            row.querySelector(".gross-b").textContent = formatNumber(hole.gross_b);
+            row.querySelector(".net-a").textContent = formatNumber(hole.net_a);
+            row.querySelector(".net-b").textContent = formatNumber(hole.net_b);
+            row.querySelector(".net-diff").textContent = formatNumber(hole.net_diff);
+            row.querySelector(".points-a").textContent = formatNumber(hole.points_a);
+            row.querySelector(".points-b").textContent = formatNumber(hole.points_b);
+          };
+
+          const composeStrokeMessage = (meta, match) => {
+            if (!meta.stroke_owner) {
+              return "No strokes allocated for this matchup.";
+            }
+            const owner = meta.stroke_owner === "A" ? match.player_a_name : match.player_b_name;
+            const count = Number.isInteger(meta.stroke_count) ? meta.stroke_count : meta.stroke_count?.toFixed(1);
+            const suffix = meta.stroke_count === 1 ? "" : "s";
+            const nineHole = meta.is_nine_hole ? " (9-hole allowance applied)" : "";
+            return `${owner} receives ${count} stroke${suffix}${nineHole}`;
+          };
+
+          const refreshScorecard = async () => {
+            if (!matchKey) {
+              return;
+            }
+            try {
+              const response = await fetch(`/api/scorecard/${matchKey}`);
+              if (!response.ok) {
+                return;
+              }
+              const payload = await response.json();
+              payload.holes?.forEach(updateHoleRow);
+              if (strokeText) {
+                strokeText.textContent = composeStrokeMessage(payload.meta || {}, payload.match || {});
+              }
+              if (pointsAEl) {
+                pointsAEl.textContent = formatNumber(payload.meta?.total_points_a);
+              }
+              if (pointsBEl) {
+                pointsBEl.textContent = formatNumber(payload.meta?.total_points_b);
+              }
+            } catch (error) {
+              console.error("Unable to refresh scorecard:", error);
+            }
+          };
+
+          refreshScorecard();
+          setInterval(refreshScorecard, 8000);
+        });
+      </script>
+    </section>
 {% endblock %}

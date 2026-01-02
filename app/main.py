@@ -298,13 +298,26 @@ def build_standings(results: list[dict]) -> list[dict]:
         for name, division in divisions_by_player.items()
     }
 
+    course_holes = _active_course_holes()
     for result in results:
+        player_a_info = fetch_player_by_name(settings.database_url, result["player_a_name"]) or {}
+        player_b_info = fetch_player_by_name(settings.database_url, result["player_b_name"]) or {}
+        handicap_a = player_a_info.get("handicap", 0)
+        handicap_b = player_b_info.get("handicap", 0)
+        hole_entries = fetch_hole_scores(settings.database_url, result["id"])
+        if hole_entries:
+            computed = _build_scorecard_rows(hole_entries, handicap_a, handicap_b, course_holes)
+            points_a = computed["meta"]["total_points_a"]
+            points_b = computed["meta"]["total_points_b"]
+        else:
+            points_a = result["player_a_total"]
+            points_b = result["player_b_total"]
         _record_player(
             standings,
             result["player_a_name"],
             divisions_by_player.get(result["player_a_name"], "Open"),
-            result["player_a_total"],
-            result["player_b_total"],
+            points_a,
+            points_b,
             result["winner"],
             "A",
         )
@@ -312,8 +325,8 @@ def build_standings(results: list[dict]) -> list[dict]:
             standings,
             result["player_b_name"],
             divisions_by_player.get(result["player_b_name"], "Open"),
-            result["player_b_total"],
-            result["player_a_total"],
+            points_b,
+            points_a,
             result["winner"],
             "B",
         )
@@ -336,6 +349,9 @@ def build_standings(results: list[dict]) -> list[dict]:
                 item["name"],
             ),
         )
+        for player in players:
+            holes_played = player["matches"] * 9
+            player["pts_remaining"] = 40 - holes_played + player["points_for"]
         sorted_divisions.append({"division": division, "players": players})
     return sorted_divisions
 
@@ -424,9 +440,9 @@ def _render_scoring(request: Request) -> HTMLResponse:
     )
 
 
-@app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    return _render_scoring(request)
+@app.get("/", response_class=RedirectResponse)
+async def index():
+    return RedirectResponse(url="/standings")
 
 
 @app.get("/scoring", response_class=HTMLResponse)
@@ -493,6 +509,15 @@ async def api_course_catalog():
     return {"courses": fetch_course_catalog(settings.database_url)}
 
 
+@app.get("/api/scorecard/{match_key}")
+async def api_scorecard(match_key: str):
+    context = _scorecard_context(match_key)
+    scorecard = context.get("scorecard")
+    if not scorecard:
+        raise HTTPException(status_code=404, detail="Scorecard not available")
+    return JSONResponse(scorecard)
+
+
 @app.post("/api/courses/import/{course_id}")
 @app.post("/api/courses/import/{course_id}/")
 async def api_course_import(course_id: int):
@@ -508,7 +533,6 @@ def startup() -> None:
     ensure_schema(settings.database_url)
     _seed_default_players()
     _load_course_holes()
-    _ensure_match_results_for_pairings()
 
 
 @app.post("/submit", response_class=HTMLResponse)

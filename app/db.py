@@ -12,12 +12,6 @@ def ensure_schema(database_url: str) -> None:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                alter table match_results
-                add column if not exists match_code text not null default '';
-                """
-            )
-            cur.execute(
-                """
                 create table if not exists match_results (
                     id serial primary key,
                     match_name text not null,
@@ -35,6 +29,12 @@ def ensure_schema(database_url: str) -> None:
                     );
                     """
                 )
+            cur.execute(
+                """
+                alter table match_results
+                add column if not exists match_code text not null default '';
+                """
+            )
             cur.execute(
                 """
                 alter table match_results
@@ -699,10 +699,10 @@ def insert_match_result(
                     player_a_total,
                     player_b_total,
                     winner,
-            ),
-        )
-        row = cur.fetchone()
-        return row[0] if row else None
+                ),
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
 
 
 def fetch_match_result_by_key(database_url: str, match_key: str) -> dict | None:

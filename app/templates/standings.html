@@ -6,8 +6,7 @@
       <p class="eyebrow">GSPro League Standings</p>
       <h1 class="match-title">Division Leaderboard</h1>
       <p class="match-sub">
-        Each division mirrors the official tournament sheet with rank, points, matches, and seed positions.
-        <a href="/matches" class="match-meta-link">Match sheets →</a>
+       
       </p>
     </div>
 
@@ -17,7 +16,7 @@
           <article class="division-card">
             <div class="division-title">
               <span>Division {{ division.division }}</span>
-              <span class="division-label">Tabular dashboard</span>
+             
             </div>
             <table class="standings-table" role="table" aria-label="Division {{ division.division }} standings">
               <thead>
@@ -25,11 +24,11 @@
                   <th class="standing-cell">Rank</th>
                   <th class="standing-cell player">Player</th>
                   <th class="standing-cell">Pts</th>
+                  <th class="standing-cell">Pts Rmn</th>
                   <th class="standing-cell">Matches</th>
                   <th class="standing-cell">W</th>
                   <th class="standing-cell">L</th>
                   <th class="standing-cell">T</th>
-                  <th class="standing-cell">W-L-T</th>
                 </tr>
               </thead>
               <tbody>
@@ -41,11 +40,11 @@
                     <span class="seed-tag">{{ player.division }}{{ player.seed }}</span>
                   </td>
                   <td class="standing-cell">{{ player.points_for }}</td>
+                  <td class="standing-cell">{{ player.pts_remaining }}</td>
                   <td class="standing-cell">{{ player.matches }}</td>
                   <td class="standing-cell">{{ player.wins }}</td>
                   <td class="standing-cell">{{ player.losses }}</td>
                   <td class="standing-cell">{{ player.ties }}</td>
-                  <td class="standing-cell">{{ player.wins }}-{{ player.losses }}-{{ player.ties }}</td>
                 </tr>
               {% endfor %}
               </tbody>

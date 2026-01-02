@@ -15,13 +15,9 @@
       <aside class="sidebar">
         <p class="sidebar-brand">GSPro Score</p>
         <nav class="page-nav">
-          <a href="/" class="{% if request.url.path == '/' %}is-active{% endif %}">Score Result</a>
-          <a href="/scoring" class="{% if request.url.path == '/scoring' %}is-active{% endif %}">Scoring</a>
           <a href="/scoring/mobile" class="{% if request.url.path == '/scoring/mobile' %}is-active{% endif %}">Mobile Scoring</a>
           <a href="/scorecard" class="{% if 'scorecard' in request.url.path %}is-active{% endif %}">Scorecard</a>
-          <a href="/matches" class="{% if request.url.path.startswith('/matches') %}is-active{% endif %}">Matches</a>
           <a href="/standings" class="{% if request.url.path.startswith('/standings') %}is-active{% endif %}">Standings</a>
-          <a href="/admin" class="{% if request.url.path == '/admin' %}is-active{% endif %}">Admin</a>
           <a href="/admin/setup" class="{% if request.url.path.startswith('/admin/setup') %}is-active{% endif %}">Tournament Setup</a>
         </nav>
       </aside>
