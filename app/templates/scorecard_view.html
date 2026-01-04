@@ -2,6 +2,73 @@
 {% block content %}
   {% set front_holes = scorecard.holes[:9] %}
   {% set back_holes = scorecard.holes[9:] %}
+    {% macro format_score(value) -%}
+      {%- if value is none -%}
+        —  
+      {%- elif value % 1 -%}
+        {{ value|round(1) }}
+      {%- else -%}
+        {{ value|int }}
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% macro score_badge(value, par) -%}
+      {%- set cls = "score-value" -%}
+      {%- set display = format_score(value) -%}
+      {%- if value is not none and par is not none -%}
+        {%- set diff = value - par -%}
+        {%- if diff < 0 -%}
+          {%- if diff <= -2 -%}
+            {%- set cls = cls + " double-circle" -%}
+          {%- else -%}
+            {%- set cls = cls + " circle" -%}
+          {%- endif -%}
+        {%- elif diff == 0 -%}
+          {%- set cls = cls + " green" -%}
+        {%- elif diff == 1 -%}
+          {%- set cls = cls + " box" -%}
+        {%- elif diff >= 2 -%}
+          {%- set cls = cls + " double-box" -%}
+        {%- endif -%}
+      {%- endif -%}
+      <span class="{{ cls }}">{{ display }}</span>
+    {%- endmacro %}
+
+    <style>
+      .score-value {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+      .score-value.circle {
+        border: 1px solid #ff5b5b;
+        color: #ff5b5b;
+      }
+      .score-value.double-circle {
+        border: 2px solid #ff5b5b;
+        padding: 2px 8px;
+        color: #ff5b5b;
+      }
+      .score-value.green {
+        background: rgba(64, 255, 168, 0.15);
+        color: #40ff96;
+      }
+      .score-value.box {
+        border: 1px solid rgba(255, 169, 89, 0.8);
+        color: #ffd38a;
+      }
+      .score-value.double-box {
+        border: 2px solid rgba(255, 169, 89, 0.8);
+        padding: 2px 8px;
+        color: #ffd38a;
+      }
+      .match-status-control {
+        display: none;
+      }
+    </style>
+
     {% macro sum_attr(holes, attr) -%}
       {%- set total = 0 -%}
       {%- for hole in holes -%}
@@ -141,26 +208,10 @@
                   <span class="hole-number">{{ hole.hole_number }}</span>
                   <span class="hole-par">{{ hole.par }}</span>
                   <span class="hole-hcp">{{ hole.handicap }}</span>
-                  <span class="gross-a">{{ hole.gross_a if hole.gross_a is not none else "—" }}</span>
-                  <span class="gross-b">{{ hole.gross_b if hole.gross_b is not none else "—" }}</span>
-                  <span class="net-a">
-                    {% if hole.net_a is none %}
-                      —
-                    {% elif hole.net_a % 1 %}
-                      {{ hole.net_a|round(1) }}
-                    {% else %}
-                      {{ hole.net_a|int }}
-                    {% endif %}
-                  </span>
-                  <span class="net-b">
-                    {% if hole.net_b is none %}
-                      —
-                    {% elif hole.net_b % 1 %}
-                      {{ hole.net_b|round(1) }}
-                    {% else %}
-                      {{ hole.net_b|int }}
-                    {% endif %}
-                  </span>
+                  <span class="gross-a">{{ score_badge(hole.gross_a, hole.par)|safe }}</span>
+                  <span class="gross-b">{{ score_badge(hole.gross_b, hole.par)|safe }}</span>
+                  <span class="net-a">{{ score_badge(hole.net_a, hole.par)|safe }}</span>
+                  <span class="net-b">{{ score_badge(hole.net_b, hole.par)|safe }}</span>
                   <span class="points-a">{{ hole.points_a if hole.points_a % 1 else hole.points_a|int }}</span>
                   <span class="points-b">{{ hole.points_b if hole.points_b % 1 else hole.points_b|int }}</span>
                 </div>
@@ -211,26 +262,10 @@
                   <span class="hole-number">{{ hole.hole_number }}</span>
                   <span class="hole-par">{{ hole.par }}</span>
                   <span class="hole-hcp">{{ hole.handicap }}</span>
-                  <span class="gross-a">{{ hole.gross_a if hole.gross_a is not none else "—" }}</span>
-                  <span class="gross-b">{{ hole.gross_b if hole.gross_b is not none else "—" }}</span>
-                  <span class="net-a">
-                    {% if hole.net_a is none %}
-                      —
-                    {% elif hole.net_a % 1 %}
-                      {{ hole.net_a|round(1) }}
-                    {% else %}
-                      {{ hole.net_a|int }}
-                    {% endif %}
-                  </span>
-                  <span class="net-b">
-                    {% if hole.net_b is none %}
-                      —
-                    {% elif hole.net_b % 1 %}
-                      {{ hole.net_b|round(1) }}
-                    {% else %}
-                      {{ hole.net_b|int }}
-                    {% endif %}
-                  </span>
+                  <span class="gross-a">{{ score_badge(hole.gross_a, hole.par)|safe }}</span>
+                  <span class="gross-b">{{ score_badge(hole.gross_b, hole.par)|safe }}</span>
+                  <span class="net-a">{{ score_badge(hole.net_a, hole.par)|safe }}</span>
+                  <span class="net-b">{{ score_badge(hole.net_b, hole.par)|safe }}</span>
                   <span class="points-a">{{ hole.points_a if hole.points_a % 1 else hole.points_a|int }}</span>
                   <span class="points-b">{{ hole.points_b if hole.points_b % 1 else hole.points_b|int }}</span>
                 </div>
@@ -327,6 +362,25 @@
               return total + (Number.isFinite(value) ? value : 0);
             }, 0);
 
+          const scoreBadge = (value, par) => {
+            const num = Number(value);
+            const diff = Number.isFinite(num) && Number.isFinite(Number(par)) ? num - Number(par) : null;
+            let modifier = "";
+            if (diff !== null && Number.isFinite(diff) && Number.isFinite(num) && num >= 1) {
+              if (diff < 0) {
+                modifier = diff <= -2 ? "double-circle" : "circle";
+              } else if (diff === 0) {
+                modifier = "green";
+              } else if (diff === 1) {
+                modifier = "box";
+              } else if (diff >= 2) {
+                modifier = "double-box";
+              }
+            }
+            const display = formatNumber(value);
+            return `<span class="score-value ${modifier}">${display}</span>`;
+          };
+
           const formatCourseMeta = (course) => {
             if (!course) {
               return "";
@@ -359,10 +413,10 @@
                     <span class="hole-number">${hole.hole_number ?? "—"}</span>
                     <span class="hole-par">${hole.par ?? "—"}</span>
                     <span class="hole-hcp">${hole.handicap ?? "—"}</span>
-                    <span class="gross-a">${formatNumber(hole.gross_a)}</span>
-                    <span class="gross-b">${formatNumber(hole.gross_b)}</span>
-                    <span class="net-a">${formatNumber(hole.net_a)}</span>
-                    <span class="net-b">${formatNumber(hole.net_b)}</span>
+                    <span class="gross-a">${scoreBadge(hole.gross_a, hole.par)}</span>
+                    <span class="gross-b">${scoreBadge(hole.gross_b, hole.par)}</span>
+                    <span class="net-a">${scoreBadge(hole.net_a, hole.par)}</span>
+                    <span class="net-b">${scoreBadge(hole.net_b, hole.par)}</span>
                     <span class="points-a">${formatNumber(hole.points_a)}</span>
                     <span class="points-b">${formatNumber(hole.points_b)}</span>
                   </div>

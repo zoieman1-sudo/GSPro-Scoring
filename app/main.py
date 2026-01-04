@@ -941,6 +941,15 @@ async def matches_list(request: Request):
     )
 
 
+@app.get("/match-ids", response_class=HTMLResponse)
+async def match_ids(request: Request):
+    results = fetch_all_match_results(settings.database_url)
+    return templates.TemplateResponse(
+        "match_ids.html",
+        {"request": request, "results": results},
+    )
+
+
 def _net_adjustment_for_hole(handicap: int, hole_handicap: int | None) -> int:
     """
     Allocate strokes by hole handicap ranking (1 = hardest). Distribute any remainder

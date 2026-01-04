@@ -105,8 +105,8 @@
         color: rgba(255, 255, 255, 0.6);
       }
       .match-panels {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         gap: 12px;
       }
       .match-panel {
@@ -142,26 +142,6 @@
         text-transform: uppercase;
         letter-spacing: 0.2em;
         color: rgba(255, 255, 255, 0.6);
-      }
-      .player-stack {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin: 12px 0;
-      }
-      .player-stack strong {
-        display: block;
-        font-size: 1rem;
-      }
-      .player-hcp {
-        font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.6);
-      }
-      .vs-label {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.3em;
-        color: rgba(255, 255, 255, 0.5);
       }
       .player-row {
         display: flex;
@@ -580,26 +560,19 @@
         return `
           <section class="match-panel" data-match-key="${matchKey}">
             <div class="panel-header">
-              <div>
-                <span class="panel-division">Division ${summary?.division || "—"}</span>
-                <p class="panel-match-name">${summary?.match?.match_name || "Match"}</p>
-              </div>
+                <div>
+                  <span class="panel-division">Division ${summary?.division || "—"}</span>
+                  <p class="panel-match-name">
+                    ${summary?.match?.player_a_name || "Player A"} - HCP ${summary?.player_a_handicap ?? 0}
+                    vs
+                    ${summary?.match?.player_b_name || "Player B"} - HCP ${summary?.player_b_handicap ?? 0}
+                  </p>
+                </div>
               <span class="panel-status">${summary?.status_label || "TBD"}</span>
-            </div>
-            <div class="player-stack">
-              <div class="player-info">
-                <strong>${summary?.match?.player_a_name || "Player A"}</strong>
-                <span class="player-hcp">HCP ${summary?.player_a_handicap ?? 0}</span>
-              </div>
-              <span class="vs-label">vs</span>
-              <div class="player-info">
-                <strong>${summary?.match?.player_b_name || "Player B"}</strong>
-                <span class="player-hcp">HCP ${summary?.player_b_handicap ?? 0}</span>
-              </div>
             </div>
             <div class="player-row">
               <div class="player-info">
-                <p class="player-name">${summary?.match?.player_a_name || "Player A"}</p>
+                <p class="player-name">${summary?.match?.player_a_name || "Player A"} - HCP ${summary?.player_a_handicap ?? 0}</p>
                 <span class="player-hcp">Hole ${state.holeNumber}</span>
               </div>
               <div class="player-score">
@@ -609,7 +582,7 @@
             </div>
             <div class="player-row">
               <div class="player-info">
-                <p class="player-name">${summary?.match?.player_b_name || "Player B"}</p>
+                <p class="player-name">${summary?.match?.player_b_name || "Player B"} - HCP ${summary?.player_b_handicap ?? 0}</p>
                 <span class="player-hcp">Hole ${state.holeNumber}</span>
               </div>
               <div class="player-score">

@@ -2,12 +2,25 @@
 
 {% block content %}
   <section class="card standings-card">
+
+    <!-- Page-scoped styles (safe drop-in) -->
+    <style>
+      .standings-card .standings-table {
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .standing-cell.player strong {
+        font-size: 0.8em;
+      }
+      .standing-cell.player .seed-tag {
+        display: none;
+      }
+    </style>
+
     <div class="match-meta">
       <p class="eyebrow">GSPro League Standings</p>
       <h1 class="match-title">Division Leaderboard</h1>
-      <p class="match-sub">
-       
-      </p>
+      <p class="match-sub"></p>
     </div>
 
     {% if divisions %}
@@ -16,9 +29,11 @@
           <article class="division-card">
             <div class="division-title">
               <span>Division {{ division.division }}</span>
-             
             </div>
-            <table class="standings-table" role="table" aria-label="Division {{ division.division }} standings">
+
+            <table class="standings-table"
+                   role="table"
+                   aria-label="Division {{ division.division }} standings">
               <thead>
                 <tr class="table-head" role="row">
                   <th class="standing-cell">Rank</th>
@@ -32,28 +47,30 @@
                 </tr>
               </thead>
               <tbody>
-              {% for player in division.players %}
-                <tr class="standings-row" role="row">
-                  <td class="standing-cell">{{ loop.index }}</td>
-                  <td class="standing-cell player">
-                    <strong>{{ player.name }}</strong>
-                    <span class="seed-tag">{{ player.division }}{{ player.seed }}</span>
-                  </td>
-                  <td class="standing-cell">{{ player.points_for }}</td>
-                  <td class="standing-cell">{{ player.pts_remaining }}</td>
-                  <td class="standing-cell">{{ player.matches }}</td>
-                  <td class="standing-cell">{{ player.wins }}</td>
-                  <td class="standing-cell">{{ player.losses }}</td>
-                  <td class="standing-cell">{{ player.ties }}</td>
-                </tr>
-              {% endfor %}
+                {% for player in division.players %}
+                  <tr class="standings-row" role="row">
+                    <td class="standing-cell">{{ loop.index }}</td>
+                    <td class="standing-cell player">
+                      <strong>{{ player.name }}</strong>
+                      <span class="seed-tag">{{ player.division }}{{ player.seed }}</span>
+                    </td>
+                    <td class="standing-cell">{{ player.points_for }}</td>
+                    <td class="standing-cell">{{ player.pts_remaining }}</td>
+                    <td class="standing-cell">{{ player.matches }}</td>
+                    <td class="standing-cell">{{ player.wins }}</td>
+                    <td class="standing-cell">{{ player.losses }}</td>
+                    <td class="standing-cell">{{ player.ties }}</td>
+                  </tr>
+                {% endfor %}
               </tbody>
             </table>
           </article>
         {% endfor %}
       </div>
     {% else %}
-      <p class="status">No results yet. Submit a match and reload to populate standings.</p>
+      <p class="status">
+        No results yet. Submit a match and reload to populate standings.
+      </p>
     {% endif %}
   </section>
 {% endblock %}
