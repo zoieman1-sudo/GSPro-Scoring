@@ -127,6 +127,26 @@ body {
   margin-bottom: 14px;
 }
 
+.match-list-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.65rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.match-list-filter select {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(3, 10, 25, 0.8);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  cursor: pointer;
+}
+
 .match-title {
   margin: 0;
   font-size: clamp(1.3rem, 1vw + 0.4rem, 1.7rem);

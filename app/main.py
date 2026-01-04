@@ -950,7 +950,16 @@ async def matches_list(request: Request):
 async def match_list(request: Request):
     pairings = _load_pairings()
     matches_data: list[dict] = []
+    player_names: set[str] = set()
+    player_filter = request.query_params.get("player")
+    tournament_settings = _load_tournament_settings()
+    course_holes = _active_course_holes(tournament_settings)
     for pairing in pairings:
+        player_names.add(pairing.player_a)
+        player_names.add(pairing.player_b)
+        if player_filter and player_filter != "all":
+            if player_filter not in (pairing.player_a, pairing.player_b):
+                continue
         status_info = _match_status_info(pairing.match_id)
         result = status_info.get("match_result")
         winner = "Pending"
@@ -958,15 +967,36 @@ async def match_list(request: Request):
         submitted = None
         match_result_id = None
         if result:
-            if result["winner"] == "A":
+            winner_code = result["winner"]
+            if winner_code == "A":
                 winner = result["player_a_name"]
-            elif result["winner"] == "B":
+            elif winner_code == "B":
                 winner = result["player_b_name"]
-            elif result["winner"] == "T":
+            elif winner_code == "T":
                 winner = "Draw"
             totals = f'{result["player_a_total"]} - {result["player_b_total"]}'
             submitted = result.get("submitted_at")
             match_result_id = result.get("id")
+            if (result.get("player_a_total") == 0 and result.get("player_b_total") == 0) and status_info["holes"]:
+                holes = fetch_hole_scores(settings.database_url, result["id"])
+                if holes:
+                    player_a_info = fetch_player_by_name(settings.database_url, result["player_a_name"]) or {}
+                    player_b_info = fetch_player_by_name(settings.database_url, result["player_b_name"]) or {}
+                    handicap_a = player_a_info.get("handicap", 0)
+                    handicap_b = player_b_info.get("handicap", 0)
+                    computed = _build_scorecard_rows(holes, handicap_a, handicap_b, course_holes)
+                    bonus_outcome = score_outcome(
+                        computed["meta"]["total_points_a"],
+                        computed["meta"]["total_points_b"],
+                    )
+                    totals = f'{bonus_outcome["player_a_total"]} - {bonus_outcome["player_b_total"]}'
+                    winner_code = bonus_outcome["winner"]
+                    if winner_code == "A":
+                        winner = result["player_a_name"]
+                    elif winner_code == "B":
+                        winner = result["player_b_name"]
+                    else:
+                        winner = "Draw"
         matches_data.append(
             {
                 "match_key": pairing.match_id,
@@ -987,7 +1017,12 @@ async def match_list(request: Request):
         )
     return templates.TemplateResponse(
         "match_list.html",
-        {"request": request, "matches": matches_data},
+        {
+            "request": request,
+            "matches": matches_data,
+            "players": sorted(player_names),
+            "active_player": player_filter or "all",
+        },
     )
 
 

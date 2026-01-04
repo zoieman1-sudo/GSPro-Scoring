@@ -20,19 +20,22 @@ def load_settings() -> Settings:
     )
 
 
-def score_outcome(player_a_points: int, player_b_points: int) -> dict:
-    if player_a_points > player_b_points:
-        player_a_bonus = 1
-        player_b_bonus = 0
-        winner = "A"
-    elif player_b_points > player_a_points:
-        player_a_bonus = 0
-        player_b_bonus = 1
-        winner = "B"
-    else:
-        player_a_bonus = 0
-        player_b_bonus = 0
+def score_outcome(player_a_points: float, player_b_points: float) -> dict:
+    player_a_bonus = 0.0
+    player_b_bonus = 0.0
+    if player_a_points == player_b_points:
         winner = "T"
+        if player_a_points == 4.5:
+            player_a_bonus = player_b_bonus = 0.5
+    elif player_a_points > player_b_points:
+        winner = "A"
+    else:
+        winner = "B"
+
+    if player_a_points >= 5:
+        player_a_bonus = 1.0
+    if player_b_points >= 5:
+        player_b_bonus = 1.0
 
     player_a_total = player_a_points + player_a_bonus
     player_b_total = player_b_points + player_b_bonus

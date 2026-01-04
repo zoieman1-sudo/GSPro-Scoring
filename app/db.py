@@ -18,17 +18,53 @@ def ensure_schema(database_url: str) -> None:
                     player_a_name text not null,
                     player_b_name text not null,
                     match_key text not null,
-                    player_a_points integer not null,
-                    player_b_points integer not null,
-                    player_a_bonus integer not null,
-                    player_b_bonus integer not null,
-                player_a_total integer not null,
-                    player_b_total integer not null,
+                    player_a_points double precision not null,
+                    player_b_points double precision not null,
+                    player_a_bonus double precision not null,
+                    player_b_bonus double precision not null,
+                    player_a_total double precision not null,
+                    player_b_total double precision not null,
                     winner text not null,
                     submitted_at timestamptz not null default now()
                     );
                     """
                 )
+            cur.execute(
+                """
+                alter table match_results
+                alter column player_a_points type double precision using player_a_points::double precision;
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
+                alter column player_b_points type double precision using player_b_points::double precision;
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
+                alter column player_a_bonus type double precision using player_a_bonus::double precision;
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
+                alter column player_b_bonus type double precision using player_b_bonus::double precision;
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
+                alter column player_a_total type double precision using player_a_total::double precision;
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
+                alter column player_b_total type double precision using player_b_total::double precision;
+                """
+            )
             cur.execute(
                 """
                 alter table match_results
@@ -618,6 +654,10 @@ def fetch_match_result(database_url: str, match_id: int) -> dict | None:
                     match_code,
                     player_a_points,
                     player_b_points,
+                    player_a_bonus,
+                    player_b_bonus,
+                    player_a_total,
+                    player_b_total,
                     winner,
                     submitted_at
                 from match_results
@@ -637,8 +677,12 @@ def fetch_match_result(database_url: str, match_id: int) -> dict | None:
                 "match_code": row[5],
                 "player_a_points": row[6],
                 "player_b_points": row[7],
-                "winner": row[8],
-                "submitted_at": row[9],
+                "player_a_bonus": row[8],
+                "player_b_bonus": row[9],
+                "player_a_total": row[10],
+                "player_b_total": row[11],
+                "winner": row[12],
+                "submitted_at": row[13],
             }
 
 
@@ -649,12 +693,12 @@ def insert_match_result(
     player_b: str,
     match_key: str,
     match_code: str | None,
-    player_a_points: int,
-    player_b_points: int,
-    player_a_bonus: int,
-    player_b_bonus: int,
-    player_a_total: int,
-    player_b_total: int,
+    player_a_points: float,
+    player_b_points: float,
+    player_a_bonus: float,
+    player_b_bonus: float,
+    player_a_total: float,
+    player_b_total: float,
     winner: str,
 ) -> Optional[int]:
     def _next_code(cur) -> str:
@@ -719,6 +763,10 @@ def fetch_match_result_by_key(database_url: str, match_key: str) -> dict | None:
                     match_code,
                     player_a_points,
                     player_b_points,
+                    player_a_bonus,
+                    player_b_bonus,
+                    player_a_total,
+                    player_b_total,
                     winner,
                     submitted_at
                 from match_results
@@ -740,8 +788,12 @@ def fetch_match_result_by_key(database_url: str, match_key: str) -> dict | None:
                 "match_code": row[5],
                 "player_a_points": row[6],
                 "player_b_points": row[7],
-                "winner": row[8],
-                "submitted_at": row[9],
+                "player_a_bonus": row[8],
+                "player_b_bonus": row[9],
+                "player_a_total": row[10],
+                "player_b_total": row[11],
+                "winner": row[12],
+                "submitted_at": row[13],
             }
 
 
@@ -759,6 +811,10 @@ def fetch_match_result_by_code(database_url: str, match_code: str) -> dict | Non
                     match_code,
                     player_a_points,
                     player_b_points,
+                    player_a_bonus,
+                    player_b_bonus,
+                    player_a_total,
+                    player_b_total,
                     winner,
                     submitted_at
                 from match_results
@@ -780,8 +836,12 @@ def fetch_match_result_by_code(database_url: str, match_code: str) -> dict | Non
                 "match_code": row[5],
                 "player_a_points": row[6],
                 "player_b_points": row[7],
-                "winner": row[8],
-                "submitted_at": row[9],
+                "player_a_bonus": row[8],
+                "player_b_bonus": row[9],
+                "player_a_total": row[10],
+                "player_b_total": row[11],
+                "winner": row[12],
+                "submitted_at": row[13],
             }
 
 

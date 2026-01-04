@@ -5,6 +5,17 @@
       <p class="eyebrow">GSPro League Matches</p>
       <h1 class="match-title">All Scheduled Matches</h1>
       <p class="match-sub">Every pairing is listed with current status, hole count, and result details.</p>
+      <form class="match-list-filter" method="get">
+        <label for="match-player-filter">
+          <span class="muted-label">Show only</span>
+          <select id="match-player-filter" name="player" onchange="this.form.submit()">
+            <option value="all" {% if active_player == "all" or not active_player %}selected{% endif %}>All players</option>
+            {% for player in players %}
+              <option value="{{ player }}" {% if active_player == player %}selected{% endif %}>{{ player }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </form>
     </div>
 
     {% if matches %}

@@ -12,10 +12,19 @@ def test_score_outcome_win():
     assert outcome["player_b_total"] == 4
 
 
-def test_score_outcome_tie():
+def test_score_outcome_tie_high():
     outcome = main.score_outcome(5, 5)
-    assert outcome["player_a_bonus"] == 0
-    assert outcome["player_b_bonus"] == 0
+    assert outcome["player_a_bonus"] == 1
+    assert outcome["player_b_bonus"] == 1
+    assert outcome["winner"] == "T"
+
+
+def test_score_outcome_tie_half():
+    outcome = main.score_outcome(4.5, 4.5)
+    assert outcome["player_a_bonus"] == 0.5
+    assert outcome["player_b_bonus"] == 0.5
+    assert outcome["player_a_total"] == 5
+    assert outcome["player_b_total"] == 5
     assert outcome["winner"] == "T"
 
 

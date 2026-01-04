@@ -53,12 +53,24 @@
       <div>
         <span>Player A</span>
         <strong>{{ match.player_a_name }}</strong>
-        <p class="match-score-large">{{ hole_total_a }}</p>
+        <p class="match-score-large">
+          {% if match.player_a_total is not none %}
+            {{ match.player_a_total }}
+          {% else %}
+            {{ hole_total_a }}
+          {% endif %}
+        </p>
       </div>
       <div>
         <span>Player B</span>
         <strong>{{ match.player_b_name }}</strong>
-        <p class="match-score-large">{{ hole_total_b }}</p>
+        <p class="match-score-large">
+          {% if match.player_b_total is not none %}
+            {{ match.player_b_total }}
+          {% else %}
+            {{ hole_total_b }}
+          {% endif %}
+        </p>
       </div>
       <div class="match-winner-badge">
         Winner: {{ match.player_a_name if match.winner == 'A' else match.player_b_name if match.winner == 'B' else 'Draw' }}
