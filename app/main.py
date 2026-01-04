@@ -556,6 +556,11 @@ async def scorecard_latest(request: Request, match_key: str | None = None):
     )
 
 
+@app.get("/new_card", response_class=HTMLResponse)
+async def new_card(request: Request):
+    return templates.TemplateResponse("new_card.html", _new_card_context(request))
+
+
 @app.get("/api/courses/search")
 @app.get("/api/courses/search/")
 async def api_course_search(query: str):
@@ -941,6 +946,51 @@ async def matches_list(request: Request):
     )
 
 
+@app.get("/match_list", response_class=HTMLResponse)
+async def match_list(request: Request):
+    pairings = _load_pairings()
+    matches_data: list[dict] = []
+    for pairing in pairings:
+        status_info = _match_status_info(pairing.match_id)
+        result = status_info.get("match_result")
+        winner = "Pending"
+        totals = "—"
+        submitted = None
+        match_result_id = None
+        if result:
+            if result["winner"] == "A":
+                winner = result["player_a_name"]
+            elif result["winner"] == "B":
+                winner = result["player_b_name"]
+            elif result["winner"] == "T":
+                winner = "Draw"
+            totals = f'{result["player_a_total"]} - {result["player_b_total"]}'
+            submitted = result.get("submitted_at")
+            match_result_id = result.get("id")
+        matches_data.append(
+            {
+                "match_key": pairing.match_id,
+                "display": match_display(pairing),
+                "player_a": pairing.player_a,
+                "player_b": pairing.player_b,
+                "division": pairing.division,
+                "status": status_info["status"],
+                "status_label": MATCH_STATUS_LABELS.get(
+                    status_info["status"], status_info["status"]
+                ),
+                "holes": status_info["holes"],
+                "winner": winner,
+                "totals": totals,
+                "submitted": submitted,
+                "result_id": match_result_id,
+            }
+        )
+    return templates.TemplateResponse(
+        "match_list.html",
+        {"request": request, "matches": matches_data},
+    )
+
+
 @app.get("/match-ids", response_class=HTMLResponse)
 async def match_ids(request: Request):
     results = fetch_all_match_results(settings.database_url)
@@ -1025,23 +1075,28 @@ def _build_scorecard_rows(
         net_a = (gross_a - strokes_a) if gross_a is not None else None
         net_b = (gross_b - strokes_b) if gross_b is not None else None
         result = "—"
-        points_a = 0.0
-        points_b = 0.0
+        points_a_display = None
+        points_b_display = None
+        points_a_value = 0.0
+        points_b_value = 0.0
         net_diff = None
         if net_a is not None and net_b is not None:
             diff = net_a - net_b
             net_diff = diff
             if diff < 0:
                 result = "A"
-                points_a = 1.0
+                points_a_display = 1.0
+                points_a_value = 1.0
             elif diff > 0:
                 result = "B"
-                points_b = 1.0
+                points_b_display = 1.0
+                points_b_value = 1.0
             else:
                 result = "Halved"
-                points_a = points_b = 0.5
-        totals["points_a"] += points_a
-        totals["points_b"] += points_b
+                points_a_display = points_b_display = 0.5
+                points_a_value = points_b_value = 0.5
+        totals["points_a"] += points_a_value
+        totals["points_b"] += points_b_value
         rows.append(
             {
                 "hole_number": number,
@@ -1055,8 +1110,8 @@ def _build_scorecard_rows(
                 "net_b": net_b,
                 "net_diff": net_diff,
                 "result": result,
-                "points_a": points_a,
-                "points_b": points_b,
+                "points_a": points_a_display,
+                "points_b": points_b_display,
             }
         )
 
@@ -1191,6 +1246,182 @@ def _scorecard_context(match_key: str | None) -> dict:
         "match_statuses": match_statuses,
         "active_matches": active_matches,
         "scorecard": scorecard,
+    }
+
+
+def _new_card_context(request: Request) -> dict:
+    hole_layout = [
+        {"hole_number": 1, "par": 4, "handicap": 5},
+        {"hole_number": 2, "par": 5, "handicap": 1},
+        {"hole_number": 3, "par": 3, "handicap": 9},
+        {"hole_number": 4, "par": 4, "handicap": 3},
+        {"hole_number": 5, "par": 4, "handicap": 2},
+        {"hole_number": 6, "par": 4, "handicap": 6},
+        {"hole_number": 7, "par": 3, "handicap": 7},
+        {"hole_number": 8, "par": 5, "handicap": 4},
+        {"hole_number": 9, "par": 4, "handicap": 8},
+    ]
+    match_definitions = [
+        {
+            "label": "Match A",
+            "matchup": "Player 1 vs Player 2",
+            "status": "AS",
+            "status_label": "All square",
+            "summary": "Net match play - 9 holes - Auto net",
+            "match_detail": "Status: AS | Course Handicap (CH) applied automatically",
+            "players": [
+                {
+                    "name": "Player 1",
+                    "course_handicap": 12,
+                    "gross": [4, 5, 3, 5, 4, 5, 3, 5, 4],
+                    "net": [3, 4, 2, 4, 3, 4, 2, 4, 3],
+                },
+                {
+                    "name": "Player 2",
+                    "course_handicap": 13,
+                    "gross": [5, 4, 5, 4, 5, 5, 3, 4, 4],
+                    "net": [4, 3, 4, 3, 4, 4, 2, 3, 3],
+                },
+            ],
+            "hole_winners": [
+                "Player 1",
+                "Player 2",
+                "Player 1",
+                "Player 2",
+                "Player 1",
+                "AS",
+                "AS",
+                "Player 2",
+                "AS",
+            ],
+        },
+        {
+            "label": "Match B",
+            "matchup": "Player 3 vs Player 4",
+            "status": "AS",
+            "status_label": "All square",
+            "summary": "Net match play - 9 holes - Auto net",
+            "match_detail": "Status: AS | Net and skins auto-calculated",
+            "players": [
+                {
+                    "name": "Player 3",
+                    "course_handicap": 9,
+                    "gross": [4, 5, 6, 5, 3, 4, 5, 5, 4],
+                    "net": [3, 4, 5, 4, 2, 3, 4, 4, 3],
+                },
+                {
+                    "name": "Player 4",
+                    "course_handicap": 15,
+                    "gross": [5, 4, 5, 5, 4, 5, 4, 5, 4],
+                    "net": [4, 3, 4, 4, 3, 4, 3, 4, 3],
+                },
+            ],
+            "hole_winners": [
+                "Player 3",
+                "Player 4",
+                "Player 4",
+                "AS",
+                "Player 3",
+                "Player 3",
+                "Player 4",
+                "AS",
+                "AS",
+            ],
+        },
+    ]
+    total_par = sum(entry["par"] for entry in hole_layout)
+    total_handicap = sum(entry["handicap"] for entry in hole_layout)
+    matches = []
+    for index, definition in enumerate(match_definitions):
+        hole_rows = []
+        counts = {player["name"]: 0 for player in definition["players"]}
+        ties = 0
+        for hole_index, hole in enumerate(hole_layout):
+            player_scores = []
+            for player in definition["players"]:
+                player_scores.append(
+                    {
+                        "name": player["name"],
+                        "gross": player["gross"][hole_index],
+                        "net": player["net"][hole_index],
+                    }
+                )
+            winner = definition["hole_winners"][hole_index]
+            if winner == "AS":
+                ties += 1
+            elif winner in counts:
+                counts[winner] += 1
+            hole_rows.append(
+                {
+                    "hole_number": hole["hole_number"],
+                    "par": hole["par"],
+                    "handicap": hole["handicap"],
+                    "player_scores": player_scores,
+                    "winner": winner,
+                }
+            )
+        player_totals = []
+        for player in definition["players"]:
+            player_totals.append(
+                {
+                    "name": player["name"],
+                    "course_handicap": player["course_handicap"],
+                    "gross_total": sum(player["gross"]),
+                    "net_total": sum(player["net"]),
+                }
+            )
+        player_names = [player["name"] for player in definition["players"]]
+        matches.append(
+            {
+                "label": definition["label"],
+                "matchup": definition["matchup"],
+                "status": definition["status"],
+                "status_label": definition["status_label"],
+                "summary": definition["summary"],
+                "match_detail": definition["match_detail"],
+                "players": player_totals,
+                "holes": hole_rows,
+                "par_total": total_par,
+                "handicap_total": total_handicap,
+                "hole_winner_summary": f"{counts[player_names[0]]}-{counts[player_names[1]]} - {ties} halved",
+                "wins": counts,
+                "ties": ties,
+                "hole_winners": definition["hole_winners"],
+                "accent": "match-card--primary" if index == 0 else "match-card--secondary",
+            }
+        )
+
+    hero = {
+        "title": "9-Hole Golf Scorecard — Match Play (Net) + Skins",
+        #----> "subtitle": "Enter Par + Hole HCP (1-9), then enter Gross scores and each player's Course Handicap (CH). Net + Match Play + Skins calculate automatically.",
+        "meta": "Course: Cedar Ridge | Tee: Summit Ridge | 3,254 yds | CR 67.2 / SR 125",
+        #---->"legend": "Gross Total | Course Handicap (CH) | Net Total",
+        #---->"reference": "Inspired by app/DATA/9_hole_match_play_scorecard_4_players.xlsx",
+    }
+
+    skins = {
+        "title": "Skins — Net (Auto)",
+        "subtitle": "Auto-skips keep the pot alive until a skin is secured.",
+        "winners": [
+            {"hole": "2", "player": "Player 2"},
+            {"hole": "5", "player": "Player 3"},
+            {"hole": "8", "player": "Player 1"},
+        ],
+        "totals": [
+            {"player": "Player 1", "skins": 2},
+            {"player": "Player 2", "skins": 1},
+            {"player": "Player 3", "skins": 1},
+            {"player": "Player 4", "skins": 0},
+        ],
+        "note": "Remaining holes feed a shared pot until a skin is claimed.",
+    }
+
+    return {
+        "request": request,
+        "hero": hero,
+        "hole_reference": hole_layout,
+        "matches": matches,
+        "skins": skins,
     }
 
 

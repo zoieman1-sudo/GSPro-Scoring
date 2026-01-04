@@ -212,8 +212,8 @@
                   <span class="gross-b">{{ score_badge(hole.gross_b, hole.par)|safe }}</span>
                   <span class="net-a">{{ score_badge(hole.net_a, hole.par)|safe }}</span>
                   <span class="net-b">{{ score_badge(hole.net_b, hole.par)|safe }}</span>
-                  <span class="points-a">{{ hole.points_a if hole.points_a % 1 else hole.points_a|int }}</span>
-                  <span class="points-b">{{ hole.points_b if hole.points_b % 1 else hole.points_b|int }}</span>
+                <span class="points-a">{{ format_score(hole.points_a) }}</span>
+                <span class="points-b">{{ format_score(hole.points_b) }}</span>
                 </div>
               {% endfor %}
               <div class="match-scorecard-row match-scorecard-totals">
@@ -266,8 +266,8 @@
                   <span class="gross-b">{{ score_badge(hole.gross_b, hole.par)|safe }}</span>
                   <span class="net-a">{{ score_badge(hole.net_a, hole.par)|safe }}</span>
                   <span class="net-b">{{ score_badge(hole.net_b, hole.par)|safe }}</span>
-                  <span class="points-a">{{ hole.points_a if hole.points_a % 1 else hole.points_a|int }}</span>
-                  <span class="points-b">{{ hole.points_b if hole.points_b % 1 else hole.points_b|int }}</span>
+                  <span class="points-a">{{ format_score(hole.points_a) }}</span>
+                  <span class="points-b">{{ format_score(hole.points_b) }}</span>
                 </div>
               {% endfor %}
               <div class="match-scorecard-row match-scorecard-totals">
@@ -309,6 +309,7 @@
               </div>
             </div>
         </div>
+
       <script>
         document.addEventListener("DOMContentLoaded", () => {
           const tabs = document.querySelectorAll(".tab-btn");

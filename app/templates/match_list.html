@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card matches-card">
+    <div class="match-meta">
+      <p class="eyebrow">GSPro League Matches</p>
+      <h1 class="match-title">All Scheduled Matches</h1>
+      <p class="match-sub">Every pairing is listed with current status, hole count, and result details.</p>
+    </div>
+
+    {% if matches %}
+      <div class="match-list-grid">
+        {% for match in matches %}
+          <article class="match-list-card">
+            <header class="match-list-card__header">
+              <div>
+                <p class="match-name">{{ match.display }}</p>
+                <p class="match-list-card__meta">{{ match.player_a }} vs {{ match.player_b }}</p>
+              </div>
+              <span class="status-pill status-pill--{{ match.status }}">
+                {{ match.status_label }}
+              </span>
+            </header>
+            <div class="match-list-card__body">
+              <div>
+                <p class="muted-label">Totals</p>
+                <strong>{{ match.totals }}</strong>
+              </div>
+              <div>
+                <p class="muted-label">Winner</p>
+                <strong>{{ match.winner }}</strong>
+              </div>
+              <div>
+                <p class="muted-label">Holes</p>
+                <strong>{{ match.holes }}</strong>
+              </div>
+            </div>
+            {% if match.submitted %}
+              <p class="match-list-card__submitted">Submitted {{ match.submitted }}</p>
+            {% endif %}
+            <div class="match-list-card__actions">
+              <a class="pill-link" href="/scorecard?match_key={{ match.match_key }}">View scorecard</a>
+              {% if match.result_id %}
+                <a class="pill-link" href="/matches/{{ match.result_id }}">Match detail</a>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="status">No matches defined yet.</p>
+    {% endif %}
+  </section>
+{% endblock %}

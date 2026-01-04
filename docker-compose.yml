@@ -12,6 +12,8 @@ services:
     depends_on:
       - db
     restart: on-failure
+    networks:
+      - gspro-network
 
   db:
     image: postgres:15
@@ -29,6 +31,29 @@ services:
       retries: 5
     ports:
       - "15433:5432"
+    networks:
+      - gspro-network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    profiles:
+      - pgadmin
+    depends_on:
+      - db
+    environment:
+      PGADMIN_DEFAULT_EMAIL: pgadmin@gspro.local
+      PGADMIN_DEFAULT_PASSWORD: change_me
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - gspro-network
 
 volumes:
   gspro-scoring-db:
+  pgadmin-data:
+
+networks:
+  gspro-network:

@@ -31,5 +31,6 @@ Starter scaffold for the GSPro Tournament Scoring App (FastAPI + Jinja2).
 ## Notes
 - Our Compose stack now includes a Postgres service configured with `postgres/change_me` and `gspro_scoring`; update `DATABASE_URL` if you want to point at some other database.
 - The app creates the `match_results` table on startup if it does not exist.
+- pgAdmin is now attached to the `pgadmin` profile, so start it via `docker compose --profile pgadmin up -d` and browse `http://localhost:5050` (login `pgadmin@gspro.local`/`change_me`). Connect to `host=db`, port `5432`, database `gspro_scoring` and you’ll have GUI access to `hole_scores`, `match_results`, etc.
 
 This repo is initialized by Codex and follows the canonical context provided by the user.

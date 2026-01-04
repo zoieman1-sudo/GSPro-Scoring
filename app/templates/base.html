@@ -14,12 +14,13 @@
     <div class="layout">
       <aside class="sidebar">
         <p class="sidebar-brand">GSPro Score</p>
-        <nav class="page-nav">
-          <a href="/scoring/mobile" class="{% if request.url.path == '/scoring/mobile' %}is-active{% endif %}">Mobile Scoring</a>
-          <a href="/scorecard" class="{% if 'scorecard' in request.url.path %}is-active{% endif %}">Scorecard</a>
-          <a href="/standings" class="{% if request.url.path.startswith('/standings') %}is-active{% endif %}">Standings</a>
-          <a href="/admin/setup" class="{% if request.url.path.startswith('/admin/setup') %}is-active{% endif %}">Tournament Setup</a>
-        </nav>
+      <nav class="page-nav">
+        <a href="/scoring/mobile" class="{% if request.url.path == '/scoring/mobile' %}is-active{% endif %}">Mobile Scoring</a>
+        <a href="/scorecard" class="{% if 'scorecard' in request.url.path %}is-active{% endif %}">Scorecard</a>
+        <a href="/new_card" class="{% if request.url.path == '/new_card' %}is-active{% endif %}">Scorecard Studio</a>
+        <a href="/standings" class="{% if request.url.path.startswith('/standings') %}is-active{% endif %}">Standings</a>
+        <a href="/admin/setup" class="{% if request.url.path.startswith('/admin/setup') %}is-active{% endif %}">Tournament Setup</a>
+      </nav>
       </aside>
       <main class="shell">
         {% block content %}{% endblock %}

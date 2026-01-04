@@ -1,0 +1,512 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="new-card-shell">
+    <style>
+      .new-card-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+
+      .new-card-hero {
+        padding: 32px 36px;
+        background: linear-gradient(140deg, rgba(67, 225, 255, 0.15), rgba(4, 11, 24, 0.95));
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 35px 60px rgba(4, 8, 20, 0.65);
+        backdrop-filter: blur(18px);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .new-card-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+        pointer-events: none;
+      }
+
+      .hero-top {
+        position: relative;
+        z-index: 1;
+      }
+
+      .hero-description {
+        margin-top: 16px;
+        max-width: 720px;
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.6;
+      }
+
+      .hero-meta {
+        margin-top: 12px;
+        font-size: 0.9rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .hero-legend {
+        margin-top: 18px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        position: relative;
+        z-index: 1;
+      }
+
+      .hero-legend__tag {
+        padding: 8px 16px;
+        border-radius: var(--radius-pill);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        font-size: 0.75rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+      }
+
+      .hero-legend__tag--muted {
+        opacity: 0.65;
+      }
+
+      .hole-reference {
+        margin-top: 24px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 14px 18px;
+        display: grid;
+        gap: 6px;
+        background: rgba(2, 6, 18, 0.55);
+      }
+
+      .hole-reference__row {
+        display: grid;
+        grid-template-columns: 80px repeat(9, minmax(28px, 1fr));
+        font-size: 0.78rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.65);
+        align-items: center;
+      }
+
+      .hole-reference__label {
+        font-size: 0.65rem;
+        letter-spacing: 0.4em;
+      }
+
+      .hole-reference__row span:not(.hole-reference__label) {
+        text-align: center;
+      }
+
+      .match-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 24px;
+      }
+
+      .match-card {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 28px;
+        position: relative;
+        overflow: hidden;
+        min-height: 100%;
+      }
+
+      .match-card--primary {
+        background: linear-gradient(150deg, rgba(67, 225, 255, 0.14), rgba(4, 14, 32, 0.95));
+      }
+
+      .match-card--secondary {
+        background: linear-gradient(150deg, rgba(255, 180, 126, 0.12), rgba(5, 9, 15, 0.96));
+      }
+
+      .match-card--primary::after,
+      .match-card--secondary::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 10% 20%, rgba(67, 225, 255, 0.06), rgba(0, 0, 0, 0));
+        pointer-events: none;
+      }
+
+      .match-card__header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+      }
+
+      .match-card__header h2 {
+        margin: 4px 0 0;
+        font-size: 1.1rem;
+      }
+
+      .match-card__status {
+        text-align: right;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .match-status-pill {
+        padding: 6px 14px;
+        border-radius: var(--radius-pill);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(67, 225, 255, 0.16);
+        color: #b5f5ff;
+        font-size: 0.72rem;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+      }
+
+      .match-status-detail {
+        font-size: 0.75rem;
+        color: var(--muted);
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .match-card__players {
+        margin-top: 18px;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .match-player-chip {
+        padding: 10px 16px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.03);
+        min-width: 140px;
+      }
+
+      .match-player-chip strong {
+        display: block;
+        margin-top: 4px;
+        font-size: 0.8rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.65);
+      }
+
+      .match-table {
+        margin-top: 18px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        overflow-x: auto;
+      }
+
+      .match-table__header,
+      .match-table__row,
+      .match-table__footer {
+        display: grid;
+        grid-template-columns: 48px 40px 40px repeat(2, minmax(130px, 1fr)) 90px;
+        gap: 8px;
+        padding: 8px 16px;
+        align-items: center;
+      }
+
+      .match-table__header {
+        background: rgba(255, 255, 255, 0.04);
+        font-size: 0.65rem;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+      }
+
+      .match-table__row {
+        font-size: 0.9rem;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+      }
+
+      .match-table__row:nth-child(even) {
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .player-header {
+        font-size: 0.75rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.65);
+      }
+
+      .player-score {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-size: 0.9rem;
+      }
+
+      .player-score strong {
+        font-size: 1rem;
+        letter-spacing: 0.1em;
+      }
+
+      .player-score small {
+        font-size: 0.6rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .player-score--total {
+        font-weight: 600;
+      }
+
+      .match-winner {
+        font-size: 0.85rem;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: var(--text);
+      }
+
+      .match-table__footer {
+        background: rgba(255, 255, 255, 0.05);
+        font-size: 0.75rem;
+      }
+
+      .match-card__footer {
+        margin-top: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .match-detail {
+        font-size: 0.85rem;
+        letter-spacing: 0.3em;
+        color: rgba(255, 255, 255, 0.65);
+        text-transform: uppercase;
+      }
+
+      .skins-card {
+        padding: 26px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(5, 10, 20, 0.9));
+      }
+
+      .skins-card__header h3 {
+        margin: 4px 0 0;
+      }
+
+      .skins-card__body {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 24px;
+      }
+
+      .skins-card__label {
+        font-size: 0.7rem;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .skins-card__winners ul {
+        list-style: none;
+        margin: 12px 0 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .skins-card__winners li {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 10px;
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .skin-hole {
+        font-size: 0.8rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .skins-count-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+      }
+
+      .skin-chip {
+        padding: 14px 18px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(5, 9, 18, 0.6);
+      }
+
+      .skin-chip strong {
+        display: block;
+        font-size: 1.4rem;
+        margin: 6px 0;
+      }
+
+      .skin-chip small {
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .skins-card__note {
+        margin-top: 18px;
+        text-transform: uppercase;
+        letter-spacing: 0.35em;
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+    </style>
+
+    <article class="card new-card-hero">
+      <div class="hero-top">
+        <p class="eyebrow">Scorecard Studio</p>
+        <h1>{{ hero.title }}</h1>
+        <p class="hero-description">{{ hero.subtitle }}</p>
+      </div>
+      <p class="hero-meta">{{ hero.meta }}</p>
+      {% if hero.legend or hero.reference %}
+        <div class="hero-legend">
+          {% if hero.legend %}
+            <span class="hero-legend__tag">{{ hero.legend }}</span>
+          {% endif %}
+          {% if hero.reference %}
+            <span class="hero-legend__tag hero-legend__tag--muted">{{ hero.reference }}</span>
+          {% endif %}
+        </div>
+      {% endif %}
+      <div class="hole-reference">
+        <div class="hole-reference__row">
+          <span class="hole-reference__label">Hole</span>
+          {% for hole in hole_reference %}
+            <span>{{ hole.hole_number }}</span>
+          {% endfor %}
+        </div>
+        <div class="hole-reference__row">
+          <span class="hole-reference__label">Par</span>
+          {% for hole in hole_reference %}
+            <span>{{ hole.par }}</span>
+          {% endfor %}
+        </div>
+        <div class="hole-reference__row">
+          <span class="hole-reference__label">HCP</span>
+          {% for hole in hole_reference %}
+            <span>{{ hole.handicap }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </article>
+
+    <section class="match-grid">
+      {% for match in matches %}
+        <article class="card match-card {{ match.accent }}">
+          <header class="match-card__header">
+            <div>
+              <p class="eyebrow">{{ match.label }}</p>
+              <h2>{{ match.matchup }}</h2>
+              <p class="muted-label">{{ match.summary }}</p>
+            </div>
+            <div class="match-card__status">
+              <span class="match-status-pill">{{ match.status }}</span>
+              <span class="match-status-detail">{{ match.status_label }}</span>
+            </div>
+          </header>
+          <div class="match-card__players">
+            {% for player in match.players %}
+              <div class="match-player-chip">
+                <span>{{ player.name }}</span>
+                <strong>CH {{ player.course_handicap }}</strong>
+              </div>
+            {% endfor %}
+          </div>
+          <div class="match-table">
+            <div class="match-table__header">
+              <span>Hole</span>
+              <span>Par</span>
+              <span>HCP</span>
+              {% for player in match.players %}
+                <span class="player-header">{{ player.name }}</span>
+              {% endfor %}
+              <span>Winner</span>
+            </div>
+            <div class="match-table__body">
+              {% for row in match.holes %}
+                <div class="match-table__row">
+                  <span>{{ row.hole_number }}</span>
+                  <span>{{ row.par }}</span>
+                  <span>{{ row.handicap }}</span>
+                  {% for score in row.player_scores %}
+                    <span class="player-score">
+                      <strong>{{ score.gross }}</strong>
+                      <small>Gross</small>
+                      <strong>{{ score.net }}</strong>
+                      <small>Net</small>
+                    </span>
+                  {% endfor %}
+                  <span class="match-winner">{{ row.winner }}</span>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="match-table__footer">
+              <span>Totals</span>
+              <span>{{ match.par_total }}</span>
+              <span>{{ match.handicap_total }}</span>
+              {% for player in match.players %}
+                <span class="player-score player-score--total">
+                  <strong>{{ player.gross_total }}</strong>
+                  <small>Gross</small>
+                  <strong>{{ player.net_total }}</strong>
+                  <small>Net</small>
+                </span>
+              {% endfor %}
+              <span></span>
+            </div>
+          </div>
+          <div class="match-card__footer">
+            <p class="muted-label">Hole wins: {{ match.hole_winner_summary }}</p>
+            <p class="match-detail">{{ match.match_detail }}</p>
+          </div>
+        </article>
+      {% endfor %}
+    </section>
+
+    <article class="card skins-card">
+      <header class="skins-card__header">
+        <p class="eyebrow">{{ skins.title }}</p>
+        <h3>Skins board</h3>
+        <p class="muted-label">{{ skins.subtitle }}</p>
+      </header>
+      <div class="skins-card__body">
+        <div class="skins-card__winners">
+          <p class="skins-card__label">Skin wins</p>
+          <ul>
+            {% for winner in skins.winners %}
+              <li>
+                <span class="skin-hole">Hole {{ winner.hole }}</span>
+                <span>{{ winner.player }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div class="skins-card__summary">
+          <p class="skins-card__label">Skins count</p>
+          <div class="skins-count-grid">
+            {% for total in skins.totals %}
+              <div class="skin-chip">
+                <span>{{ total.player }}</span>
+                <strong>{{ total.skins }}</strong>
+                <small>skins</small>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <p class="muted-label skins-card__note">{{ skins.note }}</p>
+    </article>
+  </section>
+{% endblock %}
