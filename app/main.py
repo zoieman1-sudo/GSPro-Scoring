@@ -324,6 +324,25 @@ def _record_player(
     entry["holes_played"] += holes_played
 
 
+def _resolve_result_totals(result: dict, course_holes: list[dict]) -> tuple[float, float, str]:
+    player_a_total = result.get("player_a_total") or 0
+    player_b_total = result.get("player_b_total") or 0
+    winner = result.get("winner") or "T"
+    if player_a_total == 0 and player_b_total == 0:
+        holes = fetch_hole_scores(settings.database_url, result["id"])
+        if holes:
+            player_a_info = fetch_player_by_name(settings.database_url, result["player_a_name"]) or {}
+            player_b_info = fetch_player_by_name(settings.database_url, result["player_b_name"]) or {}
+            handicap_a = player_a_info.get("handicap", 0)
+            handicap_b = player_b_info.get("handicap", 0)
+            computed = _build_scorecard_rows(holes, handicap_a, handicap_b, course_holes)
+            outcome = score_outcome(computed["meta"]["total_points_a"], computed["meta"]["total_points_b"])
+            player_a_total = outcome["player_a_total"]
+            player_b_total = outcome["player_b_total"]
+            winner = outcome["winner"]
+    return player_a_total, player_b_total, winner
+
+
 def build_standings(results: list[dict]) -> list[dict]:
     divisions_by_player = _build_player_divisions()
     standings: dict[str, dict] = {
@@ -333,26 +352,20 @@ def build_standings(results: list[dict]) -> list[dict]:
 
     course_holes = _active_course_holes()
     for result in results:
+        player_a_total, player_b_total, winner = _resolve_result_totals(result, course_holes)
         player_a_info = fetch_player_by_name(settings.database_url, result["player_a_name"]) or {}
         player_b_info = fetch_player_by_name(settings.database_url, result["player_b_name"]) or {}
-        handicap_a = player_a_info.get("handicap", 0)
-        handicap_b = player_b_info.get("handicap", 0)
         hole_entries = fetch_hole_scores(settings.database_url, result["id"])
         hole_count = len(hole_entries)
-        if hole_entries:
-            computed = _build_scorecard_rows(hole_entries, handicap_a, handicap_b, course_holes)
-            points_a = computed["meta"]["total_points_a"]
-            points_b = computed["meta"]["total_points_b"]
-        else:
-            points_a = result["player_a_total"]
-            points_b = result["player_b_total"]
+        if result["player_a_name"] not in standings or result["player_b_name"] not in standings:
+            continue
         _record_player(
             standings,
             result["player_a_name"],
             divisions_by_player.get(result["player_a_name"], "Open"),
-            points_a,
-            points_b,
-            result["winner"],
+            player_a_total,
+            player_b_total,
+            winner,
             "A",
             hole_count,
         )
@@ -360,15 +373,15 @@ def build_standings(results: list[dict]) -> list[dict]:
             standings,
             result["player_b_name"],
             divisions_by_player.get(result["player_b_name"], "Open"),
-            points_b,
-            points_a,
-            result["winner"],
+            player_b_total,
+            player_a_total,
+            winner,
             "B",
             hole_count,
         )
 
-    for entry in standings.values():
-        entry["point_diff"] = entry["points_for"] - entry["points_against"]
+        for entry in standings.values():
+            entry["point_diff"] = entry["points_for"] - entry["points_against"]
 
     division_groups: dict[str, list[dict]] = defaultdict(list)
     for entry in standings.values():
@@ -387,7 +400,8 @@ def build_standings(results: list[dict]) -> list[dict]:
         )
         for player in players:
             holes_played = player.get("holes_played", 0)
-            player["pts_remaining"] = 40 - holes_played + player["points_for"]
+            remaining = 40 - player.get("holes_played", 0)
+            player["pts_remaining"] = max(0.0, remaining)
         sorted_divisions.append({"division": division, "players": players})
     return sorted_divisions
 
@@ -1299,10 +1313,12 @@ def _new_card_context(request: Request) -> dict:
     match_definitions = [
         {
             "label": "Match A",
+            "match_key": "match-a",
             "matchup": "Player 1 vs Player 2",
-            "status": "AS",
+            "status_short": "AS",
             "status_label": "All square",
             "summary": "Net match play - 9 holes - Auto net",
+            "phase": "not_started",
             "match_detail": "Status: AS | Course Handicap (CH) applied automatically",
             "players": [
                 {
@@ -1332,10 +1348,12 @@ def _new_card_context(request: Request) -> dict:
         },
         {
             "label": "Match B",
+            "match_key": "match-b",
             "matchup": "Player 3 vs Player 4",
-            "status": "AS",
+            "status_short": "AS",
             "status_label": "All square",
             "summary": "Net match play - 9 holes - Auto net",
+            "phase": "in_progress",
             "match_detail": "Status: AS | Net and skins auto-calculated",
             "players": [
                 {
@@ -1409,11 +1427,13 @@ def _new_card_context(request: Request) -> dict:
         matches.append(
             {
                 "label": definition["label"],
+                "match_key": definition.get("match_key", f"match-{index + 1}"),
                 "matchup": definition["matchup"],
-                "status": definition["status"],
+                "status_short": definition["status_short"],
                 "status_label": definition["status_label"],
                 "summary": definition["summary"],
                 "match_detail": definition["match_detail"],
+                "phase": definition.get("phase", "not_started"),
                 "players": player_totals,
                 "holes": hole_rows,
                 "par_total": total_par,

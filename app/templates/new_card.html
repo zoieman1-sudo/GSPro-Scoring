@@ -99,17 +99,141 @@
       }
 
       .match-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 24px;
+        display: flex;
+        justify-content: center;
       }
 
       .match-card {
         border: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 28px;
+        padding: 0;
         position: relative;
         overflow: hidden;
-        min-height: 100%;
+        width: min(1040px, 100%);
+        border-radius: var(--radius-lg);
+      }
+
+      .match-info {
+        background: linear-gradient(135deg, rgba(10, 32, 70, 0.85), rgba(6, 15, 40, 0.8));
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        padding: 16px 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .match-info__left,
+      .match-info__right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .match-info__mid {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        font-size: 0.9rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.75);
+      }
+
+      .match-card__placeholder-button {
+        margin: 12px 0 0;
+      }
+
+      .match-modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 10;
+      }
+
+      .match-modal.active {
+        display: flex;
+      }
+
+      .match-modal__content {
+        background: rgba(6, 10, 26, 0.95);
+        border-radius: var(--radius-md);
+        padding: 28px;
+        width: min(460px, 90%);
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+      }
+
+      .match-modal__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+
+      .match-modal__list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .match-modal__item {
+        padding: 10px 14px;
+        border-radius: var(--radius-pill);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.03);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+      }
+
+      .match-modal__item.active {
+        border-color: rgba(67, 225, 255, 0.5);
+        background: rgba(67, 225, 255, 0.1);
+      }
+
+      .horizontal-score-table {
+        background: rgba(10, 18, 40, 0.7);
+        border-radius: var(--radius-md);
+        padding: 16px;
+        display: grid;
+        gap: 12px;
+        grid-template-columns: auto repeat(9, minmax(50px, 1fr)) auto;
+        align-items: center;
+      }
+
+      .horizontal-score-table span {
+        text-align: center;
+      }
+
+      .horizontal-score-table .label-cell {
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        font-size: 0.65rem;
+        color: rgba(255, 255, 255, 0.65);
+      }
+
+      .horizontal-row {
+        display: contents;
+      }
+
+      .horizontal-score-table .hole-label {
+        font-weight: 700;
+        font-size: 0.85rem;
+      }
+
+      .horizontal-score-table__player {
+        font-size: 0.75rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .horizontal-score-table__value {
+        font-size: 1rem;
       }
 
       .match-card--primary {
@@ -402,78 +526,32 @@
       </div>
     </article>
 
+    {% set studio_match = matches[0] if matches else None %}
     <section class="match-grid">
-      {% for match in matches %}
-        <article class="card match-card {{ match.accent }}">
-          <header class="match-card__header">
-            <div>
-              <p class="eyebrow">{{ match.label }}</p>
-              <h2>{{ match.matchup }}</h2>
-              <p class="muted-label">{{ match.summary }}</p>
-            </div>
-            <div class="match-card__status">
-              <span class="match-status-pill">{{ match.status }}</span>
-              <span class="match-status-detail">{{ match.status_label }}</span>
-            </div>
-          </header>
-          <div class="match-card__players">
-            {% for player in match.players %}
-              <div class="match-player-chip">
-                <span>{{ player.name }}</span>
-                <strong>CH {{ player.course_handicap }}</strong>
-              </div>
-            {% endfor %}
+      <article class="card match-card" id="studio-match-card">
+        <div class="match-info" id="studio-match-info">
+          <div class="match-info__left">
+            <strong id="match-info-label">Match A</strong>
+            <span id="match-info-matchup">Player 1 vs Player 2</span>
           </div>
-          <div class="match-table">
-            <div class="match-table__header">
-              <span>Hole</span>
-              <span>Par</span>
-              <span>HCP</span>
-              {% for player in match.players %}
-                <span class="player-header">{{ player.name }}</span>
-              {% endfor %}
-              <span>Winner</span>
-            </div>
-            <div class="match-table__body">
-              {% for row in match.holes %}
-                <div class="match-table__row">
-                  <span>{{ row.hole_number }}</span>
-                  <span>{{ row.par }}</span>
-                  <span>{{ row.handicap }}</span>
-                  {% for score in row.player_scores %}
-                    <span class="player-score">
-                      <strong>{{ score.gross }}</strong>
-                      <small>Gross</small>
-                      <strong>{{ score.net }}</strong>
-                      <small>Net</small>
-                    </span>
-                  {% endfor %}
-                  <span class="match-winner">{{ row.winner }}</span>
-                </div>
-              {% endfor %}
-            </div>
-            <div class="match-table__footer">
-              <span>Totals</span>
-              <span>{{ match.par_total }}</span>
-              <span>{{ match.handicap_total }}</span>
-              {% for player in match.players %}
-                <span class="player-score player-score--total">
-                  <strong>{{ player.gross_total }}</strong>
-                  <small>Gross</small>
-                  <strong>{{ player.net_total }}</strong>
-                  <small>Net</small>
-                </span>
-              {% endfor %}
-              <span></span>
-            </div>
+          <div class="match-info__mid">
+            <span id="match-info-status">Status: Not started</span>
           </div>
-          <div class="match-card__footer">
-            <p class="muted-label">Hole wins: {{ match.hole_winner_summary }}</p>
-            <p class="match-detail">{{ match.match_detail }}</p>
-          </div>
-        </article>
-      {% endfor %}
+          <button class="ghost-btn" id="open-match-modal">Select match</button>
+        </div>
+        <div class="horizontal-score-table" id="studio-match-table"></div>
+      </article>
     </section>
+
+    <div class="match-modal" id="match-modal">
+      <div class="match-modal__content">
+        <div class="match-modal__header">
+          <h3>Choose match</h3>
+          <button class="ghost-btn" id="match-modal-close">Close</button>
+        </div>
+        <div class="match-modal__list" id="match-modal-list"></div>
+      </div>
+    </div>
 
     <article class="card skins-card">
       <header class="skins-card__header">
@@ -509,4 +587,134 @@
       <p class="muted-label skins-card__note">{{ skins.note }}</p>
     </article>
   </section>
+  <script>
+    const matchesData = {{ matches | tojson }};
+    const phaseOrder = { not_started: 0, in_progress: 1, completed: 2 };
+    const phaseLabels = {
+      not_started: "Not started",
+      in_progress: "Started",
+      completed: "Finished",
+    };
+    const sortedMatches = [...matchesData].sort((a, b) => {
+      const phaseComparison = (phaseOrder[a.phase] ?? 3) - (phaseOrder[b.phase] ?? 3);
+      if (phaseComparison !== 0) {
+        return phaseComparison;
+      }
+      return a.label.localeCompare(b.label);
+    });
+
+    const matchTableEl = document.getElementById("studio-match-table");
+    const matchInfoLabel = document.getElementById("match-info-label");
+    const matchInfoMatchup = document.getElementById("match-info-matchup");
+    const matchInfoStatus = document.getElementById("match-info-status");
+    const modal = document.getElementById("match-modal");
+    const modalList = document.getElementById("match-modal-list");
+    const modalClose = document.getElementById("match-modal-close");
+    const openModalBtn = document.getElementById("open-match-modal");
+    let activeMatchKey = sortedMatches[0]?.match_key;
+
+    const renderMatch = (match) => {
+      if (!match) return;
+      matchInfoLabel.textContent = match.label;
+      matchInfoMatchup.textContent = match.matchup;
+      matchInfoStatus.textContent = `Status: ${match.status_label}`;
+      activeMatchKey = match.match_key;
+      const holeHeader = match.holes
+        .map((hole) => `<span class="label-cell">${hole.hole_number}</span>`)
+        .join("");
+      const row = (label, values) => `
+        <span class="label-cell">${label}</span>
+        ${values.map((value) => `<span class="horizontal-score-table__value">${value}</span>`).join("")}
+        <span class="label-cell"></span>
+      `;
+
+      const parRow = row(
+        "Par",
+        match.holes.map((hole) => hole.par)
+      );
+      const hcpRow = row(
+        "HCP",
+        match.holes.map((hole) => hole.handicap)
+      );
+      const playersRows = match.players
+        .map((player, index) => {
+          const grossValues = match.holes.map((hole) => hole.player_scores[index].gross);
+          const netValues = match.holes.map((hole) => hole.player_scores[index].net);
+          return (
+            row(`${player.name} Gross`, grossValues) +
+            row(`${player.name} Net`, netValues)
+          );
+        })
+        .join("");
+      const winnerRow = row(
+        "Winner",
+        match.holes.map((hole) => hole.winner)
+      );
+
+      matchTableEl.innerHTML = `
+        <span class="label-cell">Hole</span>
+        ${holeHeader}
+        <span class="label-cell"></span>
+        ${parRow}
+        ${hcpRow}
+        ${playersRows}
+        ${winnerRow}
+      `;
+      highlightSelectedMatch(activeMatchKey);
+    };
+
+    const highlightSelectedMatch = (key) => {
+      modalList
+        .querySelectorAll(".match-modal__item")
+        .forEach((item) => {
+          item.classList.toggle("active", item.dataset.key === key);
+        });
+    };
+
+    const openModal = () => modal.classList.add("active");
+    const closeModal = () => modal.classList.remove("active");
+
+    const buildModal = () => {
+      if (!modalList) return;
+      modalList.innerHTML = "";
+      const grouped = ["not_started", "in_progress", "completed"];
+      grouped.forEach((phase) => {
+        const matches = sortedMatches.filter((match) => match.phase === phase);
+        if (!matches.length) return;
+        const heading = document.createElement("div");
+        heading.textContent = phaseLabels[phase] ?? phase.replace("_", " ");
+        heading.className = "muted-label";
+        modalList.appendChild(heading);
+        matches.forEach((match) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "match-modal__item";
+          button.dataset.key = match.match_key;
+          button.innerHTML = `
+            <span>${match.matchup}</span>
+            <span>${match.status_label}</span>
+          `;
+          button.addEventListener("click", () => {
+            activeMatchKey = match.match_key;
+            renderMatch(match);
+            closeModal();
+          });
+          modalList.appendChild(button);
+        });
+      });
+    };
+
+    openModalBtn?.addEventListener("click", openModal);
+    modalClose?.addEventListener("click", closeModal);
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        closeModal();
+      }
+    });
+
+      if (sortedMatches.length) {
+        buildModal();
+        renderMatch(sortedMatches[0]);
+      }
+  </script>
 {% endblock %}
