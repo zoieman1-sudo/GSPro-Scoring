@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>GolfApp – Scoring</title>
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="left">
+        <button class="icon-btn" aria-label="Menu">
+          <div class="hamburger"><span></span></div>
+        </button>
+      </div>
+      <h1>Scoring</h1>
+    </header>
+
+    <nav class="tabs" aria-label="Tabs">
+      <div class="tab active" role="button" aria-current="page">Scoring</div>
+      <div class="tab" role="button">Results</div>
+    </nav>
+
+    <section class="holebar" aria-label="Hole">
+      <div class="nav" id="prevHole">&lt; Hole 11</div>
+      <div class="center">
+        <div class="hole" id="holeText">Hole 12</div>
+        <div class="meta" id="holeMeta">Par 5 • 533 yds (BLU)</div>
+      </div>
+      <div class="nav right" id="nextHole">Hole 13 &gt;</div>
+    </section>
+
+    <main class="container" style="padding-top:12px;">
+      <section class="score-list" id="scoreList" aria-label="Score Entry List"></section>
+
+      <section class="keypad-wrap" aria-label="Keypad">
+        <div class="keypad" id="keypad"></div>
+      </section>
+
+      <section class="actions" aria-label="Actions">
+        <button class="action-btn undo" id="undoBtn" type="button">Undo Changes</button>
+        <button class="action-btn save" id="saveBtn" type="button">Save Scores</button>
+      </section>
+    </main>
+
+    <script src="js/scoring.js"></script>
+  </body>
+</html>

@@ -115,29 +115,33 @@
       .match-info {
         background: linear-gradient(135deg, rgba(10, 32, 70, 0.85), rgba(6, 15, 40, 0.8));
         border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        padding: 16px 28px;
+        padding: 16px 32px;
         display: flex;
-        align-items: center;
-        justify-content: space-between;
+        align-items: flex-start;
+        justify-content: flex-start;
         gap: 12px;
+        position: relative;
       }
 
-      .match-info__left,
-      .match-info__right {
+      .match-info__left {
         display: flex;
-        align-items: center;
-        gap: 12px;
+        flex-direction: column;
+        gap: 2px;
       }
 
       .match-info__mid {
-        flex: 1;
         display: flex;
-        justify-content: center;
-        gap: 16px;
-        font-size: 0.9rem;
-        letter-spacing: 0.2em;
+        align-items: center;
+        font-size: 0.85rem;
+        letter-spacing: 0.35em;
         text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.75);
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .match-select-button {
+        position: absolute;
+        top: 10px;
+        right: 16px;
       }
 
       .match-card__placeholder-button {
@@ -177,6 +181,9 @@
         display: flex;
         flex-direction: column;
         gap: 10px;
+        max-height: 220px;
+        overflow-y: auto;
+        padding-right: 4px;
       }
 
       .match-modal__item {
@@ -188,6 +195,10 @@
         justify-content: space-between;
         align-items: center;
         cursor: pointer;
+        color: #fff;
+      }
+      .match-modal__item span {
+        color: inherit;
       }
 
       .match-modal__item.active {
@@ -490,55 +501,35 @@
     <article class="card new-card-hero">
       <div class="hero-top">
         <p class="eyebrow">Scorecard Studio</p>
-        <h1>{{ hero.title }}</h1>
-        <p class="hero-description">{{ hero.subtitle }}</p>
+        <h1 id="heroTitle">{{ hero.title }}</h1>
+        <p class="hero-description" id="heroSummary">{{ hero.subtitle }}</p>
       </div>
-      <p class="hero-meta">{{ hero.meta }}</p>
-      {% if hero.legend or hero.reference %}
-        <div class="hero-legend">
-          {% if hero.legend %}
-            <span class="hero-legend__tag">{{ hero.legend }}</span>
-          {% endif %}
-          {% if hero.reference %}
-            <span class="hero-legend__tag hero-legend__tag--muted">{{ hero.reference }}</span>
-          {% endif %}
-        </div>
-      {% endif %}
-      <div class="hole-reference">
-        <div class="hole-reference__row">
+      <p class="hero-meta" id="heroMeta">{{ hero.meta }}</p>
+      <div class="hole-reference" id="heroHoleReference">
+        <div class="hole-reference__row" id="hole-ref-hole-row">
           <span class="hole-reference__label">Hole</span>
-          {% for hole in hole_reference %}
-            <span>{{ hole.hole_number }}</span>
-          {% endfor %}
         </div>
-        <div class="hole-reference__row">
+        <div class="hole-reference__row" id="hole-ref-par-row">
           <span class="hole-reference__label">Par</span>
-          {% for hole in hole_reference %}
-            <span>{{ hole.par }}</span>
-          {% endfor %}
         </div>
-        <div class="hole-reference__row">
+        <div class="hole-reference__row" id="hole-ref-hcp-row">
           <span class="hole-reference__label">HCP</span>
-          {% for hole in hole_reference %}
-            <span>{{ hole.handicap }}</span>
-          {% endfor %}
         </div>
       </div>
     </article>
 
-    {% set studio_match = matches[0] if matches else None %}
     <section class="match-grid">
       <article class="card match-card" id="studio-match-card">
-        <div class="match-info" id="studio-match-info">
-          <div class="match-info__left">
-            <strong id="match-info-label">Match A</strong>
-            <span id="match-info-matchup">Player 1 vs Player 2</span>
+          <div class="match-info" id="studio-match-info">
+            <div class="match-info__left">
+              <strong id="match-info-label">Match A</strong>
+              <span id="match-info-matchup">Player 1 vs Player 2</span>
+            </div>
+            <div class="match-info__mid">
+              <span id="match-info-status">Status: Not started</span>
+            </div>
+            <button class="ghost-btn match-select-button" id="open-match-modal">Select match</button>
           </div>
-          <div class="match-info__mid">
-            <span id="match-info-status">Status: Not started</span>
-          </div>
-          <button class="ghost-btn" id="open-match-modal">Select match</button>
-        </div>
         <div class="horizontal-score-table" id="studio-match-table"></div>
       </article>
     </section>
@@ -588,69 +579,202 @@
     </article>
   </section>
   <script>
-    const matchesData = {{ matches | tojson }};
     const phaseOrder = { not_started: 0, in_progress: 1, completed: 2 };
     const phaseLabels = {
       not_started: "Not started",
       in_progress: "Started",
       completed: "Finished",
     };
-    const sortedMatches = [...matchesData].sort((a, b) => {
-      const phaseComparison = (phaseOrder[a.phase] ?? 3) - (phaseOrder[b.phase] ?? 3);
-      if (phaseComparison !== 0) {
-        return phaseComparison;
-      }
-      return a.label.localeCompare(b.label);
-    });
+    const seededMatches = {{ matches_listing | tojson }};
+    const fallbackMatches = [
+      {
+        match_key: "sample-a",
+        label: "Match A",
+        display: "Match A",
+        matchup: "Player 1 vs Player 2",
+        status: "not_started",
+        status_label: "Not started",
+        phase: "not_started",
+        holes: [
+          { hole_number: 1, par: 4, handicap: 5, player_scores: [{ gross: 4, net: 3 }, { gross: 5, net: 4 }], winner: "Player 1" },
+          { hole_number: 2, par: 5, handicap: 1, player_scores: [{ gross: 5, net: 4 }, { gross: 4, net: 3 }], winner: "Player 2" },
+          { hole_number: 3, par: 3, handicap: 9, player_scores: [{ gross: 3, net: 2 }, { gross: 5, net: 4 }], winner: "Player 1" },
+          { hole_number: 4, par: 4, handicap: 3, player_scores: [{ gross: 5, net: 4 }, { gross: 4, net: 3 }], winner: "Player 2" },
+          { hole_number: 5, par: 4, handicap: 2, player_scores: [{ gross: 4, net: 3 }, { gross: 5, net: 4 }], winner: "Player 1" },
+          { hole_number: 6, par: 4, handicap: 6, player_scores: [{ gross: 5, net: 4 }, { gross: 5, net: 4 }], winner: "AS" },
+          { hole_number: 7, par: 3, handicap: 7, player_scores: [{ gross: 3, net: 2 }, { gross: 3, net: 2 }], winner: "AS" },
+          { hole_number: 8, par: 5, handicap: 4, player_scores: [{ gross: 5, net: 4 }, { gross: 4, net: 3 }], winner: "Player 2" },
+          { hole_number: 9, par: 4, handicap: 8, player_scores: [{ gross: 4, net: 3 }, { gross: 4, net: 3 }], winner: "AS" },
+        ],
+        players: [
+          { name: "Player 1", course_handicap: 12 },
+          { name: "Player 2", course_handicap: 13 },
+        ],
+        course: {
+          course_name: "Cedar Ridge",
+          tee_name: "Summit Ridge",
+          total_yards: 3254,
+          course_rating: "67.2",
+          slope_rating: "125",
+        },
+      },
+      {
+        match_key: "sample-b",
+        label: "Match B",
+        display: "Match B",
+        matchup: "Player 3 vs Player 4",
+        status: "in_progress",
+        status_label: "Started",
+        phase: "in_progress",
+        holes: [
+          { hole_number: 1, par: 4, handicap: 5, player_scores: [{ gross: 4, net: 3 }, { gross: 5, net: 4 }], winner: "Player 1" },
+          { hole_number: 2, par: 5, handicap: 1, player_scores: [{ gross: 5, net: 4 }, { gross: 4, net: 3 }], winner: "Player 2" },
+          { hole_number: 3, par: 3, handicap: 9, player_scores: [{ gross: 3, net: 2 }, { gross: 5, net: 4 }], winner: "Player 2" },
+        ],
+        players: [
+          { name: "Player 3", course_handicap: 9 },
+          { name: "Player 4", course_handicap: 15 },
+        ],
+        course: {
+          course_name: "Cedar Ridge",
+          tee_name: "Summit Ridge",
+          total_yards: 3254,
+          course_rating: "67.2",
+          slope_rating: "125",
+        },
+      },
+    ];
 
     const matchTableEl = document.getElementById("studio-match-table");
     const matchInfoLabel = document.getElementById("match-info-label");
     const matchInfoMatchup = document.getElementById("match-info-matchup");
     const matchInfoStatus = document.getElementById("match-info-status");
+    const heroTitleEl = document.getElementById("heroTitle");
+    const heroSummaryEl = document.getElementById("heroSummary");
+    const heroMetaEl = document.getElementById("heroMeta");
+    const holeRefHoleRow = document.getElementById("hole-ref-hole-row");
+    const holeRefParRow = document.getElementById("hole-ref-par-row");
+    const holeRefHcpRow = document.getElementById("hole-ref-hcp-row");
+    const defaultHeroMeta = "{{ hero.meta }}";
     const modal = document.getElementById("match-modal");
     const modalList = document.getElementById("match-modal-list");
     const modalClose = document.getElementById("match-modal-close");
     const openModalBtn = document.getElementById("open-match-modal");
-    let activeMatchKey = sortedMatches[0]?.match_key;
+    let sortedMatches = [];
+    let activeMatchKey = null;
+
+    const formatValue = (value) => {
+      if (value === null || value === undefined || value === "") {
+        return "—";
+      }
+      return value;
+    };
+
+    const createRow = (label, values) => `
+      <span class="label-cell">${label}</span>
+      ${values.map((value) => `<span class="horizontal-score-table__value">${value}</span>`).join("")}
+      <span class="label-cell"></span>
+    `;
+
+    const buildCourseMeta = (course) => {
+      if (!course) {
+        return defaultHeroMeta;
+      }
+      const parts = [];
+      if (course.course_name) {
+        parts.push(`Course: ${course.course_name}`);
+      }
+      if (course.tee_name) {
+        parts.push(`Tee: ${course.tee_name}`);
+      }
+      if (course.total_yards) {
+        parts.push(`${course.total_yards} yds`);
+      }
+      const ratingParts = [];
+      if (course.course_rating) {
+        ratingParts.push(`CR ${course.course_rating}`);
+      }
+      if (course.slope_rating) {
+        ratingParts.push(`SR ${course.slope_rating}`);
+      }
+      if (ratingParts.length) {
+        parts.push(ratingParts.join(" / "));
+      }
+      return parts.length ? parts.join(" | ") : "{{ hero.meta }}";
+    };
 
     const renderMatch = (match) => {
-      if (!match) return;
+      if (!match) {
+        matchInfoLabel.textContent = "Match data unavailable";
+        matchInfoMatchup.textContent = "";
+        matchInfoStatus.textContent = "";
+        matchTableEl.innerHTML =
+          "<span class='label-cell'>Hole</span><span class='horizontal-score-table__value'>No data</span>";
+        return;
+      }
       matchInfoLabel.textContent = match.label;
       matchInfoMatchup.textContent = match.matchup;
       matchInfoStatus.textContent = `Status: ${match.status_label}`;
+      heroTitleEl.textContent = match.label;
+      heroSummaryEl.textContent = match.summary;
+      heroMetaEl.textContent = buildCourseMeta(match.course);
+      const holeRows = match.holes || [];
+      const renderRefRow = (rowEl, label, values) => {
+        rowEl.innerHTML = `
+          <span class="hole-reference__label">${label}</span>
+          ${values.map((value) => `<span>${value}</span>`).join("")}
+        `;
+      };
+      renderRefRow(
+        holeRefHoleRow,
+        "Hole",
+        holeRows.map((hole) => hole.hole_number)
+      );
+      renderRefRow(
+        holeRefParRow,
+        "Par",
+        holeRows.map((hole) => hole.par)
+      );
+      renderRefRow(
+        holeRefHcpRow,
+        "HCP",
+        holeRows.map((hole) => hole.handicap)
+      );
+      if (!holeRows.length) {
+        matchTableEl.innerHTML =
+          "<span class='label-cell'>Hole</span><span class='horizontal-score-table__value'>No holes recorded yet.</span>";
+        highlightSelectedMatch(activeMatchKey);
+        return;
+      }
       activeMatchKey = match.match_key;
-      const holeHeader = match.holes
+      const holeHeader = holeRows
         .map((hole) => `<span class="label-cell">${hole.hole_number}</span>`)
         .join("");
-      const row = (label, values) => `
-        <span class="label-cell">${label}</span>
-        ${values.map((value) => `<span class="horizontal-score-table__value">${value}</span>`).join("")}
-        <span class="label-cell"></span>
-      `;
-
-      const parRow = row(
+      const parRow = createRow(
         "Par",
-        match.holes.map((hole) => hole.par)
+        holeRows.map((hole) => formatValue(hole.par))
       );
-      const hcpRow = row(
+      const hcpRow = createRow(
         "HCP",
-        match.holes.map((hole) => hole.handicap)
+        holeRows.map((hole) => formatValue(hole.handicap))
       );
       const playersRows = match.players
         .map((player, index) => {
-          const grossValues = match.holes.map((hole) => hole.player_scores[index].gross);
-          const netValues = match.holes.map((hole) => hole.player_scores[index].net);
+          const playerScores = match.holes.map(
+            (hole) => hole.player_scores[index] || {}
+          );
+          const grossValues = playerScores.map((score) => formatValue(score.gross));
+          const netValues = playerScores.map((score) => formatValue(score.net));
           return (
-            row(`${player.name} Gross`, grossValues) +
-            row(`${player.name} Net`, netValues)
+            createRow(`${player.name} Gross`, grossValues) +
+            createRow(`${player.name} Net`, netValues)
           );
         })
         .join("");
-      const winnerRow = row(
+      const winnerRow = createRow(
         "Winner",
-        match.holes.map((hole) => hole.winner)
+        match.holes.map((hole) => formatValue(hole.winner))
       );
-
       matchTableEl.innerHTML = `
         <span class="label-cell">Hole</span>
         ${holeHeader}
@@ -664,15 +788,23 @@
     };
 
     const highlightSelectedMatch = (key) => {
-      modalList
-        .querySelectorAll(".match-modal__item")
-        .forEach((item) => {
-          item.classList.toggle("active", item.dataset.key === key);
-        });
+      modalList?.querySelectorAll(".match-modal__item").forEach((item) => {
+        item.classList.toggle("active", item.dataset.key === key);
+      });
     };
 
-    const openModal = () => modal.classList.add("active");
-    const closeModal = () => modal.classList.remove("active");
+    const openModal = () => modal?.classList.add("active");
+    const closeModal = () => modal?.classList.remove("active");
+
+    const sortAvailableMatches = (matches) => {
+      return [...matches].sort((a, b) => {
+        const phaseComparison = (phaseOrder[a.phase] ?? 3) - (phaseOrder[b.phase] ?? 3);
+        if (phaseComparison !== 0) {
+          return phaseComparison;
+        }
+        return (a.display || "").localeCompare(b.display || "");
+      });
+    };
 
     const buildModal = () => {
       if (!modalList) return;
@@ -683,7 +815,7 @@
         if (!matches.length) return;
         const heading = document.createElement("div");
         heading.textContent = phaseLabels[phase] ?? phase.replace("_", " ");
-        heading.className = "muted-label";
+        heading.className = "muted-label match-modal__group";
         modalList.appendChild(heading);
         matches.forEach((match) => {
           const button = document.createElement("button");
@@ -691,12 +823,11 @@
           button.className = "match-modal__item";
           button.dataset.key = match.match_key;
           button.innerHTML = `
-            <span>${match.matchup}</span>
+            <span>${match.display}</span>
             <span>${match.status_label}</span>
           `;
-          button.addEventListener("click", () => {
-            activeMatchKey = match.match_key;
-            renderMatch(match);
+          button.addEventListener("click", async () => {
+            await selectMatch(match.match_key);
             closeModal();
           });
           modalList.appendChild(button);
@@ -704,17 +835,63 @@
       });
     };
 
+    const selectMatch = async (matchKey) => {
+      if (!matchKey) return;
+      const matchMeta = sortedMatches.find((entry) => entry.match_key === matchKey);
+      if (matchMeta?.inlineMatchData) {
+        renderMatch(matchMeta.inlineMatchData);
+        highlightSelectedMatch(matchKey);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/match_scorecard?match_key=${matchKey}`);
+        if (!response.ok) {
+          throw new Error("Unable to load match data.");
+        }
+        const matchData = await response.json();
+        renderMatch(matchData);
+        highlightSelectedMatch(matchKey);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    const loadMatches = async () => {
+      let matches = [];
+      try {
+        const response = await fetch("/api/match_list");
+        if (response.ok) {
+          matches = await response.json();
+        } else {
+          throw new Error("Unable to load match list.");
+        }
+      } catch (error) {
+        console.error(error);
+      }
+      const nextMatches = matches.length ? matches : seededMatches.length ? seededMatches : fallbackMatches;
+      sortedMatches = sortAvailableMatches(nextMatches);
+      if (!matches.length) {
+        sortedMatches.forEach((entry) => {
+          entry.inlineMatchData = entry;
+        });
+      }
+      buildModal();
+      if (!sortedMatches.length) {
+        matchTableEl.innerHTML =
+          "<span class='label-cell'>Hole</span><span class='horizontal-score-table__value'>No match registered yet.</span>";
+        return;
+      }
+      await selectMatch(sortedMatches[0].match_key);
+    };
+
     openModalBtn?.addEventListener("click", openModal);
     modalClose?.addEventListener("click", closeModal);
-    modal.addEventListener("click", (event) => {
+    modal?.addEventListener("click", (event) => {
       if (event.target === modal) {
         closeModal();
       }
     });
 
-      if (sortedMatches.length) {
-        buildModal();
-        renderMatch(sortedMatches[0]);
-      }
+    loadMatches();
   </script>
 {% endblock %}

@@ -4,6 +4,7 @@ from collections import defaultdict
 from itertools import zip_longest
 from pathlib import Path
 from xml.etree import ElementTree as ET
+from datetime import datetime
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -49,6 +50,7 @@ from app.settings import load_settings, score_outcome
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/golf-ui", StaticFiles(directory="golf-ui"), name="golf-ui")
 templates = Jinja2Templates(directory="app/templates")
 settings = load_settings()
 DEFAULT_TOURNAMENT_SETTINGS = {
@@ -96,6 +98,22 @@ def _match_status_info(match_id: str) -> dict[str, int | str | None]:
     holes = fetch_hole_scores(settings.database_url, match_result["id"])
     status = "completed" if len(holes) >= 18 else "in_progress"
     return {"status": status, "holes": len(holes), "match_result": match_result}
+
+
+def _safe_int(value: str | int | None) -> int | None:
+    if value in (None, "", "null"):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _player_handicap_by_name(name: str | None) -> int:
+    if not name:
+        return 0
+    player = fetch_player_by_name(settings.database_url, name)
+    return player.get("handicap", 0) if player else 0
 
 
 def _adjust_display_points(value: float | int) -> float:
@@ -194,7 +212,14 @@ def _load_course_holes() -> list[dict]:
     return [{"hole_number": idx, "par": 4, "handicap": idx} for idx in range(1, 19)]
 
 
-def _active_course_holes(tournament_settings: dict | None = None) -> list[dict]:
+def _active_course_holes(
+    tournament_settings: dict | None = None, course_tee_override: int | None = None
+) -> list[dict]:
+    override_id = course_tee_override
+    if override_id:
+        holes = fetch_course_tee_holes(settings.database_url, override_id)
+        if holes:
+            return holes
     t_settings = tournament_settings or _load_tournament_settings()
     tee_id_raw = t_settings.get("course_tee_id") if t_settings else None
     try:
@@ -248,6 +273,11 @@ def _ensure_match_results_for_pairings() -> None:
     Ensure every pairing has a persistent match_result with match_key and match_code.
     """
     matches = _load_pairings()
+    tournament_settings = _load_tournament_settings()
+    tournament_settings = _load_tournament_settings()
+    tournament_settings = _load_tournament_settings()
+    course_id = _safe_int(tournament_settings.get("course_id"))
+    course_tee_id = _safe_int(tournament_settings.get("course_tee_id"))
     for pairing in matches:
         try:
             existing = fetch_match_result_by_key(settings.database_url, pairing.match_id)
@@ -642,6 +672,10 @@ async def submit(
         match_code=None,
         player_a_points=player_a_points,
         player_b_points=player_b_points,
+        player_a_handicap=_player_handicap_by_name(player_a),
+        player_b_handicap=_player_handicap_by_name(player_b),
+        course_id=_safe_int(tournament_settings.get("course_id")),
+        course_tee_id=_safe_int(tournament_settings.get("course_tee_id")),
         **outcome,
     )
 
@@ -694,6 +728,10 @@ async def api_scores(request: Request):
         match_code=None,
         player_a_points=payload.player_a_points,
         player_b_points=payload.player_b_points,
+        player_a_handicap=_player_handicap_by_name(player_a),
+        player_b_handicap=_player_handicap_by_name(player_b),
+        course_id=_safe_int(tournament_settings.get("course_id")),
+        course_tee_id=_safe_int(tournament_settings.get("course_tee_id")),
         **outcome,
     )
     return {
@@ -951,23 +989,19 @@ async def admin_setup_course(
     )
 
 
-@app.get("/matches", response_class=HTMLResponse)
-async def matches_list(request: Request):
-    results = fetch_recent_results(settings.database_url, limit=20)
-    return templates.TemplateResponse(
-        "matches.html",
-        {"request": request, "matches": results},
-    )
+def _coerce_datetime(value):
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
 
 
-@app.get("/match_list", response_class=HTMLResponse)
-async def match_list(request: Request):
+def _build_match_listing(player_filter: str | None = None) -> tuple[list[dict], list[str]]:
     pairings = _load_pairings()
     matches_data: list[dict] = []
     player_names: set[str] = set()
-    player_filter = request.query_params.get("player")
     tournament_settings = _load_tournament_settings()
-    course_holes = _active_course_holes(tournament_settings)
+    default_course_tee_id = _safe_int(tournament_settings.get("course_tee_id"))
+    course_holes = _active_course_holes(tournament_settings, default_course_tee_id)
     for pairing in pairings:
         player_names.add(pairing.player_a)
         player_names.add(pairing.player_b)
@@ -980,6 +1014,7 @@ async def match_list(request: Request):
         totals = "—"
         submitted = None
         match_result_id = None
+        phase = status_info["status"]
         if result:
             winner_code = result["winner"]
             if winner_code == "A":
@@ -1019,25 +1054,56 @@ async def match_list(request: Request):
                 "player_b": pairing.player_b,
                 "division": pairing.division,
                 "status": status_info["status"],
-                "status_label": MATCH_STATUS_LABELS.get(
-                    status_info["status"], status_info["status"]
-                ),
+                "status_label": MATCH_STATUS_LABELS.get(status_info["status"], status_info["status"]),
                 "holes": status_info["holes"],
                 "winner": winner,
                 "totals": totals,
-                "submitted": submitted,
+            "submitted": _coerce_datetime(submitted),
                 "result_id": match_result_id,
+                "phase": phase,
             }
         )
+    return matches_data, sorted(player_names)
+
+
+@app.get("/matches", response_class=HTMLResponse)
+async def matches_list(request: Request):
+    results = fetch_recent_results(settings.database_url, limit=20)
+    return templates.TemplateResponse(
+        "matches.html",
+        {"request": request, "matches": results},
+    )
+
+
+@app.get("/match_list", response_class=HTMLResponse)
+async def match_list(request: Request):
+    player_filter = request.query_params.get("player")
+    matches_data, players = _build_match_listing(player_filter)
     return templates.TemplateResponse(
         "match_list.html",
         {
             "request": request,
             "matches": matches_data,
-            "players": sorted(player_names),
+            "players": players,
             "active_player": player_filter or "all",
         },
     )
+
+
+@app.get("/api/match_list")
+async def api_match_list(player: str | None = None):
+    matches_data, _ = _build_match_listing(player)
+    return JSONResponse(matches_data)
+
+
+@app.get("/api/match_scorecard")
+async def api_match_scorecard(match_key: str):
+    context = _scorecard_context(match_key)
+    scorecard = context.get("scorecard")
+    if not scorecard:
+        raise HTTPException(status_code=404, detail="Match not available")
+    serialized = _serialize_scorecard_for_studio(scorecard)
+    return JSONResponse(serialized)
 
 
 @app.get("/match-ids", response_class=HTMLResponse)
@@ -1230,18 +1296,25 @@ def _scorecard_context(match_key: str | None) -> dict:
         selected_status = {"status": "not_started", "holes": 0, "match_result": None}
 
     tournament_settings = _load_tournament_settings()
-    selected_course_id = tournament_settings.get("course_id")
-    selected_course_tee_id = tournament_settings.get("course_tee_id")
-    course = None
-    tee = None
-    if selected_course_id:
-        catalog = fetch_course_catalog(settings.database_url)
-        course = next((c for c in catalog if str(c["id"]) == str(selected_course_id)), None)
-        if course and selected_course_tee_id:
-            tee = next((t for t in course.get("tees", []) if str(t.get("id")) == str(selected_course_tee_id)), None)
     match_result = fetch_match_result_by_key(settings.database_url, selected.match_id)
     if not match_result:
         match_result = fetch_match_result_by_code(settings.database_url, selected.match_id)
+    match_course_id = match_result.get("course_id") if match_result else None
+    match_course_tee_id = match_result.get("course_tee_id") if match_result else None
+    selected_course_id = _safe_int(match_course_id or tournament_settings.get("course_id"))
+    selected_course_tee_id = _safe_int(
+        match_course_tee_id or tournament_settings.get("course_tee_id")
+    )
+    course = None
+    tee = None
+    catalog = fetch_course_catalog(settings.database_url) if selected_course_id else []
+    if selected_course_id:
+        course = next((c for c in catalog if c["id"] == selected_course_id), None)
+        if course and selected_course_tee_id:
+            tee = next(
+                (t for t in course.get("tees", []) if t.get("id") == selected_course_tee_id),
+                None,
+            )
     hole_records = (
         fetch_hole_scores(settings.database_url, match_result["id"])
         if match_result
@@ -1249,10 +1322,18 @@ def _scorecard_context(match_key: str | None) -> dict:
     )
     player_a_name = match_result["player_a_name"] if match_result else selected.player_a
     player_b_name = match_result["player_b_name"] if match_result else selected.player_b
-    player_a_info = fetch_player_by_name(settings.database_url, player_a_name) or {}
-    player_b_info = fetch_player_by_name(settings.database_url, player_b_name) or {}
-    handicap_a = player_a_info.get("handicap", 0)
-    handicap_b = player_b_info.get("handicap", 0)
+    recorded_handicap_a = match_result.get("player_a_handicap") if match_result else None
+    recorded_handicap_b = match_result.get("player_b_handicap") if match_result else None
+    if recorded_handicap_a is not None:
+        handicap_a = recorded_handicap_a
+    else:
+        player_a_info = fetch_player_by_name(settings.database_url, player_a_name) or {}
+        handicap_a = player_a_info.get("handicap", 0)
+    if recorded_handicap_b is not None:
+        handicap_b = recorded_handicap_b
+    else:
+        player_b_info = fetch_player_by_name(settings.database_url, player_b_name) or {}
+        handicap_b = player_b_info.get("handicap", 0)
     course_holes = _active_course_holes(tournament_settings)
     computed = _build_scorecard_rows(hole_records, handicap_a, handicap_b, course_holes)
     match_name = match_display(selected)
@@ -1298,6 +1379,99 @@ def _scorecard_context(match_key: str | None) -> dict:
     }
 
 
+def _format_winner_label(result: str | None, player_names: list[str]) -> str:
+    if result == "A":
+        return player_names[0]
+    if result == "B":
+        return player_names[1]
+    if result == "Halved":
+        return "AS"
+    if result in (None, "—"):
+        return "—"
+    return result
+
+
+def _serialize_scorecard_for_studio(scorecard: dict) -> dict:
+    match_info = scorecard["match"]
+    player_names = [
+        match_info["player_a_name"],
+        match_info["player_b_name"],
+    ]
+    total_rows = scorecard.get("holes", [])
+    hole_entries = []
+    gross_totals = [0, 0]
+    net_totals = [0, 0]
+
+    for row in total_rows:
+        gross_a = row.get("gross_a")
+        gross_b = row.get("gross_b")
+        net_a = row.get("net_a")
+        net_b = row.get("net_b")
+        if isinstance(gross_a, (int, float)):
+            gross_totals[0] += gross_a
+        elif isinstance(gross_a, str) and gross_a.isnumeric():
+            gross_totals[0] += float(gross_a)
+        if isinstance(gross_b, (int, float)):
+            gross_totals[1] += gross_b
+        elif isinstance(gross_b, str) and gross_b.isnumeric():
+            gross_totals[1] += float(gross_b)
+        if isinstance(net_a, (int, float)):
+            net_totals[0] += net_a
+        elif isinstance(net_a, str) and net_a.isnumeric():
+            net_totals[0] += float(net_a)
+        if isinstance(net_b, (int, float)):
+            net_totals[1] += net_b
+        elif isinstance(net_b, str) and net_b.isnumeric():
+            net_totals[1] += float(net_b)
+        hole_entries.append(
+            {
+                "hole_number": row.get("hole_number"),
+                "par": row.get("par"),
+                "handicap": row.get("handicap"),
+                "player_scores": [
+                    {"name": player_names[0], "gross": gross_a, "net": net_a},
+                    {"name": player_names[1], "gross": gross_b, "net": net_b},
+                ],
+                "winner": _format_winner_label(row.get("result"), player_names),
+            }
+        )
+
+    players_data = [
+        {
+            "name": player_names[0],
+            "course_handicap": scorecard.get("player_a_handicap", 0),
+            "gross_total": gross_totals[0],
+            "net_total": net_totals[0],
+        },
+        {
+            "name": player_names[1],
+            "course_handicap": scorecard.get("player_b_handicap", 0),
+            "gross_total": gross_totals[1],
+            "net_total": net_totals[1],
+        },
+    ]
+
+    return {
+        "match_key": match_info["match_key"],
+        "label": match_info["match_name"],
+        "matchup": f"{player_names[0]} vs {player_names[1]}",
+        "status": match_info["status"],
+        "status_label": match_info["status_label"],
+        "summary": f"Net match play - {match_info['total_holes']} holes - Auto net",
+        "players": players_data,
+        "holes": hole_entries,
+        "phase": match_info["status"],
+        "course": {
+            "club_name": match_info.get("division"),  # placeholder if no club
+            "course_name": scorecard.get("course", {}).get("course_name"),
+            "tee_name": scorecard.get("course", {}).get("tee_name"),
+            "total_yards": scorecard.get("course", {}).get("total_yards"),
+            "course_rating": scorecard.get("course", {}).get("course_rating"),
+            "slope_rating": scorecard.get("course", {}).get("slope_rating"),
+        },
+    }
+
+
 def _new_card_context(request: Request) -> dict:
     hole_layout = [
         {"hole_number": 1, "par": 4, "handicap": 5},
@@ -1310,148 +1484,11 @@ def _new_card_context(request: Request) -> dict:
         {"hole_number": 8, "par": 5, "handicap": 4},
         {"hole_number": 9, "par": 4, "handicap": 8},
     ]
-    match_definitions = [
-        {
-            "label": "Match A",
-            "match_key": "match-a",
-            "matchup": "Player 1 vs Player 2",
-            "status_short": "AS",
-            "status_label": "All square",
-            "summary": "Net match play - 9 holes - Auto net",
-            "phase": "not_started",
-            "match_detail": "Status: AS | Course Handicap (CH) applied automatically",
-            "players": [
-                {
-                    "name": "Player 1",
-                    "course_handicap": 12,
-                    "gross": [4, 5, 3, 5, 4, 5, 3, 5, 4],
-                    "net": [3, 4, 2, 4, 3, 4, 2, 4, 3],
-                },
-                {
-                    "name": "Player 2",
-                    "course_handicap": 13,
-                    "gross": [5, 4, 5, 4, 5, 5, 3, 4, 4],
-                    "net": [4, 3, 4, 3, 4, 4, 2, 3, 3],
-                },
-            ],
-            "hole_winners": [
-                "Player 1",
-                "Player 2",
-                "Player 1",
-                "Player 2",
-                "Player 1",
-                "AS",
-                "AS",
-                "Player 2",
-                "AS",
-            ],
-        },
-        {
-            "label": "Match B",
-            "match_key": "match-b",
-            "matchup": "Player 3 vs Player 4",
-            "status_short": "AS",
-            "status_label": "All square",
-            "summary": "Net match play - 9 holes - Auto net",
-            "phase": "in_progress",
-            "match_detail": "Status: AS | Net and skins auto-calculated",
-            "players": [
-                {
-                    "name": "Player 3",
-                    "course_handicap": 9,
-                    "gross": [4, 5, 6, 5, 3, 4, 5, 5, 4],
-                    "net": [3, 4, 5, 4, 2, 3, 4, 4, 3],
-                },
-                {
-                    "name": "Player 4",
-                    "course_handicap": 15,
-                    "gross": [5, 4, 5, 5, 4, 5, 4, 5, 4],
-                    "net": [4, 3, 4, 4, 3, 4, 3, 4, 3],
-                },
-            ],
-            "hole_winners": [
-                "Player 3",
-                "Player 4",
-                "Player 4",
-                "AS",
-                "Player 3",
-                "Player 3",
-                "Player 4",
-                "AS",
-                "AS",
-            ],
-        },
-    ]
-    total_par = sum(entry["par"] for entry in hole_layout)
-    total_handicap = sum(entry["handicap"] for entry in hole_layout)
-    matches = []
-    for index, definition in enumerate(match_definitions):
-        hole_rows = []
-        counts = {player["name"]: 0 for player in definition["players"]}
-        ties = 0
-        for hole_index, hole in enumerate(hole_layout):
-            player_scores = []
-            for player in definition["players"]:
-                player_scores.append(
-                    {
-                        "name": player["name"],
-                        "gross": player["gross"][hole_index],
-                        "net": player["net"][hole_index],
-                    }
-                )
-            winner = definition["hole_winners"][hole_index]
-            if winner == "AS":
-                ties += 1
-            elif winner in counts:
-                counts[winner] += 1
-            hole_rows.append(
-                {
-                    "hole_number": hole["hole_number"],
-                    "par": hole["par"],
-                    "handicap": hole["handicap"],
-                    "player_scores": player_scores,
-                    "winner": winner,
-                }
-            )
-        player_totals = []
-        for player in definition["players"]:
-            player_totals.append(
-                {
-                    "name": player["name"],
-                    "course_handicap": player["course_handicap"],
-                    "gross_total": sum(player["gross"]),
-                    "net_total": sum(player["net"]),
-                }
-            )
-        player_names = [player["name"] for player in definition["players"]]
-        matches.append(
-            {
-                "label": definition["label"],
-                "match_key": definition.get("match_key", f"match-{index + 1}"),
-                "matchup": definition["matchup"],
-                "status_short": definition["status_short"],
-                "status_label": definition["status_label"],
-                "summary": definition["summary"],
-                "match_detail": definition["match_detail"],
-                "phase": definition.get("phase", "not_started"),
-                "players": player_totals,
-                "holes": hole_rows,
-                "par_total": total_par,
-                "handicap_total": total_handicap,
-                "hole_winner_summary": f"{counts[player_names[0]]}-{counts[player_names[1]]} - {ties} halved",
-                "wins": counts,
-                "ties": ties,
-                "hole_winners": definition["hole_winners"],
-                "accent": "match-card--primary" if index == 0 else "match-card--secondary",
-            }
-        )
 
     hero = {
         "title": "9-Hole Golf Scorecard — Match Play (Net) + Skins",
-        #----> "subtitle": "Enter Par + Hole HCP (1-9), then enter Gross scores and each player's Course Handicap (CH). Net + Match Play + Skins calculate automatically.",
         "meta": "Course: Cedar Ridge | Tee: Summit Ridge | 3,254 yds | CR 67.2 / SR 125",
-        #---->"legend": "Gross Total | Course Handicap (CH) | Net Total",
-        #---->"reference": "Inspired by app/DATA/9_hole_match_play_scorecard_4_players.xlsx",
+        "subtitle": "Select a match to see course, hole, and handicap details.",
     }
 
     skins = {
@@ -1471,12 +1508,13 @@ def _new_card_context(request: Request) -> dict:
         "note": "Remaining holes feed a shared pot until a skin is claimed.",
     }
 
+    matches_listing, _ = _build_match_listing()
     return {
         "request": request,
         "hero": hero,
         "hole_reference": hole_layout,
-        "matches": matches,
         "skins": skins,
+        "matches_listing": matches_listing,
     }
 
 
@@ -1555,6 +1593,9 @@ async def match_detail_submit_by_key(match_key: str, request: Request):
         if not pairing:
             raise HTTPException(status_code=404, detail="Match not found")
         outcome = score_outcome(0, 0)
+        tournament_settings = _load_tournament_settings()
+        course_id = _safe_int(tournament_settings.get("course_id"))
+        course_tee_id = _safe_int(tournament_settings.get("course_tee_id"))
         match_id = insert_match_result(
             settings.database_url,
             match_name=match_display(pairing),
@@ -1564,6 +1605,10 @@ async def match_detail_submit_by_key(match_key: str, request: Request):
             match_code=None,
             player_a_points=0,
             player_b_points=0,
+            player_a_handicap=_player_handicap_by_name(pairing.player_a),
+            player_b_handicap=_player_handicap_by_name(pairing.player_b),
+            course_id=course_id,
+            course_tee_id=course_tee_id,
             **outcome,
         )
         match_result = fetch_match_result(settings.database_url, match_id)

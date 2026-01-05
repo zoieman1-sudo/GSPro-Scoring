@@ -25,10 +25,14 @@ def ensure_schema(database_url: str) -> None:
                     player_a_total double precision not null,
                     player_b_total double precision not null,
                     winner text not null,
+                    course_id integer null,
+                    course_tee_id integer null,
+                    player_a_handicap integer not null default 0,
+                    player_b_handicap integer not null default 0,
                     submitted_at timestamptz not null default now()
-                    );
-                    """
-                )
+                );
+                """
+            )
             cur.execute(
                 """
                 alter table match_results
@@ -68,6 +72,30 @@ def ensure_schema(database_url: str) -> None:
             cur.execute(
                 """
                 alter table match_results
+                add column if not exists course_id integer null;
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
+                add column if not exists course_tee_id integer null;
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
+                add column if not exists player_a_handicap integer not null default 0;
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
+                add column if not exists player_b_handicap integer not null default 0;
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
                 add column if not exists match_code text not null default '';
                 """
             )
@@ -75,18 +103,6 @@ def ensure_schema(database_url: str) -> None:
                 """
                 alter table match_results
                 add column if not exists match_key text not null default '';
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                add column if not exists match_code text not null default '';
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                add column if not exists match_code text not null default '';
                 """
             )
             cur.execute(
@@ -659,6 +675,10 @@ def fetch_match_result(database_url: str, match_id: int) -> dict | None:
                     player_a_total,
                     player_b_total,
                     winner,
+                    course_id,
+                    course_tee_id,
+                    player_a_handicap,
+                    player_b_handicap,
                     submitted_at
                 from match_results
                 where id = %s;
@@ -682,7 +702,11 @@ def fetch_match_result(database_url: str, match_id: int) -> dict | None:
                 "player_a_total": row[10],
                 "player_b_total": row[11],
                 "winner": row[12],
-                "submitted_at": row[13],
+                "course_id": row[13],
+                "course_tee_id": row[14],
+                "player_a_handicap": row[15],
+                "player_b_handicap": row[16],
+                "submitted_at": row[17],
             }
 
 
@@ -700,6 +724,10 @@ def insert_match_result(
     player_a_total: float,
     player_b_total: float,
     winner: str,
+    course_id: int | None = None,
+    course_tee_id: int | None = None,
+    player_a_handicap: int = 0,
+    player_b_handicap: int = 0,
 ) -> Optional[int]:
     def _next_code(cur) -> str:
         while True:
@@ -725,7 +753,11 @@ def insert_match_result(
                     player_b_bonus,
                     player_a_total,
                     player_b_total,
-                    winner
+                    winner,
+                    course_id,
+                    course_tee_id,
+                    player_a_handicap,
+                    player_b_handicap
                 )
                 values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 returning id;
@@ -743,6 +775,10 @@ def insert_match_result(
                     player_a_total,
                     player_b_total,
                     winner,
+                    course_id,
+                    course_tee_id,
+                    player_a_handicap,
+                    player_b_handicap,
                 ),
             )
             row = cur.fetchone()
@@ -768,6 +804,10 @@ def fetch_match_result_by_key(database_url: str, match_key: str) -> dict | None:
                     player_a_total,
                     player_b_total,
                     winner,
+                    course_id,
+                    course_tee_id,
+                    player_a_handicap,
+                    player_b_handicap,
                     submitted_at
                 from match_results
                 where match_key = %s
@@ -793,7 +833,11 @@ def fetch_match_result_by_key(database_url: str, match_key: str) -> dict | None:
                 "player_a_total": row[10],
                 "player_b_total": row[11],
                 "winner": row[12],
-                "submitted_at": row[13],
+                "course_id": row[13],
+                "course_tee_id": row[14],
+                "player_a_handicap": row[15],
+                "player_b_handicap": row[16],
+                "submitted_at": row[17],
             }
 
 
@@ -841,7 +885,11 @@ def fetch_match_result_by_code(database_url: str, match_code: str) -> dict | Non
                 "player_a_total": row[10],
                 "player_b_total": row[11],
                 "winner": row[12],
-                "submitted_at": row[13],
+                "course_id": row[13],
+                "course_tee_id": row[14],
+                "player_a_handicap": row[15],
+                "player_b_handicap": row[16],
+                "submitted_at": row[17],
             }
 
 
