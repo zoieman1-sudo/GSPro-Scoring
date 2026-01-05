@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card admin-card tournaments-shell">
+    <div class="match-meta">
+      <p class="eyebrow">Tournaments</p>
+      <h1 class="match-title">Event center</h1>
+      <p class="match-sub">Track every tournament, launch new events, and keep the history of completed competitions.</p>
+    </div>
+    {% if status %}
+      <div class="status">{{ status }}</div>
+    {% endif %}
+    {% if active_tournament %}
+      <div class="active-tournament-callout">
+        Active event: <strong>{{ active_tournament.name }}</strong>
+      </div>
+    {% endif %}
+
+    <div class="tournaments-layout">
+      <div class="tournament-list">
+        <div class="setup-head">
+          <h2 class="match-title">Existing events</h2>
+          <p class="match-sub">Multiple tournaments can run simultaneously; this list includes past events for reference.</p>
+        </div>
+        {% if tournaments %}
+          <div class="tournament-cards">
+            {% for tournament in tournaments %}
+              <article class="tournament-card">
+                <div class="tournament-card__header">
+                  <strong>{{ tournament.name }}</strong>
+                  <span class="status-chip status-chip--{{ tournament.status }}">{{ tournament.status|capitalize }}</span>
+                </div>
+                <p class="tournament-card__description">{{ tournament.description or 'No description available.' }}</p>
+                <dl class="tournament-card__meta">
+                  <div>
+                    <dt>Created</dt>
+                    <dd>{{ tournament.created_at.strftime('%Y-%m-%d %H:%M') if tournament.created_at else 'N/A' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Updated</dt>
+                    <dd>{{ tournament.updated_at.strftime('%Y-%m-%d %H:%M') if tournament.updated_at else 'N/A' }}</dd>
+                  </div>
+                </dl>
+                <div class="tournament-card__actions">
+                  <form method="post" action="/tournaments/{{ tournament.id }}/activate">
+                    <button
+                      type="submit"
+                      class="pill-link pill-link--inline"
+                      {% if active_tournament_id == tournament.id %}disabled{% endif %}
+                    >
+                      {% if active_tournament_id == tournament.id %}Active{% else %}Set active{% endif %}
+                    </button>
+                  </form>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="status">No tournaments recorded yet.</p>
+        {% endif %}
+      </div>
+
+      <div class="tournament-form">
+        <div class="setup-head">
+          <h2 class="match-title">Create a new event</h2>
+          <p class="match-sub">Capture the tournament name, description, and status so it can be activated in the other sections.</p>
+        </div>
+        <form method="post" action="/tournaments" class="setup-form">
+          <div class="field-grid">
+            <label>
+              Name<br />
+              <input type="text" name="name" placeholder="League Summer Invitational" required />
+            </label>
+            <label>
+              Description<br />
+              <textarea name="description" placeholder="Add notes about tee times, format, or pairings."></textarea>
+            </label>
+            <label>
+              Status<br />
+              <select name="status">
+                <option value="upcoming">Upcoming</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
+            </label>
+          </div>
+          <div class="setup-actions">
+            <button type="submit" class="submit-btn">Save tournament</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <style>
+    .tournaments-layout {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+      margin-top: 20px;
+    }
+
+    .tournament-list {
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      padding: 24px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .tournament-card {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: rgba(0, 0, 0, 0.35);
+    }
+
+    .tournament-card__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 1.1rem;
+    }
+
+    .tournament-card__description {
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 12px;
+    }
+
+    .tournament-card__meta {
+      display: flex;
+      gap: 24px;
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .tournament-card__meta dt {
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .status-chip {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    .status-chip--active {
+      background: rgba(36, 166, 255, 0.25);
+    }
+
+    .status-chip--completed {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .status-chip--upcoming {
+      background: rgba(255, 225, 147, 0.25);
+      color: #fff6d3;
+    }
+
+    .tournament-form {
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      padding: 24px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .active-tournament-callout {
+      margin-top: 16px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      background: rgba(36, 166, 255, 0.12);
+      color: #d8f6ff;
+      font-weight: 600;
+    }
+
+    .tournament-card__actions {
+      margin-top: 12px;
+    }
+
+    .pill-link--inline {
+      padding: 4px 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .field-grid textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    @media (max-width: 900px) {
+      .tournaments-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+{% endblock %}

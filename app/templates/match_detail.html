@@ -36,6 +36,85 @@
       background: transparent;
       color: #fff;
     }
+    .scorecard-actions .pill-link + .pill-link {
+      margin-left: 0.75rem;
+    }
+    .scorecard-actions .pill-link {
+      cursor: pointer;
+      color: #f7fcff;
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .scorecard-actions .pill-link:hover {
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.6);
+      color: #fff;
+    }
+
+    .match-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .match-points-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .points-card {
+      padding: 18px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(7, 56, 86, 0.4), rgba(11, 38, 84, 0.75));
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      color: #d5f7ff;
+    }
+
+    .points-card--a {
+      background: linear-gradient(180deg, rgba(34, 91, 255, 0.4), rgba(9, 25, 53, 0.9));
+    }
+
+    .points-card--b {
+      background: linear-gradient(180deg, rgba(0, 200, 255, 0.3), rgba(5, 22, 42, 0.9));
+    }
+
+    .points-player-label {
+      font-size: 0.85rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.7);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .points-value {
+      font-size: 42px;
+      margin: 0;
+      line-height: 1;
+    }
+
+    .points-hint {
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      color: rgba(255, 255, 255, 0.55);
+      display: block;
+      margin-top: 4px;
+    }
+
+    .match-winner-badge {
+      margin-top: 4px;
+      padding: 0.7rem 1rem;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.04);
+      color: #85f9ff;
+      font-weight: 600;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+    }
   </style>
   <section class="card standings-card detail-card">
     <div class="match-meta">
@@ -45,35 +124,32 @@
         {{ match.player_a_name }} vs {{ match.player_b_name }} &middot;
         {{ match.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if match.submitted_at else 'Unknown time' }}
       </p>
+      {% if match.finalized %}
+        <p class="match-sub match-sub--stacked">Match finalized &amp; locked</p>
+      {% endif %}
       <div class="scorecard-actions">
         <a class="pill-link" href="/matches/{{ match.id }}/scorecard">View scorecard</a>
+        <button type="button" id="reset-match-btn" class="pill-link">Reset match</button>
+        {% if not match.finalized %}
+          <button type="button" id="finalize-match-btn" class="pill-link">Finalize match</button>
+        {% endif %}
       </div>
     </div>
     <div class="match-summary">
-      <div>
-        <span>Player A</span>
-        <strong>{{ match.player_a_name }}</strong>
-        <p class="match-score-large">
-          {% if match.player_a_total is not none %}
-            {{ match.player_a_total }}
-          {% else %}
-            {{ hole_total_a }}
-          {% endif %}
-        </p>
-      </div>
-      <div>
-        <span>Player B</span>
-        <strong>{{ match.player_b_name }}</strong>
-        <p class="match-score-large">
-          {% if match.player_b_total is not none %}
-            {{ match.player_b_total }}
-          {% else %}
-            {{ hole_total_b }}
-          {% endif %}
-        </p>
+      <div class="match-points-grid">
+        <div class="points-card points-card--a">
+          <span class="points-player-label">Player A · {{ match.player_a_name }}</span>
+          <strong class="points-value">{{ match_points.a | round(1) }}</strong>
+          <span class="points-hint">Points total</span>
+        </div>
+        <div class="points-card points-card--b">
+          <span class="points-player-label">Player B · {{ match.player_b_name }}</span>
+          <strong class="points-value">{{ match_points.b | round(1) }}</strong>
+          <span class="points-hint">Points total</span>
+        </div>
       </div>
       <div class="match-winner-badge">
-        Winner: {{ match.player_a_name if match.winner == 'A' else match.player_b_name if match.winner == 'B' else 'Draw' }}
+        Winner: {{ match_points.winner_label }}
       </div>
     </div>
 
@@ -347,5 +423,45 @@
     });
 
     populateForm();
+
+    const resetMatchBtn = document.getElementById("reset-match-btn");
+    resetMatchBtn?.addEventListener("click", async () => {
+      const confirmed = confirm("This clears all recorded holes for the match. Continue?");
+      if (!confirmed) {
+        return;
+      }
+      const response = await fetch(`/matches/{{ match.id }}/reset`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (response.ok) {
+        location.reload();
+        return;
+      }
+      const error = await response.json().catch(() => ({}));
+      alert(error.detail || "Unable to reset match data. Please try again.");
+    });
+
+    const finalizeMatchBtn = document.getElementById("finalize-match-btn");
+    finalizeMatchBtn?.addEventListener("click", async () => {
+      const confirmed = confirm("Finalizing locks the course, hole data, and points so they cannot change. Continue?");
+      if (!confirmed) {
+        return;
+      }
+      const response = await fetch(`/matches/{{ match.id }}/finalize`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (response.ok) {
+        location.reload();
+        return;
+      }
+      const error = await response.json().catch(() => ({}));
+      alert(error.detail || "Unable to finalize match. Please try again.");
+    });
   </script>
 {% endblock %}

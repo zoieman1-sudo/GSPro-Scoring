@@ -740,7 +740,14 @@
         "HCP",
         holeRows.map((hole) => hole.handicap)
       );
-      if (!holeRows.length) {
+      const matchHasScores =
+        match.has_scores ??
+        holeRows.some((hole) =>
+          (hole.player_scores || []).some(
+            (score) => score && score.gross !== null && score.gross !== undefined
+          )
+        );
+      if (!holeRows.length || !matchHasScores) {
         matchTableEl.innerHTML =
           "<span class='label-cell'>Hole</span><span class='horizontal-score-table__value'>No holes recorded yet.</span>";
         highlightSelectedMatch(activeMatchKey);

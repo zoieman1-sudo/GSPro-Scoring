@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="play-match-shell">
+    <article class="play-match-hero">
+      <div class="hero-heading">
+        <p class="eyebrow">Play Match</p>
+        <h1>Make a pairing live for Golf UI</h1>
+      </div>
+      <p class="hero-summary">
+        Select a match, activate it, and use the generated code to open the Golf UI scoring workflow for those players. The hero below will pull data from the tournament setup or the last activated match.
+      </p>
+      {% if active_tournament %}
+        <p class="hero-meta">
+          Active tournament: {{ active_tournament.name }}
+        </p>
+      {% elif active_tournament_id %}
+        <p class="hero-meta">Active tournament not available.</p>
+      {% else %}
+        <p class="hero-meta">No tournament is active.</p>
+      {% endif %}
+      {% if hero_course %}
+        {% set hero_tee = hero_course.get("tees") | first if hero_course.get("tees") else {} %}
+        <p class="hero-meta">
+          Course: {{ hero_course.course_name }} &middot; Tee: {{ hero_tee.get("tee_name") or "Default" }}
+        </p>
+      {% elif tournament_settings.course_id %}
+        <p class="hero-meta">
+          Course details stored in tournament setup.
+        </p>
+      {% else %}
+        <p class="hero-meta">Setup a course before activating a match to populate yardage and rating.</p>
+      {% endif %}
+    </article>
+
+    <article class="course-selection-card">
+      <div class="match-meta">
+        <h2 class="match-title">Course Selection</h2>
+        <p class="match-sub">Mirror the tournament setup selection and persist it from here.</p>
+      </div>
+      <form class="settings-form" method="post" action="/admin/setup/course">
+        <div class="course-select-row">
+          <label class="settings-field">
+            <span>Course</span>
+            <select id="course-select" name="course_id">
+              <option value="">-- Select course --</option>
+              {% for course in course_catalog %}
+                <option value="{{ course.id }}" {% if course.id|string == selected_course_id %}selected{% endif %}>
+                  {{ course.club_name }} — {{ course.course_name }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="settings-field">
+            <span>Tee</span>
+            <select id="tee-select" name="course_tee_id">
+              <option value="">-- Select tee --</option>
+              {% if course_catalog %}
+                {% for course in course_catalog %}
+                  {% for tee in course.tees %}
+                    {% if tee.gender == "male" %}
+                      <option
+                        value="{{ tee.id }}"
+                        data-course="{{ course.id }}"
+                        {% if tee.id|string == selected_course_tee_id %}selected{% endif %}
+                      >
+                        {{ tee.gender|capitalize }} — {{ tee.tee_name }}{% if tee.total_yards %} ({{ tee.total_yards }} yds){% endif %}
+                      </option>
+                    {% endif %}
+                  {% endfor %}
+                {% endfor %}
+              {% endif %}
+            </select>
+          </label>
+        </div>
+        <div class="setup-actions">
+          <button type="submit" class="submit-btn">Save course</button>
+        </div>
+      </form>
+      <div class="setup-actions">
+        <a class="pill-link" href="/admin/courses/new">Add course manually</a>
+      </div>
+    </article>
+
+    <article class="match-activator">
+      {% if status_message %}
+        <div class="status-toast">{{ status_message }}</div>
+      {% endif %}
+      <form method="post" action="/play_match/activate" class="match-form">
+        <label class="match-form__label" for="matchSelect">Select match to activate</label>
+        <select id="matchSelect" name="match_key" required class="match-form__select">
+          {% for match in matches %}
+            <option value="{{ match.match_key }}" {% if active_match and match.match_key == active_match.match_key %}selected{% endif %}>
+              {{ match.display }} — {{ match.status_label }}
+            </option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="match-form__button">Make active</button>
+      </form>
+    </article>
+
+    {% if active_match %}
+      <article class="active-match-card">
+        <div>
+          <p class="eyebrow">Active match</p>
+          <h2>{{ active_match.player_a }} vs {{ active_match.player_b }}</h2>
+          <p class="match-meta">{{ active_match.status_label }} &middot; {{ active_match.totals }}</p>
+        </div>
+        {% if active_match_code %}
+          <p class="match-code">Code: <span>{{ active_match_code }}</span></p>
+        {% endif %}
+        <a href="/golf-ui/scoring.html?match_key={{ active_match.match_key }}" target="_blank" class="launch-link">
+          Launch scoring (Golf UI)
+        </a>
+      </article>
+    {% endif %}
+  </section>
+
+  <script>
+    (() => {
+      const courseSelect = document.getElementById("course-select");
+      const teeSelect = document.getElementById("tee-select");
+      if (!courseSelect || !teeSelect) {
+        return;
+      }
+
+      const teePlaceholder = teeSelect.querySelector('option[value=""]')?.cloneNode(true);
+      const cachedTeeOptions = Array.from(teeSelect.querySelectorAll("option"))
+        .filter((option) => option.value)
+        .map((option) => ({
+          courseId: option.getAttribute("data-course"),
+          template: option.cloneNode(true),
+        }));
+      const initialTeeId = teeSelect.value || "";
+
+      const renderTees = (courseId, selectedTeeId = initialTeeId) => {
+        teeSelect.innerHTML = "";
+        if (teePlaceholder) {
+          teeSelect.append(teePlaceholder.cloneNode(true));
+        } else {
+          const placeholderOption = document.createElement("option");
+          placeholderOption.value = "";
+          placeholderOption.textContent = "-- Select tee --";
+          teeSelect.append(placeholderOption);
+        }
+        cachedTeeOptions.forEach(({ courseId: candidateCourseId, template }) => {
+          if (!courseId || candidateCourseId === courseId) {
+            teeSelect.append(template.cloneNode(true));
+          }
+        });
+        if (selectedTeeId && teeSelect.querySelector(`option[value="${selectedTeeId}"]`)) {
+          teeSelect.value = selectedTeeId;
+        } else {
+          teeSelect.value = "";
+        }
+      };
+
+      courseSelect.addEventListener("change", () => renderTees(courseSelect.value));
+      renderTees(courseSelect.value, teeSelect.value);
+    })();
+  </script>
+
+  <style>
+    .play-match-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .play-match-hero,
+    .match-activator,
+    .active-match-card {
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 12px;
+      padding: 24px;
+      background: rgba(10, 15, 30, 0.8);
+      box-shadow: 0 20px 40px rgba(3, 5, 12, 0.6);
+    }
+
+    .hero-heading h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+    }
+
+    .hero-summary {
+      color: rgba(255, 255, 255, 0.75);
+      margin-bottom: 12px;
+    }
+
+    .hero-meta {
+      font-size: 0.9rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .match-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .match-form__label {
+      font-size: 0.9rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .match-form__select {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(10, 10, 30, 0.7);
+      color: #fff;
+      font-size: 1rem;
+    }
+
+    .match-form__button {
+      padding: 12px;
+      border-radius: 999px;
+      border: none;
+      background: #2ea3ff;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    .match-form__button:active {
+      transform: scale(0.98);
+    }
+
+    .status-toast {
+      background: rgba(46, 163, 255, 0.15);
+      border: 1px solid rgba(46, 163, 255, 0.5);
+      padding: 10px;
+      border-radius: 10px;
+      color: #d8f6ff;
+      font-weight: 600;
+    }
+
+    .active-match-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: rgba(5, 10, 25, 0.95);
+    }
+
+    .match-meta {
+      color: rgba(255, 255, 255, 0.65);
+      margin: 0;
+    }
+
+    .match-code span {
+      font-weight: 700;
+    }
+
+    .launch-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      text-decoration: none;
+      color: #fff;
+      font-weight: 600;
+      width: fit-content;
+      margin-top: 6px;
+    }
+
+    .eyebrow {
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .course-selection-card {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 24px;
+      border-radius: 12px;
+      background: rgba(6, 10, 26, 0.9);
+      box-shadow: 0 20px 40px rgba(2, 5, 15, 0.6);
+    }
+
+    .settings-form {
+      margin-top: 16px;
+    }
+
+    .course-select-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .settings-field {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.8rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .settings-field select {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(10, 10, 30, 0.8);
+      color: #fff;
+      padding: 10px 12px;
+      font-size: 1rem;
+    }
+
+    .setup-actions {
+      margin-top: 18px;
+      display: flex;
+      justify-content: flex-start;
+    }
+
+    .submit-btn {
+      padding: 10px 18px;
+      border-radius: 999px;
+      border: none;
+      background: #24a6ff;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    @media (max-width: 640px) {
+      .hero-heading h1 {
+        font-size: 24px;
+      }
+
+      .match-form__select {
+        font-size: 0.95rem;
+      }
+    }
+  </style>
+{% endblock %}

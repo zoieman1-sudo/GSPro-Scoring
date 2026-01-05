@@ -21,10 +21,15 @@
         {% endfor %}
       </nav>
     </aside>
-    <div class="setup-content">
-      {% if setup_status %}
-        <div class="status">{{ setup_status }}</div>
-      {% endif %}
+      <div class="setup-content">
+        {% if setup_status %}
+          <div class="status">{{ setup_status }}</div>
+        {% endif %}
+        {% if active_tournament %}
+          <div class="status">Editing settings for {{ active_tournament.name }}.</div>
+        {% elif active_tournament_id %}
+          <div class="status">Active tournament not found.</div>
+        {% endif %}
 
       {% if active_section == "players" %}
         <div class="match-meta">
@@ -85,7 +90,7 @@
             </label>
             <label class="settings-field">
               <span>Tee</span>
-              <select id="tee-select" name="course_tee_id">
+              <select id="tee-select" name="course_tee_id" data-selected-tee="{{ selected_course_tee_id }}">
                 <option value="">-- Select tee --</option>
                 {% if course_catalog %}
                   {% for course in course_catalog %}
@@ -109,20 +114,25 @@
             <button type="submit" class="submit-btn">Save course</button>
           </div>
         </form>
-        <div class="course-search">
-          <div class="setup-head">
-            <h3>Search &amp; Import</h3>
-            <p class="match-sub">Pull courses directly from GolfCourseAPI, then import the male tees.</p>
+          <div class="course-search">
+            <div class="setup-head">
+              <h3>Search &amp; Import</h3>
+              <p class="match-sub">Pull courses directly from GolfCourseAPI, then import the male tees.</p>
+            </div>
+            <div class="course-search-row">
+              <label class="settings-field">
+                <span>Search course (API)</span>
+                <input type="text" id="course-search-query" placeholder="Search by course or club name" />
+              </label>
+              <button type="button" class="submit-btn" id="course-search-btn">Search</button>
+            </div>
+            <div id="course-search-results" class="course-results"></div>
+            <div class="setup-actions">
+              <a class="pill-link" href="/admin/courses/new{% if pin %}?pin={{ pin }}{% endif %}">
+                Add course manually
+              </a>
+            </div>
           </div>
-          <div class="course-search-row">
-            <label class="settings-field">
-              <span>Search course (API)</span>
-              <input type="text" id="course-search-query" placeholder="Search by course or club name" />
-            </label>
-            <button type="button" class="submit-btn" id="course-search-btn">Search</button>
-          </div>
-          <div id="course-search-results" class="course-results"></div>
-        </div>
       {% elif active_section == "holes" %}
         <div class="match-meta">
           <h2 class="match-title">Holes</h2>
@@ -278,25 +288,44 @@
       const courseSearchBtn = document.getElementById("course-search-btn");
       const courseSearchInput = document.getElementById("course-search-query");
 
-      const filterTees = () => {
-        if (!teeSelect || !courseSelect) return;
-        const courseId = courseSelect.value;
-        Array.from(teeSelect.options).forEach((opt) => {
-          const courseForOpt = opt.getAttribute("data-course");
-          if (!courseForOpt || courseForOpt === courseId || opt.value === "") {
-            opt.hidden = false;
-          } else {
-            opt.hidden = true;
-            if (opt.selected) {
-              opt.selected = false;
-            }
+      const teePlaceholder = teeSelect?.querySelector("option[value='']")?.cloneNode(true);
+      const cachedTeeOptions = teeSelect
+        ? Array.from(teeSelect.querySelectorAll("option"))
+            .filter((opt) => opt.value)
+            .map((opt) => ({
+              courseId: opt.getAttribute("data-course"),
+              template: opt.cloneNode(true),
+            }))
+        : [];
+      const storedSelectedTeeId = (teeSelect?.dataset?.selectedTee) || "";
+
+      const renderTees = (courseId, selectedTeeId = "") => {
+        if (!teeSelect) return;
+        const desiredTeeId = selectedTeeId || storedSelectedTeeId;
+        teeSelect.innerHTML = "";
+        if (teePlaceholder) {
+          teeSelect.append(teePlaceholder.cloneNode(true));
+        } else {
+          const placeholderOption = document.createElement("option");
+          placeholderOption.value = "";
+          placeholderOption.textContent = "-- Select tee --";
+          teeSelect.append(placeholderOption);
+        }
+        cachedTeeOptions.forEach(({ courseId: courseForOption, template }) => {
+          if (!courseId || courseForOption === courseId) {
+            teeSelect.append(template.cloneNode(true));
           }
         });
+        if (desiredTeeId && teeSelect.querySelector(`option[value="${desiredTeeId}"]`)) {
+          teeSelect.value = desiredTeeId;
+        } else {
+          teeSelect.value = "";
+        }
       };
 
       if (courseSelect) {
-        courseSelect.addEventListener("change", filterTees);
-        filterTees();
+        courseSelect.addEventListener("change", () => renderTees(courseSelect.value));
+        renderTees(courseSelect.value, teeSelect?.value || "");
       }
 
       const formatCourseLocation = (course) => {

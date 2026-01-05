@@ -4,10 +4,10 @@ async function fetchRound() {
 
 async function fetchPlayers(roundId) {
   return [
-    { id: "p1", firstName: "Paul", lastName: "OLIVER", handicap: 14 },
-    { id: "p2", firstName: "Gary", lastName: "LONG", handicap: 10 },
-    { id: "p3", firstName: "Alcarese,", lastName: "ANDREW", handicap: 9 },
-    { id: "p4", firstName: "Leonhardt,", lastName: "BRETT", handicap: 8 },
+    { id: "p1", firstName: "Player", lastName: "1", handicap: 14 },
+    { id: "p2", firstName: "Player", lastName: "2", handicap: 10 },
+    { id: "p3", firstName: "Player", lastName: "3", handicap: 9 },
+    { id: "p4", firstName: "Player", lastName: "4", handicap: 8 },
   ];
 }
 

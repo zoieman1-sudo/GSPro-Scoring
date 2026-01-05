@@ -18,7 +18,10 @@
         <a href="/scoring/mobile" class="{% if request.url.path == '/scoring/mobile' %}is-active{% endif %}">Mobile Scoring</a>
         <a href="/scorecard" class="{% if 'scorecard' in request.url.path %}is-active{% endif %}">Scorecard</a>
         <a href="/new_card" class="{% if request.url.path == '/new_card' %}is-active{% endif %}">Scorecard Studio</a>
+        <a href="/match_list" class="{% if request.url.path.startswith('/match_list') %}is-active{% endif %}">Match List</a>
+        <a href="/play_match" class="{% if request.url.path.startswith('/play_match') %}is-active{% endif %}">Play Match</a>
         <a href="/standings" class="{% if request.url.path.startswith('/standings') %}is-active{% endif %}">Standings</a>
+        <a href="/tournaments" class="{% if request.url.path.startswith('/tournaments') %}is-active{% endif %}">Tournaments</a>
         <a href="/admin/setup" class="{% if request.url.path.startswith('/admin/setup') %}is-active{% endif %}">Tournament Setup</a>
       </nav>
       </aside>

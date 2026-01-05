@@ -107,6 +107,24 @@ def ensure_schema(database_url: str) -> None:
             )
             cur.execute(
                 """
+                alter table match_results
+                add column if not exists finalized boolean not null default false;
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
+                add column if not exists course_snapshot jsonb;
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
+                add column if not exists scorecard_snapshot jsonb;
+                """
+            )
+            cur.execute(
+                """
                 create table if not exists players (
                     id serial primary key,
                     name text not null unique,
@@ -200,6 +218,36 @@ def ensure_schema(database_url: str) -> None:
                     handicap smallint not null,
                     yardage integer,
                     unique (course_tee_id, hole_number)
+                );
+                """
+            )
+            cur.execute(
+                """
+                create table if not exists tournaments (
+                    id serial primary key,
+                    name text not null unique,
+                    description text,
+                    status text not null default 'upcoming',
+                    settings jsonb not null default '{}'::jsonb,
+                    created_at timestamptz not null default now(),
+                    updated_at timestamptz not null default now()
+                );
+                """
+            )
+            cur.execute(
+                """
+                alter table match_results
+                add column if not exists tournament_id integer null;
+                """
+            )
+            cur.execute(
+                """
+                create table if not exists tournament_event_settings (
+                    id serial primary key,
+                    tournament_id integer not null references tournaments(id) on delete cascade,
+                    key text not null,
+                    value text not null,
+                    unique(tournament_id, key)
                 );
                 """
             )
@@ -481,12 +529,20 @@ def replace_course_tee_holes(
             )
 
 
+def next_course_id(database_url: str) -> int:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute("select coalesce(max(id), 0) + 1 from courses;")
+            row = cur.fetchone()
+            return row[0] if row else 1
+
+
 def fetch_course_catalog(database_url: str) -> list[dict]:
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                select c.id, c.club_name, c.course_name, c.city, c.state, c.country, ct.id, ct.gender, ct.tee_name, ct.course_rating, ct.slope_rating, ct.par_total
+                select c.id, c.club_name, c.course_name, c.city, c.state, c.country, ct.id, ct.gender, ct.tee_name, ct.course_rating, ct.slope_rating, ct.par_total, ct.total_yards
                 from courses c
                 left join course_tees ct on c.id = ct.course_id
                 order by c.course_name, ct.gender, ct.tee_name;
@@ -497,28 +553,29 @@ def fetch_course_catalog(database_url: str) -> list[dict]:
                 course_id = row[0]
                 course_entry = catalog.setdefault(
                     course_id,
+                {
+                    "id": course_id,
+                    "club_name": row[1],
+                    "course_name": row[2],
+                    "city": row[3],
+                    "state": row[4],
+                    "country": row[5],
+                    "tees": [],
+                },
+            )
+            tee_id = row[6]
+            if tee_id:
+                course_entry["tees"].append(
                     {
-                        "id": course_id,
-                        "club_name": row[1],
-                        "course_name": row[2],
-                        "city": row[3],
-                        "state": row[4],
-                        "country": row[5],
-                        "tees": [],
-                    },
+                        "id": tee_id,
+                        "gender": row[7],
+                        "tee_name": row[8],
+                        "course_rating": row[9],
+                        "slope_rating": row[10],
+                        "par_total": row[11],
+                        "total_yards": row[12],
+                    }
                 )
-                tee_id = row[6]
-                if tee_id:
-                    course_entry["tees"].append(
-                        {
-                            "id": tee_id,
-                            "gender": row[7],
-                            "tee_name": row[8],
-                            "course_rating": row[9],
-                            "slope_rating": row[10],
-                            "par_total": row[11],
-                        }
-                    )
             return list(catalog.values())
 
 
@@ -634,6 +691,12 @@ def insert_hole_scores(
             )
 
 
+def delete_hole_scores(database_url: str, match_id: int) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute("delete from hole_scores where match_result_id = %s;", (match_id,))
+
+
 def fetch_hole_scores(database_url: str, match_id: int) -> list[dict]:
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
@@ -677,8 +740,12 @@ def fetch_match_result(database_url: str, match_id: int) -> dict | None:
                     winner,
                     course_id,
                     course_tee_id,
+                    tournament_id,
                     player_a_handicap,
                     player_b_handicap,
+                    finalized,
+                    course_snapshot,
+                    scorecard_snapshot,
                     submitted_at
                 from match_results
                 where id = %s;
@@ -688,26 +755,30 @@ def fetch_match_result(database_url: str, match_id: int) -> dict | None:
             row = cur.fetchone()
             if not row:
                 return None
-            return {
-                "id": row[0],
-                "match_name": row[1],
-                "player_a_name": row[2],
-                "player_b_name": row[3],
-                "match_key": row[4],
-                "match_code": row[5],
-                "player_a_points": row[6],
-                "player_b_points": row[7],
-                "player_a_bonus": row[8],
-                "player_b_bonus": row[9],
-                "player_a_total": row[10],
-                "player_b_total": row[11],
-                "winner": row[12],
-                "course_id": row[13],
-                "course_tee_id": row[14],
-                "player_a_handicap": row[15],
-                "player_b_handicap": row[16],
-                "submitted_at": row[17],
-            }
+                return {
+                    "id": row[0],
+                    "match_name": row[1],
+                    "player_a_name": row[2],
+                    "player_b_name": row[3],
+                    "match_key": row[4],
+                    "match_code": row[5],
+                    "player_a_points": row[6],
+                    "player_b_points": row[7],
+                    "player_a_bonus": row[8],
+                    "player_b_bonus": row[9],
+                    "player_a_total": row[10],
+                    "player_b_total": row[11],
+                    "winner": row[12],
+                    "course_id": row[13],
+                    "course_tee_id": row[14],
+                    "tournament_id": row[15],
+                    "player_a_handicap": row[16],
+                    "player_b_handicap": row[17],
+                    "finalized": row[18],
+                    "course_snapshot": row[19],
+                    "scorecard_snapshot": row[20],
+                    "submitted_at": row[21],
+                }
 
 
 def insert_match_result(
@@ -728,6 +799,7 @@ def insert_match_result(
     course_tee_id: int | None = None,
     player_a_handicap: int = 0,
     player_b_handicap: int = 0,
+    tournament_id: int | None = None,
 ) -> Optional[int]:
     def _next_code(cur) -> str:
         while True:
@@ -756,10 +828,11 @@ def insert_match_result(
                     winner,
                     course_id,
                     course_tee_id,
+                    tournament_id,
                     player_a_handicap,
                     player_b_handicap
                 )
-                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 returning id;
                 """,
                 (
@@ -777,12 +850,127 @@ def insert_match_result(
                     winner,
                     course_id,
                     course_tee_id,
+                    tournament_id,
                     player_a_handicap,
                     player_b_handicap,
                 ),
             )
             row = cur.fetchone()
             return row[0] if row else None
+
+
+def finalize_match_result(
+    database_url: str,
+    match_id: int,
+    *,
+    course_snapshot: dict | None = None,
+    scorecard_snapshot: dict | None = None,
+) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                update match_results
+                set
+                    finalized = true,
+                    course_snapshot = %s,
+                    scorecard_snapshot = %s
+                where id = %s;
+                """,
+                (
+                    Json(course_snapshot) if course_snapshot is not None else None,
+                    Json(scorecard_snapshot) if scorecard_snapshot is not None else None,
+                    match_id,
+                ),
+            )
+
+
+def reset_match_results(
+    database_url: str,
+    match_ids: list[int],
+    *,
+    player_a_points: float,
+    player_b_points: float,
+    player_a_bonus: float,
+    player_b_bonus: float,
+    player_a_total: float,
+    player_b_total: float,
+    winner: str,
+) -> None:
+    if not match_ids:
+        return
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                delete from hole_scores
+                where match_result_id = any(%s);
+                """,
+                (match_ids,),
+            )
+            cur.execute(
+                """
+                update match_results
+                set
+                    player_a_points = %s,
+                    player_b_points = %s,
+                    player_a_bonus = %s,
+                    player_b_bonus = %s,
+                    player_a_total = %s,
+                    player_b_total = %s,
+                    winner = %s,
+                    finalized = false,
+                    scorecard_snapshot = null,
+                    course_snapshot = null
+                where id = any(%s);
+                """,
+                (
+                    player_a_points,
+                    player_b_points,
+                    player_a_bonus,
+                    player_b_bonus,
+                    player_a_total,
+                    player_b_total,
+                    winner,
+                    match_ids,
+                ),
+            )
+
+
+def update_match_result_fields(
+    database_url: str,
+    match_key: str,
+    *,
+    course_id: int | None = None,
+    course_tee_id: int | None = None,
+    player_a_handicap: int | None = None,
+    player_b_handicap: int | None = None,
+) -> None:
+    updates = []
+    values: list[int | None] = []
+    if course_id is not None:
+        updates.append("course_id = %s")
+        values.append(course_id)
+    if course_tee_id is not None:
+        updates.append("course_tee_id = %s")
+        values.append(course_tee_id)
+    if player_a_handicap is not None:
+        updates.append("player_a_handicap = %s")
+        values.append(player_a_handicap)
+    if player_b_handicap is not None:
+        updates.append("player_b_handicap = %s")
+        values.append(player_b_handicap)
+    if not updates:
+        return
+    values.append(match_key)
+    query = f"""
+        update match_results
+        set {', '.join(updates)}
+        where match_key = %s
+        """
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, tuple(values))
 
 
 def fetch_match_result_by_key(database_url: str, match_key: str) -> dict | None:
@@ -806,8 +994,12 @@ def fetch_match_result_by_key(database_url: str, match_key: str) -> dict | None:
                     winner,
                     course_id,
                     course_tee_id,
+                    tournament_id,
                     player_a_handicap,
                     player_b_handicap,
+                    finalized,
+                    course_snapshot,
+                    scorecard_snapshot,
                     submitted_at
                 from match_results
                 where match_key = %s
@@ -819,26 +1011,44 @@ def fetch_match_result_by_key(database_url: str, match_key: str) -> dict | None:
             row = cur.fetchone()
             if not row:
                 return None
-            return {
-                "id": row[0],
-                "match_name": row[1],
-                "player_a_name": row[2],
-                "player_b_name": row[3],
-                "match_key": row[4],
-                "match_code": row[5],
-                "player_a_points": row[6],
-                "player_b_points": row[7],
-                "player_a_bonus": row[8],
-                "player_b_bonus": row[9],
-                "player_a_total": row[10],
-                "player_b_total": row[11],
-                "winner": row[12],
-                "course_id": row[13],
-                "course_tee_id": row[14],
-                "player_a_handicap": row[15],
-                "player_b_handicap": row[16],
-                "submitted_at": row[17],
-            }
+                return {
+                    "id": row[0],
+                    "match_name": row[1],
+                    "player_a_name": row[2],
+                    "player_b_name": row[3],
+                    "match_key": row[4],
+                    "match_code": row[5],
+                    "player_a_points": row[6],
+                    "player_b_points": row[7],
+                    "player_a_bonus": row[8],
+                    "player_b_bonus": row[9],
+                    "player_a_total": row[10],
+                    "player_b_total": row[11],
+                    "winner": row[12],
+                    "course_id": row[13],
+                    "course_tee_id": row[14],
+                    "tournament_id": row[15],
+                    "player_a_handicap": row[16],
+                    "player_b_handicap": row[17],
+                    "finalized": row[18],
+                    "course_snapshot": row[19],
+                    "scorecard_snapshot": row[20],
+                    "submitted_at": row[21],
+                }
+
+
+def fetch_match_result_ids_by_key(database_url: str, match_key: str) -> list[int]:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select id
+                from match_results
+                where match_key = %s
+                """,
+                (match_key,),
+            )
+            return [row[0] for row in cur.fetchall()]
 
 
 def fetch_match_result_by_code(database_url: str, match_code: str) -> dict | None:
@@ -860,6 +1070,14 @@ def fetch_match_result_by_code(database_url: str, match_code: str) -> dict | Non
                     player_a_total,
                     player_b_total,
                     winner,
+                    course_id,
+                    course_tee_id,
+                    tournament_id,
+                    player_a_handicap,
+                    player_b_handicap,
+                    finalized,
+                    course_snapshot,
+                    scorecard_snapshot,
                     submitted_at
                 from match_results
                 where match_code = %s
@@ -887,9 +1105,13 @@ def fetch_match_result_by_code(database_url: str, match_code: str) -> dict | Non
                 "winner": row[12],
                 "course_id": row[13],
                 "course_tee_id": row[14],
-                "player_a_handicap": row[15],
-                "player_b_handicap": row[16],
-                "submitted_at": row[17],
+                "tournament_id": row[15],
+                "player_a_handicap": row[16],
+                "player_b_handicap": row[17],
+                "finalized": row[18],
+                "course_snapshot": row[19],
+                "scorecard_snapshot": row[20],
+                "submitted_at": row[21],
             }
 
 
@@ -917,3 +1139,115 @@ def fetch_settings(database_url: str) -> dict[str, str]:
                 """
             )
             return {row[0]: row[1] for row in cur.fetchall()}
+
+
+def fetch_tournaments(database_url: str) -> list[dict]:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select
+                    id,
+                    name,
+                    coalesce(description, '') as description,
+                    status,
+                    settings,
+                    created_at,
+                    updated_at
+                from tournaments
+                order by created_at desc, id desc;
+                """
+            )
+            rows = cur.fetchall()
+    return [
+        {
+            "id": row[0],
+            "name": row[1],
+            "description": row[2],
+            "status": row[3],
+            "settings": row[4] or {},
+            "created_at": row[5],
+            "updated_at": row[6],
+        }
+        for row in rows
+    ]
+
+
+def insert_tournament(
+    database_url: str,
+    name: str,
+    description: str | None = None,
+    status: str = "upcoming",
+    settings: dict | None = None,
+) -> int | None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                insert into tournaments (name, description, status, settings)
+                values (%s, %s, %s, %s)
+                returning id;
+                """,
+                (
+                    name,
+                    description,
+                    status,
+                    Json(settings or {}),
+                ),
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
+
+
+def fetch_tournament_by_id(database_url: str, tournament_id: int) -> dict | None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select id, name, description, status, settings, created_at, updated_at
+                from tournaments
+                where id = %s
+                limit 1;
+                """,
+                (tournament_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            return {
+                "id": row[0],
+                "name": row[1],
+                "description": row[2],
+                "status": row[3],
+                "settings": row[4] or {},
+                "created_at": row[5],
+                "updated_at": row[6],
+            }
+
+
+def fetch_event_settings(database_url: str, tournament_id: int) -> dict[str, str]:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select key, value
+                from tournament_event_settings
+                where tournament_id = %s;
+                """,
+                (tournament_id,),
+            )
+            return {row[0]: row[1] for row in cur.fetchall()}
+
+
+def upsert_event_setting(database_url: str, tournament_id: int, key: str, value: str) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                insert into tournament_event_settings (tournament_id, key, value)
+                values (%s, %s, %s)
+                on conflict (tournament_id, key) do update
+                    set value = excluded.value;
+                """,
+                (tournament_id, key, value),
+            )

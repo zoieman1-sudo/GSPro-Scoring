@@ -7,6 +7,25 @@
     <link rel="stylesheet" href="css/app.css" />
   </head>
   <body>
+    <div id="codeOverlay" class="code-screen" role="dialog" aria-modal="true">
+      <div class="code-dialog">
+        <p class="eyebrow">Enter your scoring code</p>
+        <h2>Unlock the match</h2>
+        <form id="codeForm" class="code-form">
+          <input
+            id="matchCodeInput"
+            name="match_code"
+            type="text"
+            placeholder="123456789"
+            autocomplete="off"
+            required
+          />
+          <button id="matchCodeSubmit" type="submit">Enter</button>
+        </form>
+        <p class="hint">Use the code generated on the Play Match screen.</p>
+        <div id="codeError" class="code-error" role="status" aria-live="polite"></div>
+      </div>
+    </div>
     <header class="topbar">
       <div class="left">
         <button class="icon-btn" aria-label="Menu">
