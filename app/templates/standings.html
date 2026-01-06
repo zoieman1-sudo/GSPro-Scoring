@@ -15,6 +15,31 @@
       .standing-cell.player .seed-tag {
         display: none;
       }
+      .standings-card {
+        padding: 28px 24px 32px;
+      }
+      .standings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        width: 100%;
+        max-width: none;
+        margin: 0 auto;
+      }
+      .division-card {
+        padding: 24px;
+        border-radius: var(--radius-lg);
+        background: rgba(8, 17, 32, 0.9);
+      }
+      .standings-table {
+        width: 100%;
+        font-size: 0.8rem;
+        letter-spacing: 0.25em;
+      }
+      .standings-table th,
+      .standings-table td {
+        padding: 6px 8px;
+      }
     </style>
 
     <div class="match-meta">

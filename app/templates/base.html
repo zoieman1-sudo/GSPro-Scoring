@@ -17,22 +17,42 @@
           <span class="top-nav__brand">GSPro Score</span>
           <span class="top-nav__subline">Tournament operations</span>
         </div>
+        {% set nav_rows = [
+          [
+            {"href":"/scoring/mobile","label":"Mobile Scoring"},
+            {"href":"/scorecard","label":"Scorecard"},
+            {"href":"/new_card","label":"Scorecard Studio"},
+            {"href":"/match_list","label":"Match List"},
+            {"href":"/play_match","label":"Play Match"},
+            {"href":"/standings","label":"Standings"},
+          ],
+          [
+            {"href":"/tournaments","label":"Tournaments"},
+            {"href":"/admin/tournament_setup","label":"Tournament Setup"},
+            {"href":"/admin/match_setup","label":"Match Setup"},
+            {"href":"/live_matches","label":"Live Matches"},
+            {"href":"/tournament_history","label":"Match History"},
+            {"href":"/other_stuff","label":"Other Stuff"},
+          ],
+        ] %}
         <nav class="top-nav__grid">
-          <a class="top-nav__pill {% if request.url.path == '/scoring/mobile' %}is-active{% endif %}" href="/scoring/mobile">Mobile Scoring</a>
-          <a class="top-nav__pill {% if 'scorecard' in request.url.path %}is-active{% endif %}" href="/scorecard">Scorecard</a>
-          <a class="top-nav__pill {% if request.url.path == '/new_card' %}is-active{% endif %}" href="/new_card">Scorecard Studio</a>
-          <a class="top-nav__pill {% if request.url.path.startswith('/match_list') %}is-active{% endif %}" href="/match_list">Match List</a>
-          <a class="top-nav__pill {% if request.url.path.startswith('/play_match') %}is-active{% endif %}" href="/play_match">Play Match</a>
-          <a class="top-nav__pill {% if request.url.path.startswith('/standings') %}is-active{% endif %}" href="/standings">Standings</a>
-          <a class="top-nav__pill {% if request.url.path.startswith('/tournaments') %}is-active{% endif %}" href="/tournaments">Tournaments</a>
-          <a class="top-nav__pill {% if request.url.path == '/admin/tournament_setup' %}is-active{% endif %}" href="/admin/tournament_setup">Tournament Setup</a>
-          <a class="top-nav__pill {% if request.url.path == '/admin/match_setup' %}is-active{% endif %}" href="/admin/match_setup">Match Setup</a>
-          <a class="top-nav__pill {% if request.url.path == '/live_matches' %}is-active{% endif %}" href="/live_matches">Live Matches</a>
-          <a class="top-nav__pill {% if request.url.path == '/tournament_history' %}is-active{% endif %}" href="/tournament_history">Match History</a>
-          <a class="top-nav__pill {% if request.url.path == '/other_stuff' %}is-active{% endif %}" href="/other_stuff">Other Stuff</a>
+          {% for row in nav_rows %}
+            <div class="top-nav__row">
+              {% for item in row %}
+                {% set is_active = request.url.path.startswith(item.href) %}
+                <a
+                  class="top-nav__pill{% if is_active %} is-active{% endif %}"
+                  href="{{ item.href }}"
+                  role="button"
+                >
+                  {{ item.label }}
+                </a>
+              {% endfor %}
+            </div>
+          {% endfor %}
         </nav>
       </header>
-      <main class="shell shell--wide">
+      <main class="shell">
         {% block content %}{% endblock %}
       </main>
     </div>

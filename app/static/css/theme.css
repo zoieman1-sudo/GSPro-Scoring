@@ -28,30 +28,10 @@ body {
 
 .layout {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
   position: relative;
   z-index: 1;
-}
-
-.sidebar {
-  width: 220px;
-  padding: 32px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(3, 5, 15, 0.6);
-  box-shadow: 25px 0 50px rgba(0, 0, 0, 0.45);
-  position: sticky;
-  top: 0;
-  height: 100vh;
-}
-
-.sidebar-brand {
-  font-size: 0.85rem;
-  letter-spacing: 0.5em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.8);
 }
 
 .bg-shapes::before,
@@ -79,9 +59,79 @@ body {
 
 .shell {
   flex: 1;
-  padding: 28px 32px 60px;
-  max-width: calc(100% - 240px);
+  padding: 32px 28px 60px;
+  width: min(1200px, 100%);
   margin: 0 auto;
+}
+
+.top-nav {
+  padding: 20px 28px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(7, 12, 28, 0.95);
+  backdrop-filter: blur(18px);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  box-shadow: 0 20px 45px rgba(2, 6, 18, 0.65);
+}
+
+.top-nav__title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.top-nav__brand {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.6em;
+  text-transform: uppercase;
+}
+
+.top-nav__subline {
+  font-size: 0.75rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.top-nav__grid {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.top-nav__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.top-nav__pill {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.75rem;
+  letter-spacing: 0.33em;
+  text-transform: uppercase;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.top-nav__pill.is-active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #030812;
+  box-shadow: 0 18px 30px rgba(67, 225, 255, 0.4);
+}
+
+.top-nav__pill:hover {
+  transform: translateY(-2px);
 }
 
 .page-nav {

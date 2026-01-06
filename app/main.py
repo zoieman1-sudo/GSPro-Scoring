@@ -1005,7 +1005,7 @@ async def scorecard_latest(request: Request, match_key: str | None = None):
 
 @app.get("/new_card", response_class=HTMLResponse)
 async def new_card(request: Request):
-    return templates.TemplateResponse("new_card.html", _new_card_context(request))
+    return templates.TemplateResponse("other_stuff.html", _new_card_context(request))
 
 
 @app.get("/other_stuff", response_class=HTMLResponse)
@@ -2270,12 +2270,14 @@ def _serialize_scorecard_for_studio(scorecard: dict) -> dict:
             "course_handicap": scorecard.get("player_a_handicap", 0),
             "gross_total": gross_totals[0],
             "net_total": net_totals[0],
+            "role": "A",
         },
         {
             "name": player_names[1],
             "course_handicap": scorecard.get("player_b_handicap", 0),
             "gross_total": gross_totals[1],
             "net_total": net_totals[1],
+            "role": "B",
         },
     ]
 
@@ -2290,6 +2292,7 @@ def _serialize_scorecard_for_studio(scorecard: dict) -> dict:
         "summary": f"Net match play - {match_info['total_holes']} holes - Auto net",
         "players": players_data,
         "holes": hole_entries,
+        "meta": scorecard.get("meta", {}),
         "phase": match_info["status"],
         "course": {
             "club_name": match_info.get("division"),  # placeholder if no club
@@ -2318,25 +2321,24 @@ def _new_card_context(request: Request) -> dict:
 
     hero = {
         "title": "9-Hole Golf Scorecard — Match Play (Net) + Skins",
-        "meta": "Course: Cedar Ridge | Tee: Summit Ridge | 3,254 yds | CR 67.2 / SR 125",
-        "subtitle": "Select a match to see course, hole, and handicap details.",
+        "meta": "Template: app/DATA/9_hole_match_play_scorecard_4_players.xlsx · 4 players · 2 matches",
+        "subtitle": "Pick one of the two pairings from the four-player layout to inspect holes, pars, and net handicaps.",
     }
 
     skins = {
         "title": "Skins — Net (Auto)",
         "subtitle": "Auto-skips keep the pot alive until a skin is secured.",
         "winners": [
-            {"hole": "2", "player": "Player 2"},
-            {"hole": "5", "player": "Player 3"},
-            {"hole": "8", "player": "Player 1"},
+            {"hole": "3", "player": "Player 3"},
+            {"hole": "6", "player": "Player 4"},
         ],
         "totals": [
-            {"player": "Player 1", "skins": 2},
-            {"player": "Player 2", "skins": 1},
+            {"player": "Player 1", "skins": 1},
+            {"player": "Player 2", "skins": 0},
             {"player": "Player 3", "skins": 1},
             {"player": "Player 4", "skins": 0},
         ],
-        "note": "Remaining holes feed a shared pot until a skin is claimed.",
+        "note": "Based on the four-player net match play worksheet at app/DATA/9_hole_match_play_scorecard_4_players.xlsx.",
     }
 
     matches_listing, _ = _build_match_listing()
@@ -2492,6 +2494,10 @@ async def match_detail_submit(match_id: int, request: Request):
             }
         )
     insert_hole_scores(settings.database_url, match_id, cleaned)
+    match_result = fetch_match_result(settings.database_url, match_id)
+    if match_result:
+        tournament_id = match_result.get("tournament_id") or _get_active_tournament_id()
+        _refresh_standings_cache(tournament_id)
     return JSONResponse({"added": len(cleaned)})
 
 
@@ -2547,6 +2553,9 @@ async def match_detail_submit_by_key(match_key: str, request: Request):
             }
         )
     insert_hole_scores(settings.database_url, match_id, cleaned)
+    tournament_id = match_result.get("tournament_id") or _get_active_tournament_id()
+    if tournament_id:
+        _refresh_standings_cache(tournament_id)
     return JSONResponse({"added": len(cleaned)})
 
 

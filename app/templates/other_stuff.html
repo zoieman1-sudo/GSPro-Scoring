@@ -9,13 +9,15 @@
       }
 
       .new-card-hero {
-        padding: 32px 36px;
-        background: linear-gradient(140deg, rgba(67, 225, 255, 0.15), rgba(4, 11, 24, 0.95));
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        box-shadow: 0 35px 60px rgba(4, 8, 20, 0.65);
-        backdrop-filter: blur(18px);
+        padding: 48px 48px 40px;
+        background: radial-gradient(circle at 15% 20%, rgba(68, 211, 237, 0.22), transparent 45%),
+          linear-gradient(135deg, rgba(9, 34, 74, 0.95), rgba(4, 16, 34, 0.96));
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        box-shadow: 0 45px 95px rgba(4, 8, 20, 0.78);
+        backdrop-filter: blur(25px);
         position: relative;
         overflow: hidden;
+        border-radius: var(--radius-lg);
       }
 
       .new-card-hero::after {
@@ -81,83 +83,267 @@
       }
 
       .match-card {
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 0;
-        position: relative;
-        overflow: hidden;
-        width: min(1040px, 100%);
         border-radius: var(--radius-lg);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        width: min(1120px, 100%);
+        background: rgba(3, 8, 20, 0.9);
+        box-shadow: 0 50px 100px rgba(0, 0, 0, 0.7);
       }
 
       .match-info {
-        background: linear-gradient(135deg, rgba(10, 32, 70, 0.85), rgba(6, 15, 40, 0.8));
+        background: linear-gradient(135deg, rgba(16, 44, 90, 0.95), rgba(6, 17, 40, 0.92));
         border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        padding: 16px 32px;
+        padding: 36px 40px;
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         gap: 12px;
         justify-content: space-between;
         flex-wrap: wrap;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       }
 
       .match-info__left {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 6px;
       }
 
       .match-info__left strong {
         text-transform: uppercase;
-        letter-spacing: 0.3em;
-        font-size: 0.7rem;
+        letter-spacing: 0.4em;
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.65);
+      }
+
+      .match-info__left h1 {
+        margin: 0;
+        font-size: 1.3rem;
+        font-weight: 500;
       }
 
       .match-info__mid {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         letter-spacing: 0.2em;
         text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.7);
+        color: rgba(255, 255, 255, 0.6);
         margin-bottom: 4px;
       }
 
       .ghost-btn.match-select-button {
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        padding: 10px 14px;
-        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        padding: 10px 20px;
+        background: rgba(255, 255, 255, 0.05);
         color: white;
         border-radius: var(--radius-pill);
-      }
-
-      .horizontal-score-table {
-        display: grid;
-        grid-template-columns: 100px repeat(9, minmax(30px, 1fr)) 100px;
-        background: rgba(0, 0, 0, 0.4);
-        padding: 24px;
-        gap: 4px;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
-      }
-
-      .label-cell {
         text-transform: uppercase;
         letter-spacing: 0.3em;
         font-size: 0.75rem;
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+
+      .ghost-btn.match-select-button:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(67, 225, 255, 0.8);
+      }
+
+      .horizontal-score-table {
+        background: linear-gradient(180deg, rgba(8, 18, 44, 0.88), rgba(3, 8, 20, 0.9));
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 30px 32px;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 30px 65px rgba(0, 0, 0, 0.6);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        width: 100%;
+        min-height: 320px;
+      }
+
+      .scoreboard-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 100%;
+      }
+
+      .scoreboard-empty {
+        text-transform: uppercase;
+        letter-spacing: 0.35em;
+        font-size: 0.72rem;
+        color: rgba(255, 255, 255, 0.55);
+        text-align: center;
+      }
+
+      .scoreboard-card {
+        background: rgba(4, 9, 20, 0.95);
+        border-radius: var(--radius-lg);
+        padding: 18px 22px 22px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 240px;
+      }
+
+      .scoreboard-card--active {
+        border-color: rgba(72, 227, 255, 0.75);
+        box-shadow: 0 20px 60px rgba(72, 227, 255, 0.25);
+      }
+
+      .scoreboard-card--empty {
+        justify-content: center;
+        align-items: center;
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.4);
+        min-height: 200px;
+      }
+
+      .scoreboard-card__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .scoreboard-card__division {
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        font-size: 0.65rem;
+        color: rgba(255, 255, 255, 0.65);
+        display: block;
+      }
+
+      .scoreboard-card__matchup {
+        margin: 4px 0 0;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .scoreboard-card__status {
+        font-size: 0.65rem;
+        letter-spacing: 0.4em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.5);
+      }
+
+      .scoreboard-card__grid {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .scoreboard-card__row-group {
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.02);
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .scoreboard-card__row-group .scoreboard-card__row {
+        font-size: 0.65rem;
+        color: rgba(255, 255, 255, 0.65);
+      }
+
+      .scoreboard-card__row-group-label {
+        font-size: 0.65rem;
+        letter-spacing: 0.4em;
+        text-transform: uppercase;
+        margin-bottom: 4px;
         color: rgba(255, 255, 255, 0.6);
       }
 
-      .horizontal-score-table__value {
+      .scoreboard-card__row-group--player {
+        background: rgba(14, 29, 54, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+      }
+
+      .scoreboard-card__row {
+        display: grid;
+        grid-template-columns: 120px repeat(9, minmax(26px, 1fr)) 70px;
+        gap: 6px;
+        align-items: center;
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .scoreboard-card__row-label {
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        font-size: 0.6rem;
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .scoreboard-card__row-text {
+        display: inline-block;
+      }
+
+      .scoreboard-card__row-value {
         text-align: center;
-        font-size: 0.9rem;
-        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+
+      .scoreboard-card__row-total {
+        text-align: center;
+        letter-spacing: 0.35em;
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .scoreboard-card__stroke-indicator {
+        font-size: 0.65rem;
+        margin-left: 4px;
+        letter-spacing: 0.1em;
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .scoreboard-card__row--holes .scoreboard-card__row-value {
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.65);
+      }
+
+      .scoreboard-card__row--par .scoreboard-card__row-value {
+        color: rgba(255, 255, 255, 0.65);
+      }
+
+      .scoreboard-card__row--hcp .scoreboard-card__row-value {
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .scoreboard-card__row--gross .scoreboard-card__row-value,
+      .scoreboard-card__row--net .scoreboard-card__row-value {
+        font-size: 0.95rem;
+      }
+
+      .scoreboard-card__row--status .scoreboard-card__row-value {
+        font-weight: 700;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.75);
+      }
+
+      .scoreboard-card__row--net {
+        border-top: 1px dashed rgba(255, 255, 255, 0.15);
+        padding-top: 8px;
       }
 
       .match-modal {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.6);
+        background: rgba(0, 0, 0, 0.7);
         display: none;
         align-items: center;
         justify-content: center;
-        z-index: 10;
+        z-index: 40;
+        padding: 20px;
       }
 
       .match-modal.active {
@@ -165,11 +351,13 @@
       }
 
       .match-modal__content {
-        background: rgba(2, 6, 18, 0.95);
+        background: rgba(2, 6, 18, 0.98);
         border-radius: var(--radius-lg);
-        padding: 24px;
-        width: min(400px, 90vw);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 32px;
+        width: min(1160px, 98vw);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        max-height: 85vh;
+        overflow: hidden;
       }
 
       .match-modal__header {
@@ -179,27 +367,91 @@
         margin-bottom: 16px;
       }
 
-      .match-modal__list {
+      .match-modal__body {
+        max-height: calc(75vh - 80px);
+        overflow-y: auto;
+        padding-right: 8px;
+      }
+
+      .match-modal__grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(220px, 1fr));
+        gap: 14px;
+      }
+
+      @media (max-width: 960px) {
+        .match-modal__grid {
+          grid-template-columns: repeat(2, minmax(200px, 1fr));
+        }
+      }
+
+      @media (max-width: 640px) {
+        .match-modal__grid {
+          grid-template-columns: repeat(1, minmax(220px, 1fr));
+        }
+      }
+
+      .match-modal__grid-item {
+        position: relative;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.02);
+        padding: 18px 20px;
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 6px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        min-height: 130px;
       }
 
-      .match-modal__item {
-        width: 100%;
-        padding: 10px 14px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        color: white;
-        display: flex;
-        justify-content: space-between;
-        border-radius: var(--radius-md);
-        font-size: 0.85rem;
-      }
-
-      .match-modal__item.active {
+      .match-modal__grid-item.active,
+      .match-modal__grid-item--selected {
         border-color: rgba(72, 227, 255, 0.7);
-        background: rgba(72, 227, 255, 0.08);
+        background: rgba(72, 227, 255, 0.12);
+      }
+
+      .match-modal__checkbox {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 20px;
+        height: 20px;
+      }
+
+      .match-modal__grid-row {
+        line-height: 1.3;
+      }
+
+      .match-modal__division {
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        font-weight: 600;
+        font-size: 0.65rem;
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .match-modal__matchup {
+        font-size: 0.8rem;
+        letter-spacing: 0.2em;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .match-modal__status {
+        font-size: 0.65rem;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      .match-modal__controls {
+        margin-top: 18px;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .match-modal__controls .ghost-btn {
+        padding: 12px 20px;
       }
 
       .muted-label {
@@ -213,8 +465,8 @@
         border: 1px solid rgba(255, 255, 255, 0.08);
         padding: 32px;
         border-radius: var(--radius-lg);
-        background: rgba(6, 12, 26, 0.7);
-        box-shadow: 0 30px 60px rgba(2, 4, 12, 0.55);
+        background: linear-gradient(180deg, rgba(7, 14, 30, 0.95), rgba(6, 12, 26, 0.9));
+        box-shadow: 0 30px 90px rgba(0, 0, 0, 0.65);
         max-width: 1040px;
         width: 100%;
       }
@@ -226,7 +478,7 @@
       .skins-card__body {
         margin-top: 14px;
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        grid-template-columns: clamp(280px, 1fr, 360px) clamp(260px, 1fr, 360px);
         gap: 24px;
       }
 
@@ -249,10 +501,13 @@
       .skins-card__winners li {
         display: flex;
         justify-content: space-between;
-        padding: 8px 10px;
-        border-radius: var(--radius-md);
+        padding: 12px 14px;
+        border-radius: 16px;
         background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 0.85rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
       }
 
       .skin-hole {
@@ -338,7 +593,12 @@
           <h3>Choose match</h3>
           <button class="ghost-btn" id="match-modal-close">Close</button>
         </div>
-        <div class="match-modal__list" id="match-modal-list"></div>
+        <div class="match-modal__body">
+          <div class="match-modal__grid" id="match-modal-grid"></div>
+        </div>
+        <div class="match-modal__controls">
+          <button class="ghost-btn" id="match-modal-save">Select / Save</button>
+        </div>
       </div>
     </div>
 
@@ -380,19 +640,21 @@
     const phaseOrder = { not_started: 0, in_progress: 1, completed: 2 };
     const phaseLabels = {
       not_started: "Not started",
-      in_progress: "Started",
+      in_progress: "In progress",
       completed: "Finished",
     };
     const seededMatches = {{ matches_listing | tojson }};
     const fallbackMatches = [
       {
-        match_key: "sample-a",
+        match_key: "studio-match-a",
         label: "Match A",
         display: "Match A",
+        division: "Division B",
+        summary: "Match A features Player 1 vs Player 2 on the four-person template.",
         matchup: "Player 1 vs Player 2",
-        status: "not_started",
-        status_label: "Not started",
-        phase: "not_started",
+        status: "in_progress",
+        status_label: "In progress",
+        phase: "in_progress",
         holes: [
           { hole_number: 1, par: 4, handicap: 5, player_scores: [{ gross: 4, net: 3 }, { gross: 5, net: 4 }], winner: "Player 1" },
           { hole_number: 2, par: 5, handicap: 1, player_scores: [{ gross: 5, net: 4 }, { gross: 4, net: 3 }], winner: "Player 2" },
@@ -405,9 +667,10 @@
           { hole_number: 9, par: 4, handicap: 8, player_scores: [{ gross: 4, net: 3 }, { gross: 4, net: 3 }], winner: "AS" },
         ],
         players: [
-          { name: "Player 1", course_handicap: 12 },
-          { name: "Player 2", course_handicap: 13 },
+          { name: "Player 1", course_handicap: 12, role: "A" },
+          { name: "Player 2", course_handicap: 13, role: "B" },
         ],
+        meta: { stroke_owner: "A", stroke_count: 0 },
         course: {
           course_name: "Cedar Ridge",
           tee_name: "Summit Ridge",
@@ -417,22 +680,31 @@
         },
       },
       {
-        match_key: "sample-b",
+        match_key: "studio-match-b",
         label: "Match B",
+        division: "Division A",
         display: "Match B",
+        summary: "Match B pits Player 3 against Player 4 from the same 4-person scorecard.",
         matchup: "Player 3 vs Player 4",
-        status: "in_progress",
-        status_label: "Started",
-        phase: "in_progress",
+        status: "not_started",
+        status_label: "Not started",
+        phase: "not_started",
         holes: [
-          { hole_number: 1, par: 4, handicap: 5, player_scores: [{ gross: 4, net: 3 }, { gross: 5, net: 4 }], winner: "Player 1" },
-          { hole_number: 2, par: 5, handicap: 1, player_scores: [{ gross: 5, net: 4 }, { gross: 4, net: 3 }], winner: "Player 2" },
-          { hole_number: 3, par: 3, handicap: 9, player_scores: [{ gross: 3, net: 2 }, { gross: 5, net: 4 }], winner: "Player 2" },
+          { hole_number: 1, par: 4, handicap: 5, player_scores: [{ gross: 4, net: 3 }, { gross: 5, net: 4 }], winner: "Player 3" },
+          { hole_number: 2, par: 5, handicap: 1, player_scores: [{ gross: 5, net: 4 }, { gross: 6, net: 5 }], winner: "Player 3" },
+          { hole_number: 3, par: 3, handicap: 9, player_scores: [{ gross: 4, net: 3 }, { gross: 3, net: 2 }], winner: "Player 4" },
+          { hole_number: 4, par: 4, handicap: 3 },
+          { hole_number: 5, par: 4, handicap: 2 },
+          { hole_number: 6, par: 4, handicap: 6 },
+          { hole_number: 7, par: 3, handicap: 7 },
+          { hole_number: 8, par: 5, handicap: 4 },
+          { hole_number: 9, par: 4, handicap: 8 },
         ],
         players: [
-          { name: "Player 3", course_handicap: 9 },
-          { name: "Player 4", course_handicap: 15 },
+          { name: "Player 3", course_handicap: 9, role: "A" },
+          { name: "Player 4", course_handicap: 15, role: "B" },
         ],
+        meta: { stroke_owner: null, stroke_count: 0 },
         course: {
           course_name: "Cedar Ridge",
           tee_name: "Summit Ridge",
@@ -443,23 +715,26 @@
       },
     ];
 
+    const holeReference = {{ hole_reference | tojson }};
+    const defaultHoleTemplate = holeReference.length
+      ? holeReference
+      : Array.from({ length: 9 }, (_, idx) => ({
+          hole_number: idx + 1,
+          par: null,
+          handicap: null,
+        }));
     const matchTableEl = document.getElementById("studio-match-table");
-    const matchInfoLabel = document.getElementById("match-info-label");
-    const matchInfoMatchup = document.getElementById("match-info-matchup");
-    const matchInfoStatus = document.getElementById("match-info-status");
-    const heroTitleEl = document.getElementById("heroTitle");
-    const heroSummaryEl = document.getElementById("heroSummary");
-    const heroMetaEl = document.getElementById("heroMeta");
     const holeRefHoleRow = document.getElementById("hole-ref-hole-row");
     const holeRefParRow = document.getElementById("hole-ref-par-row");
     const holeRefHcpRow = document.getElementById("hole-ref-hcp-row");
-    const defaultHeroMeta = "{{ hero.meta }}";
     const modal = document.getElementById("match-modal");
-    const modalList = document.getElementById("match-modal-list");
+    const matchModalGrid = document.getElementById("match-modal-grid");
+    const matchModalSave = document.getElementById("match-modal-save");
     const modalClose = document.getElementById("match-modal-close");
     const openModalBtn = document.getElementById("open-match-modal");
+    const maxSelectableMatches = 2;
     let sortedMatches = [];
-    let activeMatchKey = null;
+    let selectedMatchKeys = new Set();
 
     const formatValue = (value) => {
       if (value === null || value === undefined || value === "") {
@@ -468,134 +743,313 @@
       return value;
     };
 
-    const createRow = (label, values) => `
-      <span class="label-cell">${label}</span>
-      ${values.map((value) => `<span class="horizontal-score-table__value">${value}</span>`).join("")}
-      <span class="label-cell"></span>
+    const parseNumericValue = (value) => {
+      if (value === null || value === undefined || value === "") {
+        return null;
+      }
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const sumNumeric = (values) =>
+      values.reduce((total, value) => {
+        const numeric = parseNumericValue(value);
+        return numeric === null ? total : total + numeric;
+      }, 0);
+
+    const getStrokeIndicatorSymbol = (player, meta) => {
+      if (!player || !player.role || !meta) {
+        return "";
+      }
+      if (meta.stroke_owner !== player.role) {
+        return "";
+      }
+      const strokes = parseNumericValue(meta.stroke_count);
+      if (!strokes || strokes <= 0) {
+        return "";
+      }
+      if (Math.abs(strokes - 0.5) < 0.01) {
+        return "½";
+      }
+      return "*";
+    };
+
+    const computeMatchStatusSymbol = (match) => {
+      if (!match) return "AS";
+      const meta = match.meta || {};
+      const pointsA = parseNumericValue(meta.total_points_a) ?? 0;
+      const pointsB = parseNumericValue(meta.total_points_b) ?? 0;
+      const diff = pointsA - pointsB;
+      if (Math.abs(diff) < 0.01) {
+        return "AS";
+      }
+      const absolute = Math.abs(diff);
+      const formatted =
+        Math.abs(absolute - Math.round(absolute)) < 0.01
+          ? String(Math.round(absolute))
+          : absolute.toFixed(1);
+      const direction = diff > 0 ? "UP" : "DN";
+      return `${formatted} ${direction}`;
+    };
+
+    const buildHoleRows = (match) => {
+      const holesSource = match?.holes?.length ? match.holes : defaultHoleTemplate;
+      const playerCount = Math.max(match?.players?.length || 2, 2);
+      return holesSource.map((hole) => {
+        const rawScores = Array.isArray(hole.player_scores) ? hole.player_scores : [];
+        const player_scores = Array.from({ length: playerCount }, (_, index) => {
+          const base = rawScores[index] || {};
+          return { gross: base.gross ?? null, net: base.net ?? null };
+        });
+        return {
+          hole_number: hole.hole_number,
+          par: hole.par,
+          handicap: hole.handicap,
+          player_scores,
+        };
+      });
+    };
+
+    const buildRow = (label, values, total, modifier, indicator = "") => {
+      const cells = values
+        .map((value) => `<span class="scoreboard-card__row-value">${formatValue(value)}</span>`)
+        .join("");
+      return `
+        <div class="scoreboard-card__row scoreboard-card__row--${modifier}">
+          <span class="scoreboard-card__row-label">
+            <span class="scoreboard-card__row-text">${label}</span>
+            ${indicator ? `<span class="scoreboard-card__stroke-indicator">${indicator}</span>` : ""}
+          </span>
+          ${cells}
+          <span class="scoreboard-card__row-total">${formatValue(total)}</span>
+        </div>
+      `;
+    };
+
+    const buildInfoGroup = (holeRows, holeParTotal, holeHcpTotal) => {
+      return `
+        <div class="scoreboard-card__row-group">
+          ${buildRow("Hole", holeRows.map((hole) => hole.hole_number), holeRows.length, "holes")}
+          ${buildRow("Par", holeRows.map((hole) => hole.par), holeParTotal, "par")}
+          ${buildRow("HCP", holeRows.map((hole) => hole.handicap), holeHcpTotal, "hcp")}
+        </div>
+      `;
+    };
+
+    const buildPlayerGroup = (player, rowsMarkup) => `
+      <div class="scoreboard-card__row-group scoreboard-card__row-group--player">
+        <span class="scoreboard-card__row-group-label">${player.name}</span>
+        ${rowsMarkup}
+      </div>
     `;
 
-    const buildCourseMeta = (course) => {
-      if (!course) {
-        return defaultHeroMeta;
-      }
-      const parts = [];
-      if (course.course_name) {
-        parts.push(`Course: ${course.course_name}`);
-      }
-      if (course.tee_name) {
-        parts.push(`Tee: ${course.tee_name}`);
-      }
-      if (course.total_yards) {
-        parts.push(`${course.total_yards} yds`);
-      }
-      const ratingParts = [];
-      if (course.course_rating) {
-        ratingParts.push(`CR ${course.course_rating}`);
-      }
-      if (course.slope_rating) {
-        ratingParts.push(`SR ${course.slope_rating}`);
-      }
-      if (ratingParts.length) {
-        parts.push(ratingParts.join(" / "));
-      }
-      return parts.length ? parts.join(" | ") : "{{ hero.meta }}";
-    };
-
-    const renderMatch = (match) => {
+    const buildScoreboardCard = (match) => {
       if (!match) {
-        matchInfoLabel.textContent = "Match data unavailable";
-        matchInfoMatchup.textContent = "";
-        matchInfoStatus.textContent = "";
-        matchTableEl.innerHTML =
-          "<span class='label-cell'>Hole</span><span class='horizontal-score-table__value'>No data</span>";
-        return;
+        return `<article class="scoreboard-card scoreboard-card--empty">Match data unavailable</article>`;
       }
-      matchInfoLabel.textContent = match.label;
-      matchInfoMatchup.textContent = match.matchup;
-      matchInfoStatus.textContent = `Status: ${match.status_label}`;
-      heroTitleEl.textContent = match.label;
-      heroSummaryEl.textContent = match.summary;
-      heroMetaEl.textContent = buildCourseMeta(match.course);
-      const holeRows = match.holes || [];
-      const renderRefRow = (rowEl, label, values) => {
-        rowEl.innerHTML = `
-          <span class="hole-reference__label">${label}</span>
-          ${values.map((value) => `<span>${value}</span>`).join("")}
-        `;
-      };
-      renderRefRow(
-        holeRefHoleRow,
-        "Hole",
-        holeRows.map((hole) => hole.hole_number)
-      );
-      renderRefRow(
-        holeRefParRow,
-        "Par",
-        holeRows.map((hole) => hole.par)
-      );
-      renderRefRow(
-        holeRefHcpRow,
-        "HCP",
-        holeRows.map((hole) => hole.handicap)
-      );
-      const matchHasScores =
-        match.has_scores ??
-        holeRows.some((hole) =>
-          (hole.player_scores || []).some(
-            (score) => score && score.gross !== null && score.gross !== undefined
-          )
+      const holeRows = buildHoleRows(match);
+      const holeParTotal = sumNumeric(holeRows.map((hole) => hole.par));
+      const holeHcpTotal = sumNumeric(holeRows.map((hole) => hole.handicap));
+      const infoGroup = buildInfoGroup(holeRows, holeParTotal, holeHcpTotal);
+      const statusSymbol = computeMatchStatusSymbol(match);
+      const statusCells = holeRows.map((_, idx) => (idx === 0 ? statusSymbol : ""));
+      const playerGroups = [];
+      (match.players || []).forEach((player, index) => {
+        const playerScores = holeRows.map((hole) => hole.player_scores[index] || {});
+        const grossValues = playerScores.map((score) => score.gross);
+        const netValues = playerScores.map((score) => score.net);
+        const grossRow = buildRow(
+          "Gross",
+          grossValues,
+          sumNumeric(grossValues),
+          "gross",
+          getStrokeIndicatorSymbol(player, match.meta)
         );
-      if (!holeRows.length || !matchHasScores) {
-        matchTableEl.innerHTML =
-          "<span class='label-cell'>Hole</span><span class='horizontal-score-table__value'>No holes recorded yet.</span>";
-        highlightSelectedMatch(activeMatchKey);
-        return;
-      }
-      activeMatchKey = match.match_key;
-      const holeHeader = holeRows
-        .map((hole) => `<span class="label-cell">${hole.hole_number}</span>`)
-        .join("");
-      const parRow = createRow(
-        "Par",
-        holeRows.map((hole) => formatValue(hole.par))
-      );
-      const hcpRow = createRow(
-        "HCP",
-        holeRows.map((hole) => formatValue(hole.handicap))
-      );
-      const playersRows = match.players
-        .map((player, index) => {
-          const playerScores = match.holes.map(
-            (hole) => hole.player_scores[index] || {}
-          );
-          const grossValues = playerScores.map((score) => formatValue(score.gross));
-          const netValues = playerScores.map((score) => formatValue(score.net));
-          return (
-            createRow(`${player.name} Gross`, grossValues) +
-            createRow(`${player.name} Net`, netValues)
-          );
-        })
-        .join("");
-      const winnerRow = createRow(
-        "Winner",
-        match.holes.map((hole) => formatValue(hole.winner))
-      );
-      matchTableEl.innerHTML = `
-        <span class="label-cell">Hole</span>
-        ${holeHeader}
-        <span class="label-cell"></span>
-        ${parRow}
-        ${hcpRow}
-        ${playersRows}
-        ${winnerRow}
+        const netRow = buildRow("Net", netValues, sumNumeric(netValues), "net");
+        playerGroups.push(buildPlayerGroup(player, `${grossRow}${netRow}`));
+      });
+      const divisionLabel = match.division ? `Division ${match.division}` : match.label || "Match";
+      const matchupLabel =
+        match.matchup ||
+        (match.players && match.players.length >= 2
+          ? `${match.players[0].name} vs ${match.players[1].name}`
+          : match.label || `${match.player_a || "Player"} vs ${match.player_b || "Player"}`);
+      const statusLabel =
+        match.status_label || phaseLabels[match.status] || phaseLabels[match.phase] || "Status";
+      return `
+        <article class="scoreboard-card" data-key="${match.match_key}">
+          <div class="scoreboard-card__header">
+            <div>
+              <span class="scoreboard-card__division">${divisionLabel}</span>
+              <strong class="scoreboard-card__matchup">${matchupLabel}</strong>
+            </div>
+            <span class="scoreboard-card__status">${statusLabel}</span>
+          </div>
+          <div class="scoreboard-card__grid">
+            ${infoGroup}
+            ${playerGroups[0] || ""}
+            ${buildRow("Match status", statusCells, statusSymbol, "status")}
+            ${playerGroups[1] || ""}
+            ${playerGroups.slice(2).join("")}
+          </div>
+        </article>
       `;
-      highlightSelectedMatch(activeMatchKey);
     };
 
-    const highlightSelectedMatch = (key) => {
-      modalList?.querySelectorAll(".match-modal__item").forEach((item) => {
-        item.classList.toggle("active", item.dataset.key === key);
+    const highlightScoreboards = (key) => {
+      if (!matchTableEl) return;
+      matchTableEl.querySelectorAll(".scoreboard-card").forEach((card) => {
+        card.classList.toggle("scoreboard-card--active", card.dataset.key === key);
       });
+    };
+
+    const createFallbackMatchData = (entry) => {
+      if (!entry) {
+        return null;
+      }
+      const players = [
+        { name: entry.player_a || "Player 1", role: "A" },
+        { name: entry.player_b || "Player 2", role: "B" },
+      ];
+      const matchupLabel =
+        entry.matchup || `${players[0].name} vs ${players[1]?.name || "TBD"}`;
+      const holes = defaultHoleTemplate.map((hole) => ({
+        hole_number: hole.hole_number,
+        par: hole.par,
+        handicap: hole.handicap,
+        player_scores: players.map(() => ({ gross: null, net: null })),
+      }));
+      return {
+        match_key: entry.match_key,
+        label: entry.display || matchupLabel,
+        division: entry.division,
+        matchup: matchupLabel,
+        summary: entry.summary,
+        status: entry.status || "not_started",
+        status_label:
+          entry.status_label || phaseLabels[entry.status] || "Not started",
+        phase: entry.phase || entry.status || "not_started",
+        players,
+        holes,
+        course: entry.course || {},
+        meta: entry.meta || {},
+      };
+    };
+
+    const loadMatchData = async (matchKey) => {
+      const matchMeta = sortedMatches.find((entry) => entry.match_key === matchKey);
+      const fallback = matchMeta ? createFallbackMatchData(matchMeta) : null;
+      if (!matchMeta || matchMeta.phase === "not_started") {
+        return fallback;
+      }
+      try {
+        const response = await fetch(`/api/match_scorecard?match_key=${matchKey}`);
+        if (!response.ok) {
+          throw new Error("Unable to load match data.");
+        }
+        const data = await response.json();
+        return {
+          ...fallback,
+          ...data,
+          division: matchMeta.division || data.division,
+          status: matchMeta.status || data.status,
+          status_label: matchMeta.status_label || data.status_label,
+          matchup: data.matchup || fallback?.matchup,
+        };
+      } catch (error) {
+        console.warn("Match data load failed:", error);
+        return fallback;
+      }
+    };
+
+    const displaySelectedMatches = async (matchKeys = []) => {
+      if (!matchTableEl) return;
+      const keys = matchKeys.length
+        ? matchKeys
+        : selectedMatchKeys.size
+        ? [...selectedMatchKeys]
+        : sortedMatches.slice(0, maxSelectableMatches).map((entry) => entry.match_key);
+      if (!keys.length) {
+        matchTableEl.innerHTML =
+          '<div class="scoreboard-empty">Select up to two matches to preview.</div>';
+        return;
+      }
+      const matchDataList = await Promise.all(keys.map((key) => loadMatchData(key)));
+      const cards = matchDataList
+        .map((match) =>
+          match ? buildScoreboardCard(match) : `<article class="scoreboard-card scoreboard-card--empty">Match unavailable</article>`
+        )
+        .join("");
+      matchTableEl.innerHTML = cards
+        ? `<div class="scoreboard-stack">${cards}</div>`
+        : '<div class="scoreboard-empty">No match registered yet.</div>';
+      highlightScoreboards(keys[0] || null);
+    };
+
+    const updateModalSelections = () => {
+      if (!matchModalGrid) return;
+      matchModalGrid.querySelectorAll(".match-modal__grid-item").forEach((item) => {
+        const key = item.dataset.key;
+        const checkbox = item.querySelector(".match-modal__checkbox");
+        if (!checkbox) return;
+        checkbox.checked = selectedMatchKeys.has(key);
+        checkbox.disabled = !checkbox.checked && selectedMatchKeys.size >= maxSelectableMatches;
+        item.classList.toggle("match-modal__grid-item--selected", selectedMatchKeys.has(key));
+      });
+    };
+
+    const toggleMatchSelection = (matchKey) => {
+      if (selectedMatchKeys.has(matchKey)) {
+        selectedMatchKeys.delete(matchKey);
+      } else if (selectedMatchKeys.size < maxSelectableMatches) {
+        selectedMatchKeys.add(matchKey);
+      }
+      updateModalSelections();
+    };
+
+    const renderMatchGrid = () => {
+      if (!matchModalGrid) return;
+      matchModalGrid.innerHTML = "";
+      sortedMatches.forEach((match) => {
+        const divisionLabel =
+          typeof match.division === "string" && match.division.trim()
+            ? `Division ${match.division}`
+            : (match.display?.split(":")[0] ?? "Division");
+        const displayMatchup =
+          match.matchup ||
+          match.display ||
+          `${match.player_a || "Player"} vs ${match.player_b || "Player"}`;
+        const statusText =
+          match.status_label ||
+          phaseLabels[match.status] ||
+          phaseLabels[match.phase] ||
+          "Status";
+        const item = document.createElement("label");
+        item.className = "match-modal__grid-item";
+        item.dataset.key = match.match_key;
+        item.innerHTML = `
+          <input type="checkbox" class="match-modal__checkbox" data-key="${match.match_key}" />
+          <span class="match-modal__grid-row match-modal__division">${divisionLabel}</span>
+          <span class="match-modal__grid-row match-modal__matchup">${displayMatchup}</span>
+          <span class="match-modal__grid-row match-modal__status">${statusText}</span>
+        `;
+        const checkbox = item.querySelector(".match-modal__checkbox");
+        if (checkbox) {
+          checkbox.addEventListener("change", () => toggleMatchSelection(match.match_key));
+        }
+        item.addEventListener("click", (event) => {
+          if (!checkbox || event.target === checkbox) return;
+          checkbox.checked = !checkbox.checked;
+          checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+        matchModalGrid.appendChild(item);
+      });
+      updateModalSelections();
+    };
+
+    const initializeSelections = () => {
+      const defaults = sortedMatches.slice(0, maxSelectableMatches).map((entry) => entry.match_key);
+      selectedMatchKeys = new Set(defaults);
     };
 
     const openModal = () => modal?.classList.add("active");
@@ -611,56 +1065,6 @@
       });
     };
 
-    const buildModal = () => {
-      if (!modalList) return;
-      modalList.innerHTML = "";
-      const grouped = ["not_started", "in_progress", "completed"];
-      grouped.forEach((phase) => {
-        const matches = sortedMatches.filter((match) => match.phase === phase);
-        if (!matches.length) return;
-        const heading = document.createElement("div");
-        heading.textContent = phaseLabels[phase] ?? phase.replace("_", " ");
-        heading.className = "muted-label match-modal__group";
-        modalList.appendChild(heading);
-        matches.forEach((match) => {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "match-modal__item";
-          button.dataset.key = match.match_key;
-          button.innerHTML = `
-            <span>${match.display}</span>
-            <span>${match.status_label}</span>
-          `;
-          button.addEventListener("click", async () => {
-            await selectMatch(match.match_key);
-            closeModal();
-          });
-          modalList.appendChild(button);
-        });
-      });
-    };
-
-    const selectMatch = async (matchKey) => {
-      if (!matchKey) return;
-      const matchMeta = sortedMatches.find((entry) => entry.match_key === matchKey);
-      if (matchMeta?.inlineMatchData) {
-        renderMatch(matchMeta.inlineMatchData);
-        highlightSelectedMatch(matchKey);
-        return;
-      }
-      try {
-        const response = await fetch(`/api/match_scorecard?match_key=${matchKey}`);
-        if (!response.ok) {
-          throw new Error("Unable to load match data.");
-        }
-        const matchData = await response.json();
-        renderMatch(matchData);
-        highlightSelectedMatch(matchKey);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
     const loadMatches = async () => {
       let matches = [];
       try {
@@ -671,7 +1075,7 @@
           throw new Error("Unable to load match list.");
         }
       } catch (error) {
-        console.error(error);
+        console.error("Match list load failed:", error);
       }
       const nextMatches = matches.length ? matches : seededMatches.length ? seededMatches : fallbackMatches;
       sortedMatches = sortAvailableMatches(nextMatches);
@@ -680,14 +1084,37 @@
           entry.inlineMatchData = entry;
         });
       }
-      buildModal();
       if (!sortedMatches.length) {
-        matchTableEl.innerHTML =
-          "<span class='label-cell'>Hole</span><span class='horizontal-score-table__value'>No match registered yet.</span>";
+        if (matchTableEl) {
+          matchTableEl.innerHTML =
+            '<div class="scoreboard-empty">No match registered yet.</div>';
+        }
         return;
       }
-      await selectMatch(sortedMatches[0].match_key);
+      initializeSelections();
+      renderMatchGrid();
+      await displaySelectedMatches([...selectedMatchKeys]);
     };
+
+    const populateHoleReferenceRows = () => {
+      const reference = defaultHoleTemplate;
+      const appendCells = (row, values) => {
+        if (!row) return;
+        values.forEach((value) => {
+          const span = document.createElement("span");
+          span.textContent = formatValue(value);
+          row.appendChild(span);
+        });
+      };
+      appendCells(holeRefHoleRow, reference.map((hole) => hole.hole_number));
+      appendCells(holeRefParRow, reference.map((hole) => hole.par));
+      appendCells(holeRefHcpRow, reference.map((hole) => hole.handicap));
+    };
+
+    matchModalSave?.addEventListener("click", async () => {
+      await displaySelectedMatches([...selectedMatchKeys]);
+      closeModal();
+    });
 
     openModalBtn?.addEventListener("click", openModal);
     modalClose?.addEventListener("click", closeModal);
@@ -698,5 +1125,8 @@
     });
 
     loadMatches();
+    populateHoleReferenceRows();
   </script>
+
+
 {% endblock %}
