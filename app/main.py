@@ -1,5 +1,7 @@
 import re
 import zipfile
+import random
+import string
 from collections import defaultdict
 from itertools import zip_longest
 from pathlib import Path
@@ -15,6 +17,8 @@ from urllib.parse import quote_plus
 
 from app import golf_api
 from app.db import (
+    delete_match_results_by_tournament,
+    delete_players_not_in,
     ensure_schema,
     fetch_all_match_results,
     fetch_course_catalog,
@@ -22,30 +26,36 @@ from app.db import (
     fetch_course_tee_holes,
     fetch_event_settings,
     fetch_hole_scores,
+    fetch_match_by_key,
     fetch_match_result,
     fetch_match_result_by_code,
     fetch_match_result_by_key,
     fetch_match_result_ids_by_key,
+    fetch_matches_by_tournament,
     fetch_player_by_name,
     fetch_players,
     fetch_recent_results,
     fetch_settings,
+    fetch_standings_cache,
     fetch_tournament_by_id,
     fetch_tournaments,
     insert_hole_scores,
+    insert_match,
     insert_match_result,
     insert_tournament,
     next_course_id,
     reset_match_results,
     replace_course_holes,
     replace_course_tee_holes,
+    replace_standings_cache,
     upsert_course,
     upsert_course_tee,
     upsert_event_setting,
     upsert_player,
     upsert_setting,
+    update_match,
     update_match_result_fields,
-    delete_players_not_in,
+    update_match_result_scores,
 )
 from app.course_sync import import_course_to_db
 from app.seed import (
@@ -113,6 +123,14 @@ def _match_status_info(match_id: str) -> dict[str, int | str | None]:
     if match_result.get("finalized"):
         status = "completed"
     return {"status": status, "holes": len(holes), "match_result": match_result}
+
+
+def _generate_match_key() -> str:
+    pool = string.ascii_uppercase + "123456789"
+    while True:
+        value = "".join(random.choice(pool) for _ in range(6))
+        if not fetch_match_by_key(settings.database_url, value):
+            return value
 
 
 def _safe_int(value: str | int | None) -> int | None:
@@ -297,6 +315,37 @@ def _course_display_info(
     }
 
 
+def _build_course_tee_map(course_catalog: list[dict]) -> dict[str, list[dict]]:
+    tee_map: dict[str, list[dict]] = {}
+    for course in course_catalog:
+        course_id = course.get("id")
+        if course_id is None:
+            continue
+        key = str(course_id)
+        tees = []
+        for tee in course.get("tees") or []:
+            if (tee.get("gender") or "").strip().lower() != "male":
+                continue
+            label_parts = [
+                tee.get("gender", "").capitalize(),
+                " — ",
+                tee.get("tee_name") or "Tee",
+            ]
+            total_yards = tee.get("total_yards")
+            if total_yards:
+                label_parts.append(f" ({total_yards} yds)")
+            tees.append(
+                {
+                    "id": str(tee.get("id") or ""),
+                    "label": "".join(label_parts),
+                    "course_id": key,
+                }
+            )
+        if tees:
+            tee_map[key] = tees
+    return tee_map
+
+
 def _scorecard_data_for_match(
     match_result: dict,
     holes: list[dict],
@@ -345,6 +394,51 @@ def _load_pairings() -> list[Match]:
     if not players:
         return []
     return build_pairings_from_players(players)
+
+
+def _players_for_tournament(tournament_id: int | None) -> list[dict]:
+    players = fetch_players(settings.database_url)
+    if tournament_id:
+        return [player for player in players if player.get("tournament_id") == tournament_id]
+    return players
+
+
+def _ensure_match_result_for_pairing(pairing: Match, *, tournament_id: int | None = None) -> dict | None:
+    if not pairing:
+        return None
+    match_result = fetch_match_result_by_key(settings.database_url, pairing.match_id)
+    if match_result:
+        return match_result
+    tournament_id = tournament_id or _get_active_tournament_id()
+    tournament_settings = _load_tournament_settings(tournament_id)
+    course_id = _safe_int(tournament_settings.get("course_id"))
+    course_tee_id = _safe_int(tournament_settings.get("course_tee_id"))
+    player_a_info = fetch_player_by_name(settings.database_url, pairing.player_a) or {}
+    player_b_info = fetch_player_by_name(settings.database_url, pairing.player_b) or {}
+    handicap_a = player_a_info.get("handicap", 0)
+    handicap_b = player_b_info.get("handicap", 0)
+    outcome = score_outcome(0, 0)
+    insert_match_result(
+        settings.database_url,
+        match_name=match_display(pairing),
+        player_a=pairing.player_a,
+        player_b=pairing.player_b,
+        match_key=pairing.match_id,
+        match_code=None,
+        player_a_points=outcome["player_a_points"],
+        player_b_points=outcome["player_b_points"],
+        player_a_bonus=outcome["player_a_bonus"],
+        player_b_bonus=outcome["player_b_bonus"],
+        player_a_total=outcome["player_a_total"],
+        player_b_total=outcome["player_b_total"],
+        winner=outcome["winner"],
+        course_id=course_id,
+        course_tee_id=course_tee_id,
+        tournament_id=tournament_id,
+        player_a_handicap=handicap_a,
+        player_b_handicap=handicap_b,
+    )
+    return fetch_match_result_by_key(settings.database_url, pairing.match_id)
 
 
 def _load_tournament_settings(tournament_id: int | None = None) -> dict[str, str]:
@@ -486,6 +580,80 @@ def _record_player(
     entry["holes_played"] += holes_played
 
 
+def _aggregate_standings_entries(results: list[dict], tournament_id: int | None) -> list[dict]:
+    if not tournament_id:
+        return []
+    divisions_by_player = _build_player_divisions()
+    seeds = {player["name"]: player["seed"] for player in fetch_players(settings.database_url)}
+    stats: dict[str, dict] = {
+        name: _empty_stat(name, division)
+        for name, division in divisions_by_player.items()
+    }
+
+    for result in results:
+        if result.get("tournament_id") != tournament_id:
+            continue
+        hole_entries = fetch_hole_scores(settings.database_url, result["id"])
+        if not hole_entries and not (result.get("player_a_total") or result.get("player_b_total")):
+            continue
+        player_a_total = result.get("player_a_total") or 0
+        player_b_total = result.get("player_b_total") or 0
+        winner = result.get("winner") or "T"
+        if player_a_total == 0 and player_b_total == 0:
+            player_a_total, player_b_total, winner = _resolve_result_totals(result)
+        if player_a_total == 0 and player_b_total == 0:
+            continue
+        hole_count = len(hole_entries)
+        _record_player(
+            stats,
+            result["player_a_name"],
+            divisions_by_player.get(result["player_a_name"], "Open"),
+            player_a_total,
+            player_b_total,
+            winner,
+            "A",
+            hole_count,
+        )
+        _record_player(
+            stats,
+            result["player_b_name"],
+            divisions_by_player.get(result["player_b_name"], "Open"),
+            player_b_total,
+            player_a_total,
+            winner,
+            "B",
+            hole_count,
+        )
+
+    entries: list[dict] = []
+    for entry in stats.values():
+        point_diff = entry["points_for"] - entry["points_against"]
+        entries.append(
+            {
+                "player_name": entry["name"],
+                "division": entry["division"],
+                "seed": seeds.get(entry["name"], 0),
+                "matches": entry["matches"],
+                "wins": entry["wins"],
+                "ties": entry["ties"],
+                "losses": entry["losses"],
+                "points_for": entry["points_for"],
+                "points_against": entry["points_against"],
+                "point_diff": point_diff,
+                "holes_played": entry["holes_played"],
+            }
+        )
+    return entries
+
+
+def _refresh_standings_cache(tournament_id: int | None, results: list[dict] | None = None) -> None:
+    if not tournament_id:
+        return
+    source_results = results or fetch_all_match_results(settings.database_url)
+    entries = _aggregate_standings_entries(source_results, tournament_id)
+    replace_standings_cache(settings.database_url, tournament_id, entries)
+
+
 def _resolve_result_totals(result: dict) -> tuple[float, float, str]:
     player_a_total = result.get("player_a_total") or 0
     player_b_total = result.get("player_b_total") or 0
@@ -517,48 +685,21 @@ def _resolve_result_totals(result: dict) -> tuple[float, float, str]:
     return player_a_total, player_b_total, winner
 
 
-def build_standings(results: list[dict]) -> list[dict]:
-    divisions_by_player = _build_player_divisions()
-    standings: dict[str, dict] = {
-        name: _empty_stat(name, division)
-        for name, division in divisions_by_player.items()
-    }
-
-    for result in results:
-        player_a_total, player_b_total, winner = _resolve_result_totals(result)
-        player_a_info = fetch_player_by_name(settings.database_url, result["player_a_name"]) or {}
-        player_b_info = fetch_player_by_name(settings.database_url, result["player_b_name"]) or {}
-        hole_entries = fetch_hole_scores(settings.database_url, result["id"])
-        hole_count = len(hole_entries)
-        if result["player_a_name"] not in standings or result["player_b_name"] not in standings:
-            continue
-        _record_player(
-            standings,
-            result["player_a_name"],
-            divisions_by_player.get(result["player_a_name"], "Open"),
-            player_a_total,
-            player_b_total,
-            winner,
-            "A",
-            hole_count,
-        )
-        _record_player(
-            standings,
-            result["player_b_name"],
-            divisions_by_player.get(result["player_b_name"], "Open"),
-            player_b_total,
-            player_a_total,
-            winner,
-            "B",
-            hole_count,
-        )
-
-        for entry in standings.values():
-            entry["point_diff"] = entry["points_for"] - entry["points_against"]
+def build_standings(results: list[dict], tournament_id: int | None = None) -> list[dict]:
+    if tournament_id is None:
+        return []
+    cache_rows = fetch_standings_cache(settings.database_url, tournament_id)
+    if not cache_rows:
+        _refresh_standings_cache(tournament_id, results)
+        cache_rows = fetch_standings_cache(settings.database_url, tournament_id)
+    if not cache_rows:
+        return []
 
     division_groups: dict[str, list[dict]] = defaultdict(list)
-    for entry in standings.values():
-        division_groups[entry["division"]].append(entry)
+    for row in cache_rows:
+        normalized = dict(row)
+        normalized["name"] = normalized["player_name"]
+        division_groups[normalized["division"]].append(normalized)
 
     sorted_divisions = []
     for division in sorted(division_groups):
@@ -573,7 +714,7 @@ def build_standings(results: list[dict]) -> list[dict]:
         )
         for player in players:
             holes_played = player.get("holes_played", 0)
-            remaining = 40 - player.get("holes_played", 0)
+            remaining = 40 - holes_played
             player["pts_remaining"] = max(0.0, remaining)
         sorted_divisions.append({"division": division, "players": players})
     return sorted_divisions
@@ -759,6 +900,7 @@ async def play_match_page(request: Request, status: str | None = None):
     active_tournament = (
         fetch_tournament_by_id(settings.database_url, tournament_id) if tournament_id else None
     )
+    hero_course_info = _course_display_info(active_result or {}, tournament_settings)
     return templates.TemplateResponse(
         "play_match.html",
         {
@@ -766,6 +908,8 @@ async def play_match_page(request: Request, status: str | None = None):
             "matches": matches,
             "status_message": status,
             "hero_course": hero_course,
+            "hero_course_info": hero_course_info,
+            "course_tee_map": _build_course_tee_map(course_catalog),
             "tournament_settings": tournament_settings,
             "active_match": active_match,
             "active_match_code": active_result and active_result.get("match_code"),
@@ -826,6 +970,14 @@ async def play_match_activate(request: Request, match_key: str = Form(...)):
         player_b_handicap=handicap_b,
     )
     _set_active_match_key(pairing.match_id)
+    match_record = fetch_match_by_key(settings.database_url, pairing.match_id)
+    if match_record:
+        update_match(
+            settings.database_url,
+            match_record["id"],
+            status="in_progress",
+            active=True,
+        )
     message = f"Active match set to {match_display(pairing)}"
     return RedirectResponse(url=f"/play_match?status={quote_plus(message)}", status_code=303)
 
@@ -854,6 +1006,11 @@ async def scorecard_latest(request: Request, match_key: str | None = None):
 @app.get("/new_card", response_class=HTMLResponse)
 async def new_card(request: Request):
     return templates.TemplateResponse("new_card.html", _new_card_context(request))
+
+
+@app.get("/other_stuff", response_class=HTMLResponse)
+async def other_stuff(request: Request):
+    return templates.TemplateResponse("other_stuff.html", _new_card_context(request))
 
 
 @app.get("/api/courses/search")
@@ -962,6 +1119,7 @@ async def submit(
         tournament_id=tournament_id,
         **outcome,
     )
+    _refresh_standings_cache(tournament_id)
 
     return templates.TemplateResponse(
         "scoring.html",
@@ -1021,6 +1179,7 @@ async def api_scores(request: Request):
         tournament_id=tournament_id,
         **outcome,
     )
+    _refresh_standings_cache(tournament_id)
     return {
         "id": record_id,
         "match_name": match_name,
@@ -1101,6 +1260,7 @@ def _setup_context(
         "selected_course_tee": selected_course_tee,
         "active_section": active,
         "setup_sections": SETUP_SECTIONS,
+        "course_tee_map": _build_course_tee_map(course_catalog),
     }
     if not authorized:
         context["setup_status"] = context["setup_status"] or "Invalid or missing PIN."
@@ -1279,6 +1439,160 @@ async def activate_tournament(tournament_id: int):
     return RedirectResponse(
         url=f"/tournaments?status={quote_plus(message)}",
         status_code=303,
+    )
+
+
+@app.get("/admin/tournament_setup", response_class=HTMLResponse)
+async def tournament_setup_page(
+    request: Request,
+    tournament_id: int | None = None,
+    status: str | None = None,
+):
+    tournaments = fetch_tournaments(settings.database_url)
+    active_id = tournament_id or _get_active_tournament_id()
+    selected_tournament = (
+        fetch_tournament_by_id(settings.database_url, active_id) if active_id else None
+    )
+    players = _players_for_tournament(active_id) if active_id else []
+    event_settings = fetch_event_settings(settings.database_url, active_id) if active_id else {}
+    player_count = int(event_settings.get("player_count") or 0)
+    division_count = int(event_settings.get("division_count") or 0)
+    context = {
+        "request": request,
+        "tournaments": tournaments,
+        "active_tournament_id": active_id,
+        "players": players,
+        "status": status,
+        "player_count": player_count,
+        "division_count": division_count,
+        "selected_tournament": selected_tournament,
+    }
+    return templates.TemplateResponse("tournament_setup.html", context)
+
+
+@app.post("/admin/tournament_setup/settings")
+async def tournament_settings_update(
+    tournament_id: int = Form(...),
+    player_count: int = Form(0),
+    division_count: int = Form(0),
+):
+    upsert_event_setting(settings.database_url, tournament_id, "player_count", str(player_count))
+    upsert_event_setting(settings.database_url, tournament_id, "division_count", str(division_count))
+    return RedirectResponse(
+        url=f"/admin/tournament_setup?status={quote_plus('Settings saved.')}",
+        status_code=303,
+    )
+
+
+@app.post("/admin/tournament_setup/player")
+async def add_tournament_player(
+    tournament_id: int = Form(...),
+    division: str = Form("A"),
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    handicaps_index: str = Form("0"),
+    seed: int = Form(0),
+):
+    name = f"{first_name.strip()} {last_name.strip()}".strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Player name required")
+    upsert_player(settings.database_url, None, name, division.upper(), int(float(handicaps_index)), seed or 0, tournament_id=tournament_id)
+    return RedirectResponse(
+        url=f"/admin/tournament_setup?status={quote_plus('Player saved.')}",
+        status_code=303,
+    )
+
+
+@app.get("/admin/match_setup", response_class=HTMLResponse)
+async def match_setup_page(request: Request, tournament_id: int | None = None, status: str | None = None):
+    tournaments = fetch_tournaments(settings.database_url)
+    active_id = tournament_id or _get_active_tournament_id()
+    selected_players = _players_for_tournament(active_id) if active_id else fetch_players(settings.database_url)
+    matches = fetch_matches_by_tournament(settings.database_url, active_id) if active_id else []
+    course_catalog = fetch_course_catalog(settings.database_url)
+    return templates.TemplateResponse(
+        "match_setup.html",
+        {
+            "request": request,
+            "status": status,
+            "tournaments": tournaments,
+            "active_tournament_id": active_id,
+            "players": selected_players,
+            "matches": matches,
+            "course_catalog": course_catalog,
+        },
+    )
+
+
+@app.post("/admin/match_setup")
+async def match_setup_submit(
+    tournament_id: int = Form(...),
+    division: str = Form(...),
+    player_a_id: int = Form(...),
+    player_b_id: int = Form(...),
+    course_id: int | None = Form(None),
+    course_tee_id: int | None = Form(None),
+    hole_count: int | None = Form(18),
+    active: str | None = Form(None),
+):
+    match_key = _generate_match_key()
+    insert_match(
+        settings.database_url,
+        tournament_id=tournament_id,
+        match_key=match_key,
+        division=division,
+        player_a_id=player_a_id,
+        player_b_id=player_b_id,
+        course_id=course_id,
+        course_tee_id=course_tee_id,
+        hole_count=hole_count or 18,
+        active=bool(active),
+    )
+    message = "Match saved."
+    return RedirectResponse(
+        url=f"/admin/match_setup?tournament_id={tournament_id}&status={quote_plus(message)}",
+        status_code=303,
+    )
+
+
+@app.get("/live_matches", response_class=HTMLResponse)
+async def live_matches_view(request: Request):
+    tournament_id = _get_active_tournament_id()
+    matches = fetch_matches_by_tournament(settings.database_url, tournament_id) if tournament_id else []
+    live_matches = []
+    for match in matches:
+        if match["status"] in ("in_progress", "not_started"):
+            match_result = fetch_match_result_by_key(settings.database_url, match["match_key"])
+            live_matches.append({"match": match, "result": match_result})
+    tournaments = fetch_tournaments(settings.database_url)
+    return templates.TemplateResponse(
+        "live_matches.html",
+        {
+            "request": request,
+            "tournament_id": tournament_id,
+            "tournaments": tournaments,
+            "matches": live_matches,
+        },
+    )
+
+
+@app.get("/tournament_history", response_class=HTMLResponse)
+async def tournament_history(request: Request, tournament_id: int | None = None):
+    selected_id = tournament_id or _get_active_tournament_id()
+    tournaments = fetch_tournaments(settings.database_url)
+    matches = fetch_matches_by_tournament(settings.database_url, selected_id) if selected_id else []
+    history = []
+    for match in matches:
+        result = fetch_match_result_by_key(settings.database_url, match["match_key"])
+        history.append({"match": match, "result": result})
+    return templates.TemplateResponse(
+        "tournament_history.html",
+        {
+            "request": request,
+            "tournaments": tournaments,
+            "selected_tournament_id": selected_id,
+            "history": history,
+        },
     )
 
 
@@ -1464,6 +1778,31 @@ async def admin_setup_course(
             True,
             setup_status="Course selection saved.",
             active_section="course",
+            tournament_id=active_tournament_id,
+        ),
+    )
+
+
+@app.post("/admin/tournaments/{tournament_id}/cleanup", response_class=HTMLResponse)
+async def cleanup_tournament_data(
+    request: Request,
+    tournament_id: int,
+    pin: str = Form(""),
+):
+    tournament = fetch_tournament_by_id(settings.database_url, tournament_id)
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    deleted = delete_match_results_by_tournament(settings.database_url, tournament_id)
+    status = f"Cleared {deleted} match{'es' if deleted != 1 else ''} for {tournament['name']}."
+    active_tournament_id = _get_active_tournament_id()
+    return templates.TemplateResponse(
+        "setup.html",
+        _setup_context(
+            request,
+            pin,
+            True,
+            setup_status=status,
+            active_section="parameters",
             tournament_id=active_tournament_id,
         ),
     )
@@ -1773,9 +2112,12 @@ def _scorecard_context(match_key: str | None, tournament_id: int | None = None) 
     if not selected_status:
         selected_status = {"status": "not_started", "holes": 0, "match_result": None}
 
-    match_result = fetch_match_result_by_key(settings.database_url, selected.match_id)
+    match_result = _ensure_match_result_for_pairing(selected)
+    if not match_result:
+        match_result = fetch_match_result_by_key(settings.database_url, selected.match_id)
     if not match_result:
         match_result = fetch_match_result_by_code(settings.database_url, selected.match_id)
+    match_record = fetch_match_by_key(settings.database_url, selected.match_id)
     resolved_tournament_id = tournament_id or _tournament_id_for_result(match_result)
     tournament_settings = _load_tournament_settings(resolved_tournament_id)
     hole_records = (
@@ -1834,6 +2176,10 @@ def _scorecard_context(match_key: str | None, tournament_id: int | None = None) 
         "player_a_handicap": handicap_a,
         "player_b_handicap": handicap_b,
     }
+    if match_record:
+        scorecard["match"]["division"] = match_record.get("division")
+        scorecard["match"]["course_id"] = match_record.get("course_id")
+        scorecard["match"]["course_tee_id"] = match_record.get("course_tee_id")
     scorecard["match"]["tournament_id"] = resolved_tournament_id
     scorecard["point_chip_a"] = _adjust_display_points(scorecard["meta"]["total_points_a"])
     scorecard["point_chip_b"] = _adjust_display_points(scorecard["meta"]["total_points_b"])
@@ -2062,15 +2408,31 @@ async def finalize_match(match_id: int):
         raise HTTPException(status_code=400, detail="No hole data recorded for this match.")
     handicap_a = result.get("player_a_handicap") or 0
     handicap_b = result.get("player_b_handicap") or 0
-    tournament_settings = _load_tournament_settings(_tournament_id_for_result(result))
+    tournament_id = _tournament_id_for_result(result)
+    tournament_settings = _load_tournament_settings(tournament_id)
     scorecard_data = _scorecard_data_for_match(result, holes, handicap_a, handicap_b, tournament_settings)
     course_info = _course_display_info(result, tournament_settings)
+    total_points_a = scorecard_data["meta"]["total_points_a"]
+    total_points_b = scorecard_data["meta"]["total_points_b"]
+    outcome = score_outcome(total_points_a, total_points_b)
+    update_match_result_scores(
+        settings.database_url,
+        match_id,
+        player_a_points=total_points_a,
+        player_b_points=total_points_b,
+        player_a_bonus=outcome["player_a_bonus"],
+        player_b_bonus=outcome["player_b_bonus"],
+        player_a_total=outcome["player_a_total"],
+        player_b_total=outcome["player_b_total"],
+        winner=outcome["winner"],
+    )
     finalize_match_result(
         settings.database_url,
         match_id,
         course_snapshot=course_info or {},
         scorecard_snapshot=scorecard_data,
     )
+    _refresh_standings_cache(tournament_id)
     return JSONResponse({"finalized": True})
 
 
@@ -2095,6 +2457,7 @@ async def reset_match_scores(match_id: int):
         player_b_total=outcome["player_b_total"],
         winner=outcome["winner"],
     )
+    _refresh_standings_cache(result.get("tournament_id"))
     return JSONResponse({"reset": True})
 
 
@@ -2190,7 +2553,11 @@ async def match_detail_submit_by_key(match_key: str, request: Request):
 @app.get("/standings", response_class=HTMLResponse)
 async def standings(request: Request):
     results = fetch_all_match_results(settings.database_url)
-    divisions = build_standings(results)
+    tournament_id = _get_active_tournament_id()
+    if tournament_id is None:
+        divisions = []
+    else:
+        divisions = build_standings(results, tournament_id=tournament_id)
     return templates.TemplateResponse(
         "standings.html",
         {"request": request, "divisions": divisions},

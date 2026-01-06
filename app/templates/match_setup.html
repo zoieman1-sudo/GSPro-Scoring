@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <div class="match-meta">
+      <p class="eyebrow">Match Management</p>
+      <h1 class="match-title">Match Setup</h1>
+    </div>
+    <form action="/admin/match_setup" method="post" class="setup-form">
+      <div class="form-row">
+        <label>
+          Tournament
+          <select name="tournament_id" required>
+            {% for tournament in tournaments %}
+              <option value="{{ tournament.id }}" {% if tournament.id == active_tournament_id %}selected{% endif %}>
+                {{ tournament.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Division
+          <input type="text" name="division" required value="A" />
+        </label>
+      </div>
+      <div class="form-row">
+        <label>
+          Player A
+          <select name="player_a_id" required>
+            {% for player in players %}
+              <option value="{{ player.id }}">{{ player.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Player B
+          <select name="player_b_id" required>
+            {% for player in players %}
+              <option value="{{ player.id }}">{{ player.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Holes
+          <input type="number" name="hole_count" min="9" max="18" value="18" />
+        </label>
+        <label>
+          Active
+          <input type="checkbox" name="active" value="1" />
+        </label>
+      </div>
+      <p class="muted-label">Match key is generated automatically when match is saved.</p>
+      <div class="form-row">
+        <label>
+          Course
+          <select name="course_id">
+            <option value="">-- Choose course --</option>
+            {% for course in course_catalog %}
+              <option value="{{ course.id }}">{{ course.club_name }} — {{ course.course_name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Tee
+          <select name="course_tee_id">
+            <option value="">-- Choose tee --</option>
+            {% for course in course_catalog %}
+              {% for tee in course.tees %}
+                <option value="{{ tee.id }}">{{ course.course_name }} — {{ tee.tee_name }}</option>
+              {% endfor %}
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <button type="submit" class="submit-btn">Save match</button>
+      {% if status %}
+        <p class="muted-label">{{ status }}</p>
+      {% endif %}
+    </form>
+
+    <article>
+      <h3>Matches</h3>
+      <table class="standings-table">
+        <thead>
+          <tr>
+            <th>Match Key</th>
+            <th>Division</th>
+            <th>Players</th>
+            <th>Course</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for match in matches %}
+            <tr>
+              <td>{{ match.match_key }}</td>
+              <td>{{ match.division }}</td>
+              <td>{{ match.player_a_name }} vs {{ match.player_b_name }}</td>
+              <td>
+                {% if match.course_id %}{{ match.course_id }}{% else %}—{% endif %}
+              </td>
+              <td>{{ match.status }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5">No matches configured.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </article>
+  </section>
+{% endblock %}

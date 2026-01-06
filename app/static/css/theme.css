@@ -1685,6 +1685,16 @@ body {
   margin-top: 12px;
 }
 
+.cleanup-actions {
+  justify-content: flex-start;
+}
+
+.pill-link--danger {
+  background: rgba(255, 50, 50, 0.25);
+  border-color: rgba(255, 50, 50, 0.5);
+  color: #ffe8e8;
+}
+
 .course-select {
   margin-top: 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -1964,4 +1974,60 @@ body {
 
 .match-title {
   font-size: clamp(1rem, 1vw + 0.2rem, 1.3rem);
+}
+
+.split-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.setup-form .form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.setup-form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  gap: 6px;
+}
+
+.setup-form input,
+.setup-form select,
+.setup-form textarea {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.4);
+  color: white;
+}
+
+.status-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.status-list li {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.status-list li.highlight {
+  border-color: rgba(72, 227, 255, 0.6);
+  background: rgba(72, 227, 255, 0.08);
 }

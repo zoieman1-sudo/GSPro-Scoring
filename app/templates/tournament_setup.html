@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <div class="match-meta">
+      <p class="eyebrow">Tournament Manager</p>
+      <h1 class="match-title">Tournament Setup</h1>
+    </div>
+    <div class="split-grid">
+      <article>
+        <h3>Create a tournament</h3>
+        <form action="/tournaments" method="post" class="setup-form">
+          <label>
+            Name
+            <input type="text" name="name" required />
+          </label>
+          <label>
+            Description
+            <textarea name="description" rows="3"></textarea>
+          </label>
+          <label>
+            Status
+            <select name="status">
+              <option value="upcoming">Upcoming</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+            </select>
+          </label>
+          <button type="submit" class="submit-btn">Save Tournament</button>
+        </form>
+
+        {% if status %}
+          <p class="muted-label">{{ status }}</p>
+        {% endif %}
+      </article>
+      <article>
+        <h3>Existing tournaments</h3>
+        <ul class="status-list">
+          {% for tournament in tournaments %}
+            <li {% if tournament.id == active_tournament_id %}class="highlight"{% endif %}>
+              <a href="/admin/tournament_setup?tournament_id={{ tournament.id }}">
+                <strong>{{ tournament.name }}</strong>
+                <span>{{ tournament.status | capitalize }}</span>
+              </a>
+            </li>
+          {% else %}
+            <li>No tournaments yet.</li>
+          {% endfor %}
+        </ul>
+      </article>
+    </div>
+
+    {% if selected_tournament %}
+      <article>
+        <h3>Event configuration for {{ selected_tournament.name }}</h3>
+        <form action="/admin/tournament_setup/settings" method="post" class="setup-form">
+          <input type="hidden" name="tournament_id" value="{{ selected_tournament.id }}" />
+          <div class="form-row">
+            <label>
+              Players to field
+              <input type="number" name="player_count" min="0" value="{{ player_count }}" />
+            </label>
+            <label>
+              Divisions
+              <input type="number" name="division_count" min="0" value="{{ division_count }}" />
+            </label>
+          </div>
+          <button type="submit" class="submit-btn">Save settings</button>
+        </form>
+      </article>
+
+      <article>
+        <h3>Add a player</h3>
+        {% if player_count and division_count %}
+          <form action="/admin/tournament_setup/player" method="post" class="setup-form">
+            <input type="hidden" name="tournament_id" value="{{ selected_tournament.id }}" />
+            <div class="form-row">
+              <label>
+                First name
+                <input type="text" name="first_name" required />
+              </label>
+              <label>
+                Last name
+                <input type="text" name="last_name" required />
+              </label>
+              <label>
+                Division
+                <input type="text" name="division" value="A" />
+              </label>
+              <label>
+                Handicap Index
+                <input type="number" step="0.1" name="handicaps_index" value="0" />
+              </label>
+              <label>
+                Seed
+                <input type="number" name="seed" value="0" />
+              </label>
+            </div>
+            <button type="submit" class="submit-btn">Add player</button>
+          </form>
+        {% else %}
+          <p>Define the number of players and divisions first to unlock the roster.</p>
+        {% endif %}
+      </article>
+    {% else %}
+      <p class="status">Select a tournament to configure its roster and settings.</p>
+    {% endif %}
+
+    {% if selected_tournament %}
+      <article>
+        <h3>Players roster ({{ players|length }} / {{ player_count or "?" }} players)</h3>
+        {% if player_count %}
+          <table class="standings-table">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Division</th>
+                <th>Handicap</th>
+                <th>Seed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for player in players %}
+                <tr>
+                  <td>{{ player.name }}</td>
+                  <td>{{ player.division }}</td>
+                  <td>{{ player.handicap }}</td>
+                  <td>{{ player.seed }}</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="4">No players added yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p>Once you define the player/division counts you can add names to build the roster.</p>
+        {% endif %}
+      </article>
+    {% endif %}
+  </section>
+{% endblock %}

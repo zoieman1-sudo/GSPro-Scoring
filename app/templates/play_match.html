@@ -18,10 +18,16 @@
       {% else %}
         <p class="hero-meta">No tournament is active.</p>
       {% endif %}
-      {% if hero_course %}
-        {% set hero_tee = hero_course.get("tees") | first if hero_course.get("tees") else {} %}
+      {% if hero_course_info.course_name %}
         <p class="hero-meta">
-          Course: {{ hero_course.course_name }} &middot; Tee: {{ hero_tee.get("tee_name") or "Default" }}
+          Course:
+          {% if hero_course_info.club_name %}
+            {{ hero_course_info.club_name }} —
+          {% endif %}
+          {{ hero_course_info.course_name }}
+          {% if hero_course_info.tee_name %}
+            &middot; Tee: {{ hero_course_info.tee_name }}
+          {% endif %}
         </p>
       {% elif tournament_settings.course_id %}
         <p class="hero-meta">
@@ -123,39 +129,41 @@
         return;
       }
 
-      const teePlaceholder = teeSelect.querySelector('option[value=""]')?.cloneNode(true);
-      const cachedTeeOptions = Array.from(teeSelect.querySelectorAll("option"))
-        .filter((option) => option.value)
-        .map((option) => ({
-          courseId: option.getAttribute("data-course"),
-          template: option.cloneNode(true),
-        }));
-      const initialTeeId = teeSelect.value || "";
+      const COURSE_TEES = {{ course_tee_map | tojson }};
+      const ALL_TEES = Object.values(COURSE_TEES).flat();
+      const placeholder = teeSelect.querySelector('option[value=""]')?.cloneNode(true);
+      let storedTee = teeSelect.value || "";
 
-      const renderTees = (courseId, selectedTeeId = initialTeeId) => {
+      const renderTees = (courseId) => {
         teeSelect.innerHTML = "";
-        if (teePlaceholder) {
-          teeSelect.append(teePlaceholder.cloneNode(true));
+        if (placeholder) {
+          teeSelect.append(placeholder.cloneNode(true));
         } else {
-          const placeholderOption = document.createElement("option");
-          placeholderOption.value = "";
-          placeholderOption.textContent = "-- Select tee --";
-          teeSelect.append(placeholderOption);
+          const defaultOption = document.createElement("option");
+          defaultOption.value = "";
+          defaultOption.textContent = "-- Select tee --";
+          teeSelect.append(defaultOption);
         }
-        cachedTeeOptions.forEach(({ courseId: candidateCourseId, template }) => {
-          if (!courseId || candidateCourseId === courseId) {
-            teeSelect.append(template.cloneNode(true));
-          }
+        const teeList = courseId ? COURSE_TEES[courseId] || [] : ALL_TEES;
+        teeList.forEach((tee) => {
+          const option = document.createElement("option");
+          option.value = tee.id;
+          option.textContent = tee.label;
+          option.dataset.course = tee.course_id;
+          teeSelect.append(option);
         });
-        if (selectedTeeId && teeSelect.querySelector(`option[value="${selectedTeeId}"]`)) {
-          teeSelect.value = selectedTeeId;
-        } else {
-          teeSelect.value = "";
-        }
+        const hasStored = teeList.some((tee) => tee.id === storedTee);
+        teeSelect.value = hasStored ? storedTee : "";
       };
 
-      courseSelect.addEventListener("change", () => renderTees(courseSelect.value));
-      renderTees(courseSelect.value, teeSelect.value);
+      teeSelect.addEventListener("change", (event) => {
+        storedTee = event.target.value;
+      });
+
+      courseSelect.addEventListener("change", () => {
+        renderTees(courseSelect.value);
+      });
+      renderTees(courseSelect.value);
     })();
   </script>
 

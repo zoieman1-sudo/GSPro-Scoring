@@ -40,6 +40,8 @@ def score_outcome(player_a_points: float, player_b_points: float) -> dict:
     player_a_total = player_a_points + player_a_bonus
     player_b_total = player_b_points + player_b_bonus
     return {
+        "player_a_points": player_a_points,
+        "player_b_points": player_b_points,
         "player_a_bonus": player_a_bonus,
         "player_b_bonus": player_b_bonus,
         "player_a_total": player_a_total,
