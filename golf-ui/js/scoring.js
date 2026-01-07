@@ -27,6 +27,11 @@ function hideCodeOverlay() {
   overlay?.classList.add("hidden");
 }
 
+function showCodeOverlay() {
+  overlay?.classList.remove("hidden");
+  codeInput?.focus();
+}
+
 function renderHole() {
   const hole = state.hole;
   const holeText = document.getElementById("holeText");
@@ -240,16 +245,28 @@ async function fetchScorecard(params) {
   return payload;
 }
 
+const MATCH_CODE_PATTERN = /^\d{9}$/;
+
 async function loadMatchByIdentifier(identifier) {
-  let lastError;
-  try {
+  if (MATCH_CODE_PATTERN.test(identifier)) {
     return await fetchScorecard({ match_code: identifier });
-  } catch (error) {
-    lastError = error;
-    if (identifier.includes("-") || error?.status === 404) {
-      return await fetchScorecard({ match_key: identifier });
+  }
+  return await fetchScorecard({ match_key: identifier });
+}
+
+async function loadActiveMatch() {
+  try {
+    const response = await fetch("/api/active_match");
+    if (!response.ok) {
+      return;
     }
-    throw error;
+    const payload = await response.json().catch(() => null);
+    const active = payload?.active_match;
+    if (active) {
+      initializeMatchFromData(active);
+    }
+  } catch (error) {
+    console.warn("Unable to load active match", error);
   }
 }
 
@@ -296,7 +313,7 @@ function goToHoleIndex(index) {
   renderScores();
 }
 
-async function handleCodeSubmit(prefilledValue) {
+async function handleCodeSubmit(prefilledValue, explicitType) {
   const value = (prefilledValue ?? codeInput.value ?? "").trim();
   if (!value) {
     showCodeError("Enter a scoring code.");
@@ -307,7 +324,12 @@ async function handleCodeSubmit(prefilledValue) {
     codeSubmitBtn.disabled = true;
   }
   try {
-    const data = await loadMatchByIdentifier(value);
+    const data =
+      explicitType === "match_key"
+        ? await fetchScorecard({ match_key: value })
+        : explicitType === "match_code"
+        ? await fetchScorecard({ match_code: value })
+        : await loadMatchByIdentifier(value);
     initializeMatchFromData(data, value);
   } catch (error) {
     const message = error?.message || "Unable to load the match.";
@@ -328,6 +350,10 @@ function init() {
   renderScores();
   document.getElementById("undoBtn")?.addEventListener("click", undoChanges);
   document.getElementById("saveBtn")?.addEventListener("click", saveCurrentHole);
+  document.getElementById("matchCodeOpener")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    showCodeOverlay();
+  });
   document.getElementById("prevHole")?.addEventListener("click", () => navigateHole(-1));
   document.getElementById("nextHole")?.addEventListener("click", () => navigateHole(1));
   codeForm?.addEventListener("submit", (event) => {
@@ -339,10 +365,14 @@ function init() {
     handleCodeSubmit();
   });
   const params = new URLSearchParams(window.location.search);
-  const candidate = params.get("match_code") || params.get("match_key");
+  const hasCode = params.has("match_code");
+  const hasKey = params.has("match_key");
+  const candidate = hasCode ? params.get("match_code") : hasKey ? params.get("match_key") : null;
   if (candidate) {
     codeInput.value = candidate;
-    handleCodeSubmit(candidate);
+    handleCodeSubmit(candidate, hasKey ? "match_key" : hasCode ? "match_code" : undefined);
+  } else {
+    loadActiveMatch();
   }
 }
 

@@ -2,81 +2,6 @@
 {% block content %}
   <section class="new-card-shell">
     <style>
-      .new-card-shell {
-        display: flex;
-        flex-direction: column;
-        gap: 28px;
-      }
-
-      .new-card-hero {
-        padding: 48px 48px 40px;
-        background: radial-gradient(circle at 15% 20%, rgba(68, 211, 237, 0.22), transparent 45%),
-          linear-gradient(135deg, rgba(9, 34, 74, 0.95), rgba(4, 16, 34, 0.96));
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        box-shadow: 0 45px 95px rgba(4, 8, 20, 0.78);
-        backdrop-filter: blur(25px);
-        position: relative;
-        overflow: hidden;
-        border-radius: var(--radius-lg);
-      }
-
-      .new-card-hero::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
-        pointer-events: none;
-      }
-
-      .hero-top {
-        position: relative;
-        z-index: 1;
-      }
-
-      .hero-description {
-        margin-top: 16px;
-        max-width: 720px;
-        color: rgba(255, 255, 255, 0.8);
-        line-height: 1.6;
-      }
-
-      .hero-meta {
-        margin-top: 12px;
-        font-size: 0.9rem;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.7);
-      }
-
-      .hole-reference {
-        margin-top: 24px;
-        border-radius: var(--radius-md);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        padding: 14px 18px;
-        display: grid;
-        gap: 6px;
-        background: rgba(2, 6, 18, 0.55);
-      }
-
-      .hole-reference__row {
-        display: grid;
-        grid-template-columns: 80px repeat(9, minmax(28px, 1fr));
-        font-size: 0.78rem;
-        letter-spacing: 0.3em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.65);
-        align-items: center;
-      }
-
-      .hole-reference__label {
-        font-size: 0.65rem;
-        letter-spacing: 0.4em;
-      }
-
-      .hole-reference__row span:not(.hole-reference__label) {
-        text-align: center;
-      }
-
       .match-grid {
         display: flex;
         justify-content: center;
@@ -205,6 +130,48 @@
         justify-content: space-between;
         align-items: flex-start;
         gap: 12px;
+      }
+
+      .scoreboard-card__meta {
+        display: flex;
+        gap: 8px;
+        font-size: 0.65rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: 4px;
+      }
+
+      .scoreboard-card__matchkey {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .scoreboard-card__launch,
+      .scoreboard-card__matchkey span {
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .scoreboard-card__launch {
+        margin-top: 6px;
+        align-self: flex-start;
+        padding: 8px 12px;
+        border-radius: var(--radius-pill);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(67, 225, 255, 0.15);
+        color: #fff;
+        font-size: 0.7rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        text-decoration: none;
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+
+      .scoreboard-card__launch:hover {
+        background: rgba(67, 225, 255, 0.35);
+        border-color: rgba(67, 225, 255, 0.8);
       }
 
       .scoreboard-card__division {
@@ -461,115 +428,7 @@
         letter-spacing: 0.3em;
       }
 
-      .skins-card {
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 32px;
-        border-radius: var(--radius-lg);
-        background: linear-gradient(180deg, rgba(7, 14, 30, 0.95), rgba(6, 12, 26, 0.9));
-        box-shadow: 0 30px 90px rgba(0, 0, 0, 0.65);
-        max-width: 1040px;
-        width: 100%;
-      }
-
-      .skins-card__header h3 {
-        margin: 4px 0 0;
-      }
-
-      .skins-card__body {
-        margin-top: 14px;
-        display: grid;
-        grid-template-columns: clamp(280px, 1fr, 360px) clamp(260px, 1fr, 360px);
-        gap: 24px;
-      }
-
-      .skins-card__label {
-        font-size: 0.7rem;
-        letter-spacing: 0.35em;
-        text-transform: uppercase;
-        color: var(--muted);
-      }
-
-      .skins-card__winners ul {
-        list-style: none;
-        margin: 12px 0 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .skins-card__winners li {
-        display: flex;
-        justify-content: space-between;
-        padding: 12px 14px;
-        border-radius: 16px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        font-size: 0.85rem;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-      }
-
-      .skin-hole {
-        font-size: 0.8rem;
-        letter-spacing: 0.3em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.6);
-      }
-
-      .skins-count-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 12px;
-      }
-
-      .skin-chip {
-        padding: 14px 18px;
-        border-radius: var(--radius-md);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(5, 9, 18, 0.6);
-      }
-
-      .skin-chip strong {
-        display: block;
-        font-size: 1.4rem;
-        margin: 6px 0;
-      }
-
-      .skin-chip small {
-        letter-spacing: 0.3em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.6);
-      }
-
-      .skins-card__note {
-        margin-top: 18px;
-        text-transform: uppercase;
-        letter-spacing: 0.35em;
-        font-size: 0.7rem;
-        color: rgba(255, 255, 255, 0.55);
-      }
     </style>
-
-    <article class="card new-card-hero">
-      <div class="hero-top">
-        <p class="eyebrow">Scorecard Studio</p>
-        <h1 id="heroTitle">{{ hero.title }}</h1>
-        <p class="hero-description" id="heroSummary">{{ hero.subtitle }}</p>
-      </div>
-      <p class="hero-meta" id="heroMeta">{{ hero.meta }}</p>
-      <div class="hole-reference" id="heroHoleReference">
-        <div class="hole-reference__row" id="hole-ref-hole-row">
-          <span class="hole-reference__label">Hole</span>
-        </div>
-        <div class="hole-reference__row" id="hole-ref-par-row">
-          <span class="hole-reference__label">Par</span>
-        </div>
-        <div class="hole-reference__row" id="hole-ref-hcp-row">
-          <span class="hole-reference__label">HCP</span>
-        </div>
-      </div>
-    </article>
 
     <section class="match-grid">
       <article class="card match-card" id="studio-match-card">
@@ -602,39 +461,6 @@
       </div>
     </div>
 
-    <article class="card skins-card">
-      <header class="skins-card__header">
-        <p class="eyebrow">{{ skins.title }}</p>
-        <h3>Skins board</h3>
-        <p class="muted-label">{{ skins.subtitle }}</p>
-      </header>
-      <div class="skins-card__body">
-        <div class="skins-card__winners">
-          <p class="skins-card__label">Skin wins</p>
-          <ul>
-            {% for winner in skins.winners %}
-              <li>
-                <span class="skin-hole">Hole {{ winner.hole }}</span>
-                <span>{{ winner.player }}</span>
-              </li>
-            {% endfor %}
-          </ul>
-        </div>
-        <div class="skins-card__summary">
-          <p class="skins-card__label">Skins count</p>
-          <div class="skins-count-grid">
-            {% for total in skins.totals %}
-              <div class="skin-chip">
-                <span>{{ total.player }}</span>
-                <strong>{{ total.skins }}</strong>
-                <small>skins</small>
-              </div>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-      <p class="muted-label skins-card__note">{{ skins.note }}</p>
-    </article>
   </section>
   <script>
     const phaseOrder = { not_started: 0, in_progress: 1, completed: 2 };
@@ -877,24 +703,26 @@
       const statusLabel =
         match.status_label || phaseLabels[match.status] || phaseLabels[match.phase] || "Status";
       return `
-        <article class="scoreboard-card" data-key="${match.match_key}">
-          <div class="scoreboard-card__header">
-            <div>
-              <span class="scoreboard-card__division">${divisionLabel}</span>
-              <strong class="scoreboard-card__matchup">${matchupLabel}</strong>
-            </div>
-            <span class="scoreboard-card__status">${statusLabel}</span>
+      <article class="scoreboard-card" data-key="${match.match_key}">
+        <div class="scoreboard-card__header">
+          <div>
+            <span class="scoreboard-card__division">${divisionLabel}</span>
+            <strong class="scoreboard-card__matchup">${matchupLabel}</strong>
+            ${match.match_key ? `<div class="scoreboard-card__meta"><span class="scoreboard-card__matchkey">Key: <strong>${match.match_key}</strong></span></div>` : ""}
           </div>
-          <div class="scoreboard-card__grid">
-            ${infoGroup}
-            ${playerGroups[0] || ""}
-            ${buildRow("Match status", statusCells, statusSymbol, "status")}
-            ${playerGroups[1] || ""}
-            ${playerGroups.slice(2).join("")}
-          </div>
-        </article>
-      `;
-    };
+          <span class="scoreboard-card__status">${statusLabel}</span>
+        </div>
+        <div class="scoreboard-card__grid">
+          ${infoGroup}
+          ${playerGroups[0] || ""}
+          ${buildRow("Match status", statusCells, statusSymbol, "status")}
+          ${playerGroups[1] || ""}
+          ${playerGroups.slice(2).join("")}
+        </div>
+        ${match.match_key ? `<a class="scoreboard-card__launch" href="/golf-ui/scoring.html?match_key=${encodeURIComponent(match.match_key)}" target="_blank" rel="noopener">Launch scoring</a>` : ""}
+      </article>
+    `;
+  };
 
     const highlightScoreboards = (key) => {
       if (!matchTableEl) return;
@@ -919,7 +747,7 @@
         handicap: hole.handicap,
         player_scores: players.map(() => ({ gross: null, net: null })),
       }));
-      return {
+    return {
         match_key: entry.match_key,
         label: entry.display || matchupLabel,
         division: entry.division,

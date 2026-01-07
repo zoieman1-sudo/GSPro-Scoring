@@ -1863,9 +1863,10 @@ def _build_match_listing(player_filter: str | None = None) -> tuple[list[dict], 
                         winner = result["player_b_name"]
                     else:
                         winner = "Draw"
+        resolved_match_key = result["match_key"] if result and result.get("match_key") else pairing.match_id
         matches_data.append(
             {
-                "match_key": pairing.match_id,
+                "match_key": resolved_match_key,
                 "display": match_display(pairing),
                 "player_a": pairing.player_a,
                 "player_b": pairing.player_b,
@@ -1912,15 +1913,6 @@ async def api_match_list(player: str | None = None):
     matches_data, _ = _build_match_listing(player)
     return JSONResponse(matches_data)
 
-
-@app.get("/api/match_scorecard")
-async def api_match_scorecard(match_key: str):
-    context = _scorecard_context(match_key)
-    scorecard = context.get("scorecard")
-    if not scorecard:
-        raise HTTPException(status_code=404, detail="Match not available")
-    serialized = _serialize_scorecard_for_studio(scorecard)
-    return JSONResponse(serialized)
 
 
 @app.get("/match-ids", response_class=HTMLResponse)
@@ -2319,34 +2311,10 @@ def _new_card_context(request: Request) -> dict:
         {"hole_number": 9, "par": 4, "handicap": 8},
     ]
 
-    hero = {
-        "title": "9-Hole Golf Scorecard — Match Play (Net) + Skins",
-        "meta": "Template: app/DATA/9_hole_match_play_scorecard_4_players.xlsx · 4 players · 2 matches",
-        "subtitle": "Pick one of the two pairings from the four-player layout to inspect holes, pars, and net handicaps.",
-    }
-
-    skins = {
-        "title": "Skins — Net (Auto)",
-        "subtitle": "Auto-skips keep the pot alive until a skin is secured.",
-        "winners": [
-            {"hole": "3", "player": "Player 3"},
-            {"hole": "6", "player": "Player 4"},
-        ],
-        "totals": [
-            {"player": "Player 1", "skins": 1},
-            {"player": "Player 2", "skins": 0},
-            {"player": "Player 3", "skins": 1},
-            {"player": "Player 4", "skins": 0},
-        ],
-        "note": "Based on the four-player net match play worksheet at app/DATA/9_hole_match_play_scorecard_4_players.xlsx.",
-    }
-
     matches_listing, _ = _build_match_listing()
     return {
         "request": request,
-        "hero": hero,
         "hole_reference": hole_layout,
-        "skins": skins,
         "matches_listing": matches_listing,
     }
 

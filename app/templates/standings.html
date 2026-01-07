@@ -35,10 +35,80 @@
         width: 100%;
         font-size: 0.8rem;
         letter-spacing: 0.25em;
+        border-collapse: collapse;
+        table-layout: fixed;
       }
       .standings-table th,
       .standings-table td {
-        padding: 6px 8px;
+        padding: 4px 5px;
+        vertical-align: bottom;
+      }
+      .standings-table thead {
+        display: none;
+      }
+      .standing-cell.wlt {
+        padding: 4px 3px;
+        width: 36px;
+        text-align: center;
+      }
+      .standing-cell.stack-data {
+        text-align: center;
+      }
+      .standing-cell.matches {
+        font-size: 0.75em;
+        text-align: center;
+      }
+      .standing-cell.pts-col {
+        width: 32px;
+        text-align: center;
+        padding-left: 2px;
+        padding-right: 2px;
+      }
+      .standing-cell.stack-header,
+      .standing-cell.matches {
+        padding-left: 2px;
+        padding-right: 2px;
+      }
+      .standing-cell.matches {
+        font-size: 0.75em;
+        text-align: center;
+      }
+      .standings-table th.stack-header {
+        padding-left: 2px;
+        padding-right: 2px;
+      }
+      .standings-table th.stack-header {
+        text-align: center;
+      }
+      .stack-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        line-height: 1.2;
+        letter-spacing: 0.3em;
+      }
+      .stack-header span:last-child {
+        font-size: 0.6em;
+        letter-spacing: 0.25em;
+      }
+      .standings-column-labels {
+        display: grid;
+        grid-template-columns: 36% 12% 12% 12% 10% 10% 10%;
+        gap: 0;
+        padding: 12px 0 10px;
+        font-size: 0.7rem;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: var(--muted);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        margin-top: 2px;
+      }
+      .standings-column-labels span {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0 2px;
       }
     </style>
 
@@ -55,36 +125,57 @@
             <div class="division-title">
               <span>Division {{ division.division }}</span>
             </div>
-
+            <div class="standings-column-labels" aria-hidden="true">
+              <span class="standing-cell player">&nbsp;</span>
+              <span class="standing-cell pts-col">Pts</span>
+              <span class="standing-cell stack-header">
+                <span>Pts</span>
+                <span>Rem</span>
+              </span>
+              <span class="standing-cell matches">Ma</span>
+              <span class="standing-cell wlt">W</span>
+              <span class="standing-cell wlt">L</span>
+              <span class="standing-cell wlt">T</span>
+            </div>
             <table class="standings-table"
                    role="table"
                    aria-label="Division {{ division.division }} standings">
-              <thead>
+            <colgroup>
+              <col style="width: 36%;" />
+              <col style="width: 12%;" />
+              <col style="width: 12%;" />
+              <col style="width: 12%;" />
+              <col style="width: 10%;" />
+              <col style="width: 10%;" />
+              <col style="width: 10%;" />
+            </colgroup>
+            <thead>
                 <tr class="table-head" role="row">
-                  <th class="standing-cell">Rank</th>
-                  <th class="standing-cell player">Player</th>
-                  <th class="standing-cell">Pts</th>
-                  <th class="standing-cell">Pts Rmn</th>
-                  <th class="standing-cell">Matches</th>
-                  <th class="standing-cell">W</th>
-                  <th class="standing-cell">L</th>
-                  <th class="standing-cell">T</th>
+                  <th class="standing-cell player" aria-hidden="true">&nbsp;</th>
+                  <th class="standing-cell pts-col">Pts</th>
+                  <th class="standing-cell stack-header">
+                    <span>Pts</span>
+                    <span>Rem</span>
+                  </th>
+                  <th class="standing-cell matches">Ma</th>
+                  <th class="standing-cell wlt">W</th>
+                  <th class="standing-cell wlt">L</th>
+                  <th class="standing-cell wlt">T</th>
                 </tr>
               </thead>
               <tbody>
                 {% for player in division.players %}
                   <tr class="standings-row" role="row">
-                    <td class="standing-cell">{{ loop.index }}</td>
                     <td class="standing-cell player">
                       <strong>{{ player.name }}</strong>
                       <span class="seed-tag">{{ player.division }}{{ player.seed }}</span>
                     </td>
-                    <td class="standing-cell">{{ player.points_for }}</td>
-                    <td class="standing-cell">{{ player.pts_remaining }}</td>
-                    <td class="standing-cell">{{ player.matches }}</td>
-                    <td class="standing-cell">{{ player.wins }}</td>
-                    <td class="standing-cell">{{ player.losses }}</td>
-                    <td class="standing-cell">{{ player.ties }}</td>
+                    <td class="standing-cell pts-col">{{ player.points_for }}</td>
+                    <td class="standing-cell stack-data">{{ player.pts_remaining }}</td>
+                    <td class="standing-cell matches">{{ player.matches }}</td>
+                    <td class="standing-cell wlt">{{ player.wins }}</td>
+                    <td class="standing-cell wlt">{{ player.losses }}</td>
+                    <td class="standing-cell wlt">{{ player.ties }}</td>
                   </tr>
                 {% endfor %}
               </tbody>
