@@ -50,6 +50,16 @@
                       {% if active_tournament_id == tournament.id %}Active{% else %}Set active{% endif %}
                     </button>
                   </form>
+                  <form method="post" action="/tournaments/{{ tournament.id }}/status" class="status-form">
+                    <input type="hidden" name="status" value="inactive" />
+                    <button
+                      type="submit"
+                      class="pill-link pill-link--inline pill-link--danger"
+                      {% if tournament.status == "inactive" %}disabled{% endif %}
+                    >
+                      {% if tournament.status == "inactive" %}Inactive{% else %}Mark inactive{% endif %}
+                    </button>
+                  </form>
                 </div>
               </article>
             {% endfor %}
@@ -180,6 +190,11 @@
 
     .tournament-card__actions {
       margin-top: 12px;
+    }
+
+    .tournament-card__actions form {
+      display: inline-flex;
+      margin-right: 8px;
     }
 
     .pill-link--inline {

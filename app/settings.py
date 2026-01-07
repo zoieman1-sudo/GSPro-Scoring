@@ -10,7 +10,7 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    database_url = os.getenv("DATABASE_URL", "postgresql://postgres@localhost:5432/gspro_scoring")
+    database_url = os.getenv("DATABASE_URL", "postgresql://postgres@db:5432/gspro_scoring")
     scoring_pin = os.getenv("SCORING_PIN", "1234")
     golf_api_key = os.getenv("GOLF_API_KEY", "IGEEUMDFTUIYPPODWAO5XZSQNI")
     return Settings(

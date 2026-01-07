@@ -1172,6 +1172,45 @@ def fetch_match_by_key(database_url: str, match_key: str) -> dict | None:
                 (match_key,),
             )
             row = cur.fetchone()
+        if not row:
+            return None
+        return _row_to_match(row)
+
+
+def fetch_match_by_id(database_url: str, match_id: int) -> dict | None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select
+                    m.id,
+                    m.tournament_id,
+                    m.match_key,
+                    m.match_code,
+                    m.division,
+                    m.player_a_id,
+                    m.player_b_id,
+                    m.course_id,
+                    m.course_tee_id,
+                    m.player_a_handicap,
+                    m.player_b_handicap,
+                    m.status,
+                    m.strokes,
+                    m.hole_count,
+                    m.active,
+                    m.created_at,
+                    m.updated_at,
+                    pa.name,
+                    pb.name
+                from matches m
+                left join players pa on pa.id = m.player_a_id
+                left join players pb on pb.id = m.player_b_id
+                where m.id = %s
+                limit 1;
+                """,
+                (match_id,),
+            )
+            row = cur.fetchone()
             if not row:
                 return None
             return _row_to_match(row)
@@ -1218,6 +1257,9 @@ def update_match(
     database_url: str,
     match_id: int,
     *,
+    division: str | None = None,
+    player_a_id: int | None = None,
+    player_b_id: int | None = None,
     course_id: int | None = None,
     course_tee_id: int | None = None,
     player_a_handicap: int | None = None,
@@ -1229,6 +1271,15 @@ def update_match(
 ) -> None:
     updates = []
     values: list = []
+    if division is not None:
+        updates.append("division = %s")
+        values.append(division)
+    if player_a_id is not None:
+        updates.append("player_a_id = %s")
+        values.append(player_a_id)
+    if player_b_id is not None:
+        updates.append("player_b_id = %s")
+        values.append(player_b_id)
     if course_id is not None:
         updates.append("course_id = %s")
         values.append(course_id)
@@ -1271,6 +1322,12 @@ def delete_match(database_url: str, match_id: int) -> None:
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
             cur.execute("delete from matches where id = %s;", (match_id,))
+
+
+def delete_match_results_by_key(database_url: str, match_key: str) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute("delete from match_results where match_key = %s;", (match_key,))
 
 
 def upsert_setting(database_url: str, key: str, value: str) -> None:
@@ -1355,6 +1412,20 @@ def insert_tournament(
             )
             row = cur.fetchone()
             return row[0] if row else None
+
+
+def update_tournament_status(database_url: str, tournament_id: int, status: str) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                update tournaments
+                set status = %s,
+                    updated_at = now()
+                where id = %s;
+                """,
+                (status, tournament_id),
+            )
 
 
 def fetch_tournament_by_id(database_url: str, tournament_id: int) -> dict | None:

@@ -30,31 +30,17 @@
         {% elif active_tournament_id %}
           <div class="status">Active tournament not found.</div>
         {% endif %}
-        {% if active_tournament %}
-          <form
-            method="post"
-            action="/admin/tournaments/{{ active_tournament.id }}/cleanup"
-            class="setup-actions cleanup-actions"
-          >
-            <input type="hidden" name="pin" value="{{ pin }}" />
-            <button type="submit" class="pill-link pill-link--danger">
-              Clear tournament match data
-            </button>
-          </form>
-        {% endif %}
-
       {% if active_section == "players" %}
         <div class="match-meta">
           <h2 class="match-title">Players &amp; Handicaps</h2>
           <p class="match-sub">Configure divisions, handicaps, and seeds for every player.</p>
         </div>
         <form class="setup-form" method="post" action="/admin/setup">
-          <div class="setup-row setup-head-row">
-            <span>Name</span>
-            <span>Division</span>
-            <span>Seed</span>
-            <span>Handicap</span>
-          </div>
+          {% set roster_target = player_roster_size %}
+          {% if players|length > roster_target %}
+            {% set roster_target = players|length %}
+          {% endif %}
+          {% set extra_slots = roster_target - players|length %}
           <div id="player-list">
             {% for player in players %}
               <div class="setup-row">
@@ -63,6 +49,16 @@
                 <input class="setup-input" name="player_division" value="{{ player.division }}" placeholder="Division" />
                 <input class="setup-input" name="player_seed" value="{{ player.seed }}" placeholder="Seed" inputmode="numeric" />
                 <input class="setup-input" name="player_handicap" value="{{ player.handicap }}" placeholder="Handicap" inputmode="numeric" />
+                <button type="button" class="remove-row-btn" aria-label="Remove player">✕</button>
+              </div>
+            {% endfor %}
+            {% for _ in range(extra_slots) %}
+              <div class="setup-row">
+                <input type="hidden" name="player_id" value="" />
+                <input class="setup-input" name="player_name" placeholder="Name" />
+                <input class="setup-input" name="player_division" placeholder="Division" />
+                <input class="setup-input" name="player_seed" placeholder="Seed" inputmode="numeric" />
+                <input class="setup-input" name="player_handicap" placeholder="Handicap" inputmode="numeric" />
                 <button type="button" class="remove-row-btn" aria-label="Remove player">✕</button>
               </div>
             {% endfor %}
