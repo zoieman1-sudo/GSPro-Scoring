@@ -5,6 +5,7 @@ Starter scaffold for the GSPro Tournament Scoring App (FastAPI + Jinja2).
 ## Quick start
 - Create venv and install requirements from `requirements.txt`.
 - Set `DATABASE_URL` and `SCORING_PIN` (see `.env.example`); only the admin/admin setup pages still require the PIN, while scoring submissions are open for now.
+- Run `python -m app.seed_db` once before starting the server to create the schema and a baseline tournament so matches can be activated without hitting missing-table errors.
 - Run FastAPI app locally with uvicorn.
 - Submit a few match scores via `/` or `/matches`; the `/matches` view summaries each encounter and lets you drill into `/matches/{id}` for hole-by-hole score entry.
 - Visit `/standings` to see the updated division leaderboard rendered as the familiar tabular format used in the `dashboard` sheet from `10-man_sim_golf_tournament_scoring_sheet_v2_single_round_robin_playoffs.xlsx`.

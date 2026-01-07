@@ -298,7 +298,7 @@
       const courseSelect = document.getElementById("course-select");
       const courseResults = document.getElementById("course-search-results");
       const courseSearchBtn = document.getElementById("course-search-btn");
-      const courseSearchInput = document.getElementById("course-search-query");
+      const courseSearchQueryInput = document.getElementById("course-search-query");
       const COURSE_TEES = {{ course_tee_map | tojson }};
       const ALL_TEES = Object.values(COURSE_TEES).flat();
 
@@ -374,10 +374,10 @@
       };
 
       const searchCourses = async () => {
-        if (!courseSearchInput || !courseSearchInput.value.trim()) return;
+        if (!courseSearchQueryInput || !courseSearchQueryInput.value.trim()) return;
         courseResults.innerHTML = "<p class='status'>Searching…</p>";
         try {
-          const response = await fetch(`/api/courses/search?query=${encodeURIComponent(courseSearchInput.value.trim())}`);
+          const response = await fetch(`/api/courses/search?query=${encodeURIComponent(courseSearchQueryInput.value.trim())}`);
           if (!response.ok) {
             courseResults.innerHTML = "<p class='status'>Search failed.</p>";
             return;

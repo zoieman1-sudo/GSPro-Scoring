@@ -8,16 +8,18 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 from datetime import datetime
 
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
 from urllib.parse import quote_plus
+from psycopg.errors import UniqueViolation
 
 from app import golf_api
 from app.db import (
     delete_match_results_by_tournament,
+    delete_player,
     delete_players_not_in,
     ensure_schema,
     fetch_all_match_results,
@@ -1416,12 +1418,19 @@ async def create_tournament(
     status: str = Form("upcoming"),
 ):
     clean_name = name.strip()
-    insert_tournament(
-        settings.database_url,
-        name=clean_name,
-        description=(description or "").strip() or None,
-        status=status or "upcoming",
-    )
+    try:
+        insert_tournament(
+            settings.database_url,
+            name=clean_name,
+            description=(description or "").strip() or None,
+            status=status or "upcoming",
+        )
+    except UniqueViolation:
+        message = f"Tournament '{clean_name}' already exists."
+        return RedirectResponse(
+            url=f"/tournaments?status={quote_plus(message)}",
+            status_code=303,
+        )
     message = f"Tournament '{clean_name}' created."
     return RedirectResponse(
         url=f"/tournaments?status={quote_plus(message)}",
@@ -1447,6 +1456,7 @@ async def tournament_setup_page(
     request: Request,
     tournament_id: int | None = None,
     status: str | None = None,
+    show_player_editor: bool | None = Query(False, alias="show_editor"),
 ):
     tournaments = fetch_tournaments(settings.database_url)
     active_id = tournament_id or _get_active_tournament_id()
@@ -1454,6 +1464,7 @@ async def tournament_setup_page(
         fetch_tournament_by_id(settings.database_url, active_id) if active_id else None
     )
     players = _players_for_tournament(active_id) if active_id else []
+    all_players = fetch_players(settings.database_url)
     event_settings = fetch_event_settings(settings.database_url, active_id) if active_id else {}
     player_count = int(event_settings.get("player_count") or 0)
     division_count = int(event_settings.get("division_count") or 0)
@@ -1466,6 +1477,8 @@ async def tournament_setup_page(
         "player_count": player_count,
         "division_count": division_count,
         "selected_tournament": selected_tournament,
+        "all_players": all_players,
+        "show_player_editor": show_player_editor,
     }
     return templates.TemplateResponse("tournament_setup.html", context)
 
@@ -1499,6 +1512,44 @@ async def add_tournament_player(
     upsert_player(settings.database_url, None, name, division.upper(), int(float(handicaps_index)), seed or 0, tournament_id=tournament_id)
     return RedirectResponse(
         url=f"/admin/tournament_setup?status={quote_plus('Player saved.')}",
+        status_code=303,
+    )
+
+
+@app.post("/admin/tournament_setup/player/edit")
+async def edit_tournament_player(
+    player_id: int = Form(...),
+    name: str = Form(...),
+    division: str = Form("A"),
+    handicaps_index: str = Form("0"),
+    seed: int = Form(0),
+    visible: str | None = Form(None),
+    tournament_id: int = Form(...),
+):
+    tournament_assignment = tournament_id if visible else None
+    upsert_player(
+        settings.database_url,
+        player_id,
+        name.strip(),
+        division.upper(),
+        int(float(handicaps_index)),
+        seed,
+        tournament_id=tournament_assignment,
+    )
+    return RedirectResponse(
+        url=f"/admin/tournament_setup?tournament_id={tournament_id}&status={quote_plus('Player updated.')}",
+        status_code=303,
+    )
+
+
+@app.post("/admin/tournament_setup/player/delete")
+async def delete_tournament_player(
+    player_id: int = Form(...),
+    tournament_id: int = Form(...),
+):
+    delete_player(settings.database_url, player_id)
+    return RedirectResponse(
+        url=f"/admin/tournament_setup?tournament_id={tournament_id}&status={quote_plus('Player removed.')}",
         status_code=303,
     )
 

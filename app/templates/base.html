@@ -17,37 +17,45 @@
           <span class="top-nav__brand">GSPro Score</span>
           <span class="top-nav__subline">Tournament operations</span>
         </div>
-        {% set nav_rows = [
-          [
-            {"href":"/scoring/mobile","label":"Mobile Scoring"},
-            {"href":"/scorecard","label":"Scorecard"},
-            {"href":"/new_card","label":"Scorecard Studio"},
-            {"href":"/match_list","label":"Match List"},
-            {"href":"/play_match","label":"Play Match"},
-            {"href":"/standings","label":"Standings"},
-          ],
-          [
-            {"href":"/tournaments","label":"Tournaments"},
-            {"href":"/admin/tournament_setup","label":"Tournament Setup"},
-            {"href":"/admin/match_setup","label":"Match Setup"},
-            {"href":"/live_matches","label":"Live Matches"},
-            {"href":"/tournament_history","label":"Match History"},
-            {"href":"/other_stuff","label":"Other Stuff"},
-          ],
+        {% set nav_sections = [
+          {
+            "label": "Score operations",
+            "links": [
+              {"href":"/new_card","label":"Scorecard Studio"},
+              {"href":"/match_list","label":"Match List"},
+              {"href":"/play_match","label":"Play Match"},
+              {"href":"/standings","label":"Standings"}
+            ]
+          },
+          {
+            "label": "Programs & setup",
+            "links": [
+              {"href":"/tournaments","label":"Tournaments"},
+              {"href":"/admin/setup/course","label":"Get Courses"},
+              {"href":"/admin/tournament_setup","label":"Tournament Setup"},
+              {"href":"/admin/match_setup","label":"Match Setup"},
+              {"href":"/live_matches","label":"Live Matches"},
+              {"href":"/tournament_history","label":"Match History"},
+              {"href":"/other_stuff","label":"Other Stuff"}
+            ]
+          }
         ] %}
         <nav class="top-nav__grid">
-          {% for row in nav_rows %}
-            <div class="top-nav__row">
-              {% for item in row %}
-                {% set is_active = request.url.path.startswith(item.href) %}
-                <a
-                  class="top-nav__pill{% if is_active %} is-active{% endif %}"
-                  href="{{ item.href }}"
-                  role="button"
-                >
-                  {{ item.label }}
-                </a>
-              {% endfor %}
+          {% for section in nav_sections %}
+            <div class="top-nav__section">
+              <div class="top-nav__section-label">{{ section.label }}</div>
+              <div class="top-nav__row">
+                {% for item in section.links %}
+                  {% set is_active = request.url.path.startswith(item.href) %}
+                  <a
+                    class="top-nav__pill{% if is_active %} is-active{% endif %}"
+                    href="{{ item.href }}"
+                    role="button"
+                  >
+                    {{ item.label }}
+                  </a>
+                {% endfor %}
+              </div>
             </div>
           {% endfor %}
         </nav>

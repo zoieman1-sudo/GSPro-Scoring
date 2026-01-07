@@ -8,299 +8,177 @@ from psycopg.types.json import Json
 
 
 def ensure_schema(database_url: str) -> None:
+    statements = [
+        """
+        create table if not exists tournaments (
+            id serial primary key,
+            name text not null unique,
+            description text,
+            status text not null default 'upcoming',
+            settings jsonb not null default '{}'::jsonb,
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now()
+        );
+        """,
+        """
+        create table if not exists players (
+            id serial primary key,
+            name text not null unique,
+            division text not null,
+            handicap integer not null default 0,
+            seed integer not null default 0,
+            tournament_id integer null references tournaments(id)
+        );
+        """,
+        """
+        create table if not exists courses (
+            id integer primary key,
+            club_name text not null,
+            course_name text not null,
+            city text,
+            state text,
+            country text,
+            latitude double precision,
+            longitude double precision,
+            raw jsonb
+        );
+        """,
+        """
+        create table if not exists course_tees (
+            id serial primary key,
+            course_id integer not null references courses(id) on delete cascade,
+            gender text not null,
+            tee_name text not null,
+            course_rating double precision,
+            slope_rating integer,
+            bogey_rating double precision,
+            total_yards integer,
+            total_meters integer,
+            number_of_holes integer,
+            par_total integer,
+            front_course_rating double precision,
+            back_course_rating double precision,
+            front_slope_rating integer,
+            back_slope_rating integer,
+            front_bogey_rating double precision,
+            back_bogey_rating double precision,
+            unique (course_id, gender, tee_name)
+        );
+        """,
+        """
+        create table if not exists course_tee_holes (
+            id serial primary key,
+            course_tee_id integer not null references course_tees(id) on delete cascade,
+            hole_number smallint not null,
+            par smallint not null,
+            handicap smallint not null,
+            yardage integer,
+            unique (course_tee_id, hole_number)
+        );
+        """,
+        """
+        create table if not exists matches (
+            id serial primary key,
+            tournament_id integer not null references tournaments(id) on delete cascade,
+            match_key text not null unique,
+            match_code text not null default '',
+            division text not null,
+            player_a_id integer not null references players(id),
+            player_b_id integer not null references players(id),
+            course_id integer null references courses(id),
+            course_tee_id integer null references course_tees(id),
+            player_a_handicap integer not null default 0,
+            player_b_handicap integer not null default 0,
+            status text not null default 'not_started',
+            strokes jsonb,
+            hole_count smallint not null default 18,
+            active boolean not null default false,
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now()
+        );
+        """,
+        """
+        create table if not exists match_results (
+            id serial primary key,
+            match_name text not null,
+            player_a_name text not null,
+            player_b_name text not null,
+            match_key text not null,
+            match_code text not null,
+            player_a_points double precision not null,
+            player_b_points double precision not null,
+            player_a_bonus double precision not null,
+            player_b_bonus double precision not null,
+            player_a_total double precision not null,
+            player_b_total double precision not null,
+            winner text not null,
+            course_id integer null,
+            course_tee_id integer null,
+            tournament_id integer null,
+            player_a_handicap integer not null default 0,
+            player_b_handicap integer not null default 0,
+            finalized boolean not null default false,
+            course_snapshot jsonb,
+            scorecard_snapshot jsonb,
+            submitted_at timestamptz not null default now()
+        );
+        """,
+        """
+        create table if not exists hole_scores (
+            id serial primary key,
+            match_result_id integer not null references match_results(id) on delete cascade,
+            hole_number smallint not null,
+            player_a_score smallint not null,
+            player_b_score smallint not null,
+            recorded_at timestamptz not null default now()
+        );
+        """,
+        """
+        create table if not exists tournament_settings (
+            key text primary key,
+            value text not null
+        );
+        """,
+        """
+        create table if not exists course_holes (
+            hole_number smallint primary key,
+            par smallint not null,
+            handicap smallint not null
+        );
+        """,
+        """
+        create table if not exists tournament_event_settings (
+            id serial primary key,
+            tournament_id integer not null references tournaments(id) on delete cascade,
+            key text not null,
+            value text not null,
+            unique(tournament_id, key)
+        );
+        """,
+        """
+        create table if not exists standings_cache (
+            id serial primary key,
+            tournament_id integer not null references tournaments(id) on delete cascade,
+            player_name text not null,
+            division text not null,
+            seed integer not null default 0,
+            matches integer not null default 0,
+            wins integer not null default 0,
+            ties integer not null default 0,
+            losses integer not null default 0,
+            points_for double precision not null default 0,
+            points_against double precision not null default 0,
+            point_diff double precision not null default 0,
+            holes_played integer not null default 0,
+            updated_at timestamptz not null default now(),
+            unique (tournament_id, player_name)
+        );
+        """,
+    ]
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                create table if not exists match_results (
-                    id serial primary key,
-                    match_name text not null,
-                    player_a_name text not null,
-                    player_b_name text not null,
-                    match_key text not null,
-                    player_a_points double precision not null,
-                    player_b_points double precision not null,
-                    player_a_bonus double precision not null,
-                    player_b_bonus double precision not null,
-                    player_a_total double precision not null,
-                    player_b_total double precision not null,
-                    winner text not null,
-                    course_id integer null,
-                    course_tee_id integer null,
-                    player_a_handicap integer not null default 0,
-                    player_b_handicap integer not null default 0,
-                    submitted_at timestamptz not null default now()
-                );
-                """
-            )
-            cur.execute(
-                """
-                create table if not exists matches (
-                    id serial primary key,
-                    tournament_id integer not null references tournaments(id) on delete cascade,
-                    match_key text not null unique,
-                    match_code text not null default '',
-                    division text not null,
-                    player_a_id integer not null references players(id),
-                    player_b_id integer not null references players(id),
-                    course_id integer null references courses(id),
-                    course_tee_id integer null references course_tees(id),
-                    player_a_handicap integer not null default 0,
-                    player_b_handicap integer not null default 0,
-                    status text not null default 'not_started',
-                    strokes jsonb,
-                    hole_count smallint not null default 18,
-                    active boolean not null default false,
-                    created_at timestamptz not null default now(),
-                    updated_at timestamptz not null default now()
-                );
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                alter column player_a_points type double precision using player_a_points::double precision;
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                alter column player_b_points type double precision using player_b_points::double precision;
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                alter column player_a_bonus type double precision using player_a_bonus::double precision;
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                alter column player_b_bonus type double precision using player_b_bonus::double precision;
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                alter column player_a_total type double precision using player_a_total::double precision;
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                alter column player_b_total type double precision using player_b_total::double precision;
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                add column if not exists course_id integer null;
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                add column if not exists course_tee_id integer null;
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                add column if not exists player_a_handicap integer not null default 0;
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                add column if not exists player_b_handicap integer not null default 0;
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                add column if not exists match_code text not null default '';
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                add column if not exists match_key text not null default '';
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                add column if not exists finalized boolean not null default false;
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                add column if not exists course_snapshot jsonb;
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                add column if not exists scorecard_snapshot jsonb;
-                """
-            )
-            cur.execute(
-                """
-                create table if not exists players (
-                    id serial primary key,
-                    name text not null unique,
-                    division text not null,
-                    handicap integer not null default 0,
-                    seed integer not null default 0
-                );
-                """
-            )
-            cur.execute(
-                """
-                alter table players
-                add column if not exists tournament_id integer null references tournaments(id);
-                """
-            )
-            cur.execute(
-                """
-                create table if not exists hole_scores (
-                    id serial primary key,
-                    match_result_id integer not null references match_results(id) on delete cascade,
-                    hole_number smallint not null,
-                    player_a_score smallint not null,
-                    player_b_score smallint not null,
-                    recorded_at timestamptz not null default now()
-                );
-                """
-            )
-            cur.execute(
-                """
-                alter table players
-                add column if not exists seed integer not null default 0;
-                """
-            )
-            cur.execute(
-                """
-                create table if not exists tournament_settings (
-                    key text primary key,
-                    value text not null
-                );
-                """
-            )
-            cur.execute(
-                """
-                create table if not exists course_holes (
-                    hole_number smallint primary key,
-                    par smallint not null,
-                    handicap smallint not null
-                );
-                """
-            )
-            cur.execute(
-                """
-                create table if not exists courses (
-                    id integer primary key,
-                    club_name text not null,
-                    course_name text not null,
-                    city text,
-                    state text,
-                    country text,
-                    latitude double precision,
-                    longitude double precision,
-                    raw jsonb
-                );
-                """
-            )
-            cur.execute(
-                """
-                create table if not exists course_tees (
-                    id serial primary key,
-                    course_id integer not null references courses(id) on delete cascade,
-                    gender text not null,
-                    tee_name text not null,
-                    course_rating double precision,
-                    slope_rating integer,
-                    bogey_rating double precision,
-                    total_yards integer,
-                    total_meters integer,
-                    number_of_holes integer,
-                    par_total integer,
-                    front_course_rating double precision,
-                    back_course_rating double precision,
-                    front_slope_rating integer,
-                    back_slope_rating integer,
-                    front_bogey_rating double precision,
-                    back_bogey_rating double precision,
-                    unique (course_id, gender, tee_name)
-                );
-                """
-            )
-            cur.execute(
-                """
-                create table if not exists course_tee_holes (
-                    id serial primary key,
-                    course_tee_id integer not null references course_tees(id) on delete cascade,
-                    hole_number smallint not null,
-                    par smallint not null,
-                    handicap smallint not null,
-                    yardage integer,
-                    unique (course_tee_id, hole_number)
-                );
-                """
-            )
-            cur.execute(
-                """
-                create table if not exists tournaments (
-                    id serial primary key,
-                    name text not null unique,
-                    description text,
-                    status text not null default 'upcoming',
-                    settings jsonb not null default '{}'::jsonb,
-                    created_at timestamptz not null default now(),
-                    updated_at timestamptz not null default now()
-                );
-                """
-            )
-            cur.execute(
-                """
-                alter table match_results
-                add column if not exists tournament_id integer null;
-                """
-            )
-            cur.execute(
-                """
-                create table if not exists tournament_event_settings (
-                    id serial primary key,
-                    tournament_id integer not null references tournaments(id) on delete cascade,
-                    key text not null,
-                    value text not null,
-                    unique(tournament_id, key)
-                );
-                """
-            )
-            cur.execute(
-                """
-                create table if not exists standings_cache (
-                    id serial primary key,
-                    tournament_id integer not null references tournaments(id) on delete cascade,
-                    player_name text not null,
-                    division text not null,
-                    seed integer not null default 0,
-                    matches integer not null default 0,
-                    wins integer not null default 0,
-                    ties integer not null default 0,
-                    losses integer not null default 0,
-                    points_for double precision not null default 0,
-                    points_against double precision not null default 0,
-                    point_diff double precision not null default 0,
-                    holes_played integer not null default 0,
-                    updated_at timestamptz not null default now(),
-                    unique (tournament_id, player_name)
-                );
-                """
-            )
+            for statement in statements:
+                cur.execute(statement)
 
 
 def _row_to_result(row: tuple) -> dict:
@@ -517,7 +395,7 @@ def upsert_course_tee(
                     front_bogey_rating,
                     back_bogey_rating
                 )
-                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 on conflict (course_id, gender, tee_name) do update set
                     course_rating = excluded.course_rating,
                     slope_rating = excluded.slope_rating,
@@ -713,6 +591,12 @@ def delete_players_not_in(database_url: str, names: list[str]) -> None:
                 """
             ).format(placeholders)
             cur.execute(query, names)
+
+
+def delete_player(database_url: str, player_id: int) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute("delete from players where id = %s;", (player_id,))
 
 
 def insert_hole_scores(
