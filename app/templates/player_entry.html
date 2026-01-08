@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card player-entry-card">
+    <div class="match-meta player-entry-card__header">
+      <div>
+        <p class="eyebrow">Player management</p>
+        <h1>Add players</h1>
+        {% if status %}
+          <p class="muted-label">{{ status }}</p>
+        {% endif %}
+      </div>
+      <form
+        class="player-entry-card__tournament-select"
+        method="get"
+        action="/admin/player_entry"
+      >
+        <label>
+          Tournament
+          <select name="tournament_id" onchange="this.form.submit()">
+            <option value="">Choose tournament</option>
+            {% for tournament in tournaments %}
+              <option
+                value="{{ tournament.id }}"
+                {% if active_tournament_id == tournament.id %}selected{% endif %}
+              >
+                {{ tournament.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+      </form>
+    </div>
+    <article>
+      <form action="/admin/player_entry" method="post" class="setup-form">
+        <input type="hidden" name="tournament_id" value="{{ active_tournament_id or 0 }}" />
+        <div class="form-row">
+          <label>
+            First name
+            <input type="text" name="first_name" required />
+          </label>
+          <label>
+            Last name
+            <input type="text" name="last_name" required />
+          </label>
+          <label>
+            Division
+            <input type="text" name="division" value="A" />
+          </label>
+          <label>
+            Handicap Index
+            <input type="number" step="0.1" name="handicaps_index" value="0" />
+          </label>
+          <label>
+            Seed
+            <input type="number" name="seed" value="0" />
+          </label>
+        </div>
+        <button type="submit" class="submit-btn">Add player</button>
+      </form>
+    </article>
+    <article>
+      <h3>Players roster</h3>
+      <table class="standings-table">
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Division</th>
+            <th>Handicap</th>
+            <th>Seed</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for player in players %}
+            <tr id="player-row-{{ player.id }}">
+              <td>{{ player.name }}</td>
+              <td>{{ player.division }}</td>
+              <td>{{ player.handicap }}</td>
+              <td>{{ player.seed }}</td>
+              <td class="player-actions-cell">
+                <details class="player-actions-detail">
+                  <summary>Manage</summary>
+                    <form
+                      id="edit-player-{{ player.id }}"
+                      action="/admin/tournament_setup/player/edit"
+                      method="post"
+                      class="player-edit-form"
+                    >
+                    <input type="hidden" name="player_id" value="{{ player.id }}" />
+                    <input type="hidden" name="tournament_id" value="{{ active_tournament_id or 0 }}" />
+                    <input type="hidden" name="visible" value="on" />
+                    <input type="hidden" name="source" value="player_entry" />
+                    {% set focus_target = players[loop.index].id if loop.index < players|length else player.id %}
+                    <input type="hidden" name="focus_player" value="{{ focus_target }}" />
+                    <div class="player-edit-fields">
+                      <label>
+                        Name
+                        <input type="text" name="name" value="{{ player.name }}" required />
+                      </label>
+                      <label>
+                        Division
+                        <input type="text" name="division" value="{{ player.division }}" />
+                      </label>
+                      <label>
+                        Handicap
+                        <input type="number" step="0.1" name="handicaps_index" value="{{ player.handicap }}" />
+                      </label>
+                      <label>
+                        Seed
+                        <input type="number" name="seed" value="{{ player.seed or 0 }}" />
+                      </label>
+                    </div>
+                    <div class="player-actions-buttons">
+                      <button type="submit" class="pill-link">Save changes</button>
+                    </div>
+                  </form>
+                  <div class="player-actions-delete">
+                      <form
+                        id="delete-player-{{ player.id }}"
+                        action="/admin/tournament_setup/player/delete"
+                        method="post"
+                      >
+                        <input type="hidden" name="player_id" value="{{ player.id }}" />
+                        <input type="hidden" name="tournament_id" value="{{ active_tournament_id or 0 }}" />
+                        <input type="hidden" name="source" value="player_entry" />
+                      </form>
+                    <button
+                      form="delete-player-{{ player.id }}"
+                      type="submit"
+                      class="pill-link pill-link--danger"
+                    >
+                      Delete player
+                    </button>
+                  </div>
+                </details>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5">No players yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </article>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const params = new URLSearchParams(window.location.search);
+      const focusId = params.get("focus_player");
+      if (!focusId) return;
+      const targetRow = document.getElementById(`player-row-${focusId}`);
+      if (!targetRow) return;
+      const detail = targetRow.querySelector("details");
+      if (detail) {
+        detail.open = true;
+      }
+      targetRow.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  </script>
+{% endblock %}

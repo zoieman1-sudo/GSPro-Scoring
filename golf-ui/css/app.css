@@ -77,6 +77,18 @@ input,button,select,textarea{font-size:16px;}
   font-weight:650;
   margin:0;
 }
+.topbar__titles{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+}
+.group-label{
+  font-size:12px;
+  letter-spacing:.25em;
+  text-transform:uppercase;
+  color:#6b7280;
+}
 .date-block{
   text-align:center;
   padding:18px 0 10px;
@@ -214,6 +226,98 @@ input,button,select,textarea{font-size:16px;}
   margin-top:4px;
 }
 .holebar .nav.right{text-align:right;}
+.scoreboard{
+  margin:0 -14px;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  background:#f2f2f2;
+  padding:16px 14px 12px;
+}
+.scoreboard__header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:14px;
+  gap:12px;
+  background:#e5e5e5;
+  padding:12px 14px;
+  border-radius:12px;
+}
+.scoreboard__title{
+  font-size:0.75rem;
+  margin:0;
+  letter-spacing:0.3em;
+  text-transform:uppercase;
+  color:#0f172a;
+}
+.scoreboard__title span{
+  letter-spacing:0.15em;
+}
+.scoreboard__hole{
+  font-size:1.4rem;
+  font-weight:700;
+  color:#101828;
+}
+.scoreboard__meta{
+  font-size:0.9rem;
+  color:#4b5563;
+  text-align:right;
+}
+.scoreboard__list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.player-card{
+  background:#fff;
+  border-radius:12px;
+  border:1px solid rgba(15,23,42,.05);
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 16px;
+  font-size:1rem;
+  cursor:pointer;
+  transition:border-color .2s ease,box-shadow .2s ease;
+}
+.player-card.selected{
+  border-color:#f28c00;
+  box-shadow:0 12px 20px rgba(0,0,0,.08);
+}
+.player-card__info{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.player-card__name{
+  font-weight:600;
+  color:#0f172a;
+}
+.player-card__hcp{
+  font-size:0.85rem;
+  color:#6b7280;
+  margin-left:6px;
+}
+.player-card__score{
+  font-size:1.4rem;
+  font-weight:700;
+  color:#0f172a;
+  width:60px;
+  text-align:right;
+}
+.player-card__score-group{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.player-card__dot{
+  width:6px;
+  height:6px;
+  border-radius:999px;
+  background:#101828;
+  opacity:.6;
+}
 .score-list{
   margin:0 -14px;
   border-top:1px solid var(--line);

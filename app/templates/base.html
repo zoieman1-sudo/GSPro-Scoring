@@ -19,15 +19,6 @@
         </div>
         {% set nav_sections = [
           {
-            "label": "Score operations",
-            "links": [
-              {"href":"/new_card","label":"Scorecard Studio"},
-              {"href":"/match_list","label":"Match List"},
-              {"href":"/play_match","label":"Play Match"},
-              {"href":"/standings","label":"Standings"}
-            ]
-          },
-          {
             "label": "Programs & setup",
             "rows": [
               [
@@ -39,8 +30,19 @@
                 {"href":"/live_matches","label":"Live Matches"},
                 {"href":"/tournament_history","label":"Match History"},
                 {"href":"/other_stuff","label":"Other Stuff"},
-                {"href":"/admin/match_setup","label":"Match Setup"}
+                {"href":"/admin/match_setup","label":"Match Setup"},
+                {"href":"/groups","label":"Groups"}
               ]
+            ]
+          },
+          {
+            "label": "Score operations",
+            "links": [
+              {"href":"/new_card","label":"Scorecard Studio"},
+              {"href":"/match_list","label":"Match List"},
+              {"href":"/play_match","label":"Play Match"},
+              {"href":"/standings","label":"Standings"},
+              {"href":"/mobile","label":"Scoring"}
             ]
           }
         ] %}
@@ -80,11 +82,43 @@
             </div>
           {% endfor %}
         </nav>
+        <div class="top-nav__actions">
+          <details class="top-nav__admin-menu">
+            <summary class="top-nav__admin-toggle">
+              <span class="top-nav__admin-icon" aria-hidden="true">⚙️</span>
+              Admin
+            </summary>
+            <div class="top-nav__admin-items">
+              <a class="top-nav__admin-item" href="/admin/tournament_setup2">
+                <span class="top-nav__admin-item-icon" aria-hidden="true">🏆</span>
+                <div>
+                  <span class="top-nav__admin-item-title">Tournament setup</span>
+                  <span class="top-nav__admin-item-subtitle">tournament_setup2</span>
+                </div>
+              </a>
+              <a class="top-nav__admin-item" href="/admin/player_entry">
+                <span class="top-nav__admin-item-icon" aria-hidden="true">👤</span>
+                <div>
+                  <span class="top-nav__admin-item-title">Player entry</span>
+                  <span class="top-nav__admin-item-subtitle">player_entry</span>
+                </div>
+              </a>
+              <a class="top-nav__admin-item" href="/match_list">
+                <span class="top-nav__admin-item-icon" aria-hidden="true">📋</span>
+                <div>
+                  <span class="top-nav__admin-item-title">Match list</span>
+                  <span class="top-nav__admin-item-subtitle">match_list</span>
+                </div>
+              </a>
+            </div>
+          </details>
+        </div>
       </header>
       <main class="shell">
         {% block content %}{% endblock %}
       </main>
     </div>
     <script src="/static/js/app.js"></script>
+    {% block scripts %}{% endblock %}
   </body>
 </html>

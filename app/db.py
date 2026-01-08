@@ -85,6 +85,8 @@ def ensure_schema(database_url: str) -> None:
             division text not null,
             player_a_id integer not null references players(id),
             player_b_id integer not null references players(id),
+            player_c_id integer null references players(id),
+            player_d_id integer null references players(id),
             course_id integer null references courses(id),
             course_tee_id integer null references course_tees(id),
             player_a_handicap integer not null default 0,
@@ -96,6 +98,12 @@ def ensure_schema(database_url: str) -> None:
             created_at timestamptz not null default now(),
             updated_at timestamptz not null default now()
         );
+        """,
+        """
+        alter table matches add column if not exists player_c_id integer null references players(id);
+        """,
+        """
+        alter table matches add column if not exists player_d_id integer null references players(id);
         """,
         """
         create table if not exists match_results (
@@ -1064,18 +1072,22 @@ def _row_to_match(row: tuple) -> dict:
         "division": row[4],
         "player_a_id": row[5],
         "player_b_id": row[6],
-        "course_id": row[7],
-        "course_tee_id": row[8],
-        "player_a_handicap": row[9],
-        "player_b_handicap": row[10],
-        "status": row[11],
-        "strokes": row[12],
-        "hole_count": row[13],
-        "active": row[14],
-        "created_at": row[15],
-        "updated_at": row[16],
-        "player_a_name": row[17],
-        "player_b_name": row[18],
+        "player_c_id": row[7],
+        "player_d_id": row[8],
+        "course_id": row[9],
+        "course_tee_id": row[10],
+        "player_a_handicap": row[11],
+        "player_b_handicap": row[12],
+        "status": row[13],
+        "strokes": row[14],
+        "hole_count": row[15],
+        "active": row[16],
+        "created_at": row[17],
+        "updated_at": row[18],
+        "player_a_name": row[19],
+        "player_b_name": row[20],
+        "player_c_name": row[21],
+        "player_d_name": row[22],
     }
 
 
@@ -1087,6 +1099,8 @@ def insert_match(
     division: str,
     player_a_id: int,
     player_b_id: int,
+    player_c_id: int | None = None,
+    player_d_id: int | None = None,
     course_id: int | None = None,
     course_tee_id: int | None = None,
     player_a_handicap: int = 0,
@@ -1106,6 +1120,8 @@ def insert_match(
                     division,
                     player_a_id,
                     player_b_id,
+                    player_c_id,
+                    player_d_id,
                     course_id,
                     course_tee_id,
                     player_a_handicap,
@@ -1115,7 +1131,7 @@ def insert_match(
                     active,
                     strokes
                 )
-                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 returning id;
                 """,
                 (
@@ -1124,6 +1140,8 @@ def insert_match(
                     division,
                     player_a_id,
                     player_b_id,
+                    player_c_id,
+                    player_d_id,
                     course_id,
                     course_tee_id,
                     player_a_handicap,
@@ -1151,6 +1169,8 @@ def fetch_match_by_key(database_url: str, match_key: str) -> dict | None:
                     m.division,
                     m.player_a_id,
                     m.player_b_id,
+                    m.player_c_id,
+                    m.player_d_id,
                     m.course_id,
                     m.course_tee_id,
                     m.player_a_handicap,
@@ -1162,10 +1182,14 @@ def fetch_match_by_key(database_url: str, match_key: str) -> dict | None:
                     m.created_at,
                     m.updated_at,
                     pa.name,
-                    pb.name
+                    pb.name,
+                    pc.name,
+                    pd.name
                 from matches m
                 left join players pa on pa.id = m.player_a_id
                 left join players pb on pb.id = m.player_b_id
+                left join players pc on pc.id = m.player_c_id
+                left join players pd on pd.id = m.player_d_id
                 where m.match_key = %s
                 limit 1;
                 """,
@@ -1190,6 +1214,8 @@ def fetch_match_by_id(database_url: str, match_id: int) -> dict | None:
                     m.division,
                     m.player_a_id,
                     m.player_b_id,
+                    m.player_c_id,
+                    m.player_d_id,
                     m.course_id,
                     m.course_tee_id,
                     m.player_a_handicap,
@@ -1201,10 +1227,14 @@ def fetch_match_by_id(database_url: str, match_id: int) -> dict | None:
                     m.created_at,
                     m.updated_at,
                     pa.name,
-                    pb.name
+                    pb.name,
+                    pc.name,
+                    pd.name
                 from matches m
                 left join players pa on pa.id = m.player_a_id
                 left join players pb on pb.id = m.player_b_id
+                left join players pc on pc.id = m.player_c_id
+                left join players pd on pd.id = m.player_d_id
                 where m.id = %s
                 limit 1;
                 """,
@@ -1229,6 +1259,8 @@ def fetch_matches_by_tournament(database_url: str, tournament_id: int) -> list[d
                     m.division,
                     m.player_a_id,
                     m.player_b_id,
+                    m.player_c_id,
+                    m.player_d_id,
                     m.course_id,
                     m.course_tee_id,
                     m.player_a_handicap,
@@ -1240,14 +1272,63 @@ def fetch_matches_by_tournament(database_url: str, tournament_id: int) -> list[d
                     m.created_at,
                     m.updated_at,
                     pa.name,
-                    pb.name
+                    pb.name,
+                    pc.name,
+                    pd.name
                 from matches m
                 left join players pa on pa.id = m.player_a_id
                 left join players pb on pb.id = m.player_b_id
+                left join players pc on pc.id = m.player_c_id
+                left join players pd on pd.id = m.player_d_id
                 where m.tournament_id = %s
                 order by m.division, m.match_key;
                 """,
                 (tournament_id,),
+            )
+            rows = cur.fetchall()
+    return [_row_to_match(row) for row in rows]
+
+
+def fetch_matches_by_keys(database_url: str, match_keys: list[str]) -> list[dict]:
+    if not match_keys:
+        return []
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select
+                    m.id,
+                    m.tournament_id,
+                    m.match_key,
+                    m.match_code,
+                    m.division,
+                    m.player_a_id,
+                    m.player_b_id,
+                    m.player_c_id,
+                    m.player_d_id,
+                    m.course_id,
+                    m.course_tee_id,
+                    m.player_a_handicap,
+                    m.player_b_handicap,
+                    m.status,
+                    m.strokes,
+                    m.hole_count,
+                    m.active,
+                    m.created_at,
+                    m.updated_at,
+                    pa.name,
+                    pb.name,
+                    pc.name,
+                    pd.name
+                from matches m
+                left join players pa on pa.id = m.player_a_id
+                left join players pb on pb.id = m.player_b_id
+                left join players pc on pc.id = m.player_c_id
+                left join players pd on pd.id = m.player_d_id
+                where m.match_key = any(%s)
+                order by m.match_key;
+                """,
+                (match_keys,),
             )
             rows = cur.fetchall()
     return [_row_to_match(row) for row in rows]
@@ -1260,6 +1341,8 @@ def update_match(
     division: str | None = None,
     player_a_id: int | None = None,
     player_b_id: int | None = None,
+    player_c_id: int | None = None,
+    player_d_id: int | None = None,
     course_id: int | None = None,
     course_tee_id: int | None = None,
     player_a_handicap: int | None = None,
@@ -1280,6 +1363,12 @@ def update_match(
     if player_b_id is not None:
         updates.append("player_b_id = %s")
         values.append(player_b_id)
+    if player_c_id is not None:
+        updates.append("player_c_id = %s")
+        values.append(player_c_id)
+    if player_d_id is not None:
+        updates.append("player_d_id = %s")
+        values.append(player_d_id)
     if course_id is not None:
         updates.append("course_id = %s")
         values.append(course_id)

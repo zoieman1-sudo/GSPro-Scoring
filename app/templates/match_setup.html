@@ -3,14 +3,20 @@
 {% block content %}
   <section class="card">
     <div class="match-meta">
-      <p class="eyebrow">Match Management</p>
-      <h1 class="match-title">Match Setup</h1>
+      <p class="eyebrow">Group Management</p>
+      <h1 class="match-title">Match Group Builder</h1>
     </div>
     <form action="/admin/match_setup" method="post" class="setup-form">
       {% if editable_match %}
         <input type="hidden" name="match_id" value="{{ editable_match.id }}" />
       {% endif %}
-      <div class="form-row">
+      <div class="match-setup__intro">
+        <div class="match-setup__add-players">
+          <p class="eyebrow">Group builder</p>
+          <h1 class="match-title">Match Group Setup</h1>
+          <p class="muted-label">Pick the course and pair two head-to-head matches to form the group.</p>
+          <a class="pill-link" href="/admin/player_entry">Player entry</a>
+        </div>
         <label>
           Tournament
           <select name="tournament_id" required>
@@ -21,59 +27,8 @@
             {% endfor %}
           </select>
         </label>
-        <label>
-          Division
-          <input
-            type="text"
-            name="division"
-            required
-            value="{{ editable_match.division if editable_match else 'A' }}"
-          />
-        </label>
       </div>
-      <div class="form-row">
-        <label>
-          Player A
-          <select name="player_a_id" required>
-            {% for player in players %}
-              <option value="{{ player.id }}" {% if editable_match and editable_match.player_a_id == player.id %}selected{% endif %}>
-                {{ player.name }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>
-          Player B
-          <select name="player_b_id" required>
-            {% for player in players %}
-              <option value="{{ player.id }}" {% if editable_match and editable_match.player_b_id == player.id %}selected{% endif %}>
-                {{ player.name }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>
-          Holes
-          <input
-            type="number"
-            name="hole_count"
-            min="9"
-            max="18"
-            value="{{ editable_match.hole_count if editable_match else 18 }}"
-          />
-        </label>
-        <label>
-          Active
-          <input
-            type="checkbox"
-            name="active"
-            value="1"
-            {% if editable_match and editable_match.active %}checked{% endif %}
-          />
-        </label>
-      </div>
-      <p class="muted-label">Match key is generated automatically when match is saved.</p>
-      <div class="form-row">
+      <div class="group-builder__course form-row">
         <label>
           Course
           <select name="course_id">
@@ -105,6 +60,87 @@
           </select>
         </label>
       </div>
+      <div class="group-builder__match" aria-label="Match 1">
+        <p class="muted-label">Player A vs Player B</p>
+        <div class="form-row form-row--compact">
+          <label>
+            Player A
+            <select name="player_a_id" required>
+              {% for player in players %}
+                <option value="{{ player.id }}" {% if editable_match and editable_match.player_a_id == player.id %}selected{% endif %}>
+                  {{ player.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Player B
+            <select name="player_b_id" required>
+              {% for player in players %}
+                <option value="{{ player.id }}" {% if editable_match and editable_match.player_b_id == player.id %}selected{% endif %}>
+                  {{ player.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="group-builder__match" aria-label="Match 2">
+        <p class="muted-label">Player C vs Player D</p>
+        <div class="form-row form-row--compact">
+          <label>
+            Player C
+            <select name="player_c_id" required>
+              {% for player in players %}
+                <option value="{{ player.id }}" {% if editable_match and editable_match.player_c_id == player.id %}selected{% endif %}>
+                  {{ player.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Player D
+            <select name="player_d_id" required>
+              {% for player in players %}
+                <option value="{{ player.id }}" {% if editable_match and editable_match.player_d_id == player.id %}selected{% endif %}>
+                  {{ player.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>
+          Division
+          <input
+            type="text"
+            name="division"
+            required
+            value="{{ editable_match.division if editable_match else 'A' }}"
+          />
+        </label>
+        <label>
+          Holes
+          <input
+            type="number"
+            name="hole_count"
+            min="9"
+            max="18"
+            value="{{ editable_match.hole_count if editable_match else 18 }}"
+          />
+        </label>
+        <label>
+          Active
+          <input
+            type="checkbox"
+            name="active"
+            value="1"
+            {% if editable_match and editable_match.active %}checked{% endif %}
+          />
+        </label>
+      </div>
+      <p class="muted-label">Match key is generated automatically when the group is saved.</p>
       <button type="submit" class="submit-btn">
         {{ "Update match" if editable_match else "Save match" }}
       </button>
@@ -117,233 +153,24 @@
         <p class="muted-label">{{ status }}</p>
       {% endif %}
     </form>
-
-    <article>
-      <h3>Matches</h3>
-      <table class="standings-table">
-        <thead>
-          <tr>
-            <th>Match Key</th>
-            <th>Division</th>
-            <th>Players</th>
-            <th>Course</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for match in matches %}
-            <tr>
-              <td>{{ match.match_key }}</td>
-              <td>{{ match.division }}</td>
-              <td>{{ match.player_a_name }} vs {{ match.player_b_name }}</td>
-              <td>
-                {% if match.course_id %}{{ match.course_id }}{% else %}—{% endif %}
-              </td>
-              <td>{{ match.status }}</td>
-              <td>
-                <div class="match-actions">
-                  <a
-                    href="/admin/match_setup?tournament_id={{ active_tournament_id }}&edit_match_id={{ match.id }}"
-                    class="pill-link pill-link--inline"
-                  >
-                    Edit
-                  </a>
-                  <form action="/admin/match_setup/delete" method="post" class="inline-form">
-                    <input type="hidden" name="match_id" value="{{ match.id }}" />
-                    <input type="hidden" name="tournament_id" value="{{ active_tournament_id }}" />
-                    <button type="submit" class="pill-link pill-link--danger pill-link--inline">
-                      Delete
-                    </button>
-                  </form>
-                </div>
-              </td>
-            </tr>
-          {% else %}
-            <tr><td colspan="5">No matches configured.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </article>
-    <article class="group-builder-card" aria-label="Match groups builder">
-      <div class="group-builder-card__header">
-        <div>
-          <p class="eyebrow">Match Groups</p>
-          <h3>Create scoring teams</h3>
-          <p id="groupBuilderStatus" class="muted-label">Loading match groups…</p>
-        </div>
-        <button id="saveGroupBtn" class="pill-link" type="button">Save group</button>
-      </div>
-      <div id="builderMatches" class="group-builder-card__matches"></div>
-      <div class="group-builder-card__footer">
-        <input id="groupLabelInput" type="text" name="group_label" placeholder="Group label (optional)" />
-      </div>
-      <div class="group-definitions">
-        <h4>Saved groups</h4>
-        <ul id="savedGroupsList" class="group-definitions__list">
-          <li class="placeholder">No groups have been recorded yet.</li>
-        </ul>
-      </div>
-    </article>
-    <style>
-      .match-actions {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-
-      .match-actions .inline-form {
-        margin: 0;
-      }
-    </style>
-    <script>
-      (function () {
-        const builderMatches = document.getElementById("builderMatches");
-        const savedGroupsList = document.getElementById("savedGroupsList");
-        const saveGroupBtn = document.getElementById("saveGroupBtn");
-        const groupLabelInput = document.getElementById("groupLabelInput");
-        const statusEl = document.getElementById("groupBuilderStatus");
-        let activeMatches = [];
-        let definitions = [];
-
-        function setStatus(message, muted = false) {
-          if (!statusEl) return;
-          statusEl.textContent = message;
-          statusEl.classList.toggle("muted-label", muted);
-        }
-
-        function renderBuilderMatches() {
-          if (!builderMatches) return;
-          builderMatches.innerHTML = "";
-          if (!activeMatches.length) {
-            builderMatches.innerHTML = '<p class="muted-label">No active matches to group yet.</p>';
-            return;
-          }
-          activeMatches.forEach((match) => {
-            const label = document.createElement("label");
-            label.className = "builder-match-item";
-            const checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.value = match.match_key;
-            const span = document.createElement("span");
-            span.textContent = `${match.player_a || "Player A"} vs ${match.player_b || "Player B"}`;
-            label.appendChild(checkbox);
-            label.appendChild(span);
-            builderMatches.appendChild(label);
-          });
-        }
-
-        function renderSavedGroups() {
-          if (!savedGroupsList) return;
-          savedGroupsList.innerHTML = "";
-          if (!definitions.length) {
-            savedGroupsList.innerHTML = '<li class="placeholder">No groups have been recorded yet.</li>';
-            return;
-          }
-          definitions.forEach((definition) => {
-            const item = document.createElement("li");
-            item.className = "group-definition";
-            const label = document.createElement("div");
-            label.className = "group-definition__label";
-            label.textContent = definition.label || definition.group_key || "Group";
-            const meta = document.createElement("div");
-            meta.className = "group-definition__matches";
-            meta.textContent = definition.match_keys.join(" • ");
-            const removeBtn = document.createElement("button");
-            removeBtn.type = "button";
-            removeBtn.className = "pill-link pill-link--inline";
-            removeBtn.textContent = "Remove";
-            removeBtn.addEventListener("click", () => handleRemoveGroup(definition.group_key));
-            item.appendChild(label);
-            item.appendChild(meta);
-            item.appendChild(removeBtn);
-            savedGroupsList.appendChild(item);
-          });
-        }
-
-        function gatherSelectedMatchKeys() {
-          if (!builderMatches) return [];
-          const inputs = builderMatches.querySelectorAll('input[type="checkbox"]:checked');
-          return Array.from(inputs).map((input) => input.value);
-        }
-
-        async function persistDefinitions(items) {
-          const response = await fetch("/api/match_groups", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ groups: items }),
-          });
-          if (!response.ok) {
-            throw new Error("Unable to save the group definitions.");
-          }
-          const payload = await response.json().catch(() => null);
-          definitions = Array.isArray(payload?.group_definitions) ? payload.group_definitions : items;
-        }
-
-        async function handleSaveGroup() {
-          const selectedMatches = gatherSelectedMatchKeys();
-          if (!selectedMatches.length) {
-            setStatus("Select at least one match to group.", true);
-            return;
-          }
-          const label = groupLabelInput?.value?.trim() || "";
-          const baseKey = label || `group-${selectedMatches.join("-")}`;
-          const payload = [
-            ...definitions,
-            {
-              group_key: baseKey,
-              label,
-              match_keys: selectedMatches,
-            },
-          ];
-          try {
-            await persistDefinitions(payload);
-            setStatus(`Group ${label || baseKey} saved.`);
-            groupLabelInput && (groupLabelInput.value = "");
-            builderMatches?.querySelectorAll('input[type="checkbox"]').forEach((input) => {
-              input.checked = false;
-            });
-            await loadGroups();
-          } catch (error) {
-            setStatus(error?.message || "Unable to save the group.", true);
-          }
-        }
-
-        async function handleRemoveGroup(groupKey) {
-          const remaining = definitions.filter((entry) => entry.group_key !== groupKey);
-          try {
-            await persistDefinitions(remaining);
-            setStatus("Group removed.");
-            await loadGroups();
-          } catch (error) {
-            setStatus(error?.message || "Unable to remove the group.", true);
-          }
-        }
-
-        async function loadGroups() {
-          try {
-            const response = await fetch("/api/match_groups");
-            if (!response.ok) {
-              throw new Error("Failed to load match groups.");
-            }
-            const payload = await response.json();
-            activeMatches = Array.isArray(payload.active_matches) ? payload.active_matches : [];
-            definitions = Array.isArray(payload.group_definitions) ? payload.group_definitions : [];
-            renderBuilderMatches();
-            renderSavedGroups();
-            setStatus(definitions.length ? `${definitions.length} group(s) saved.` : "No groups saved yet.", !definitions.length);
-          } catch (error) {
-            setStatus(error?.message || "Unable to load match groups.", true);
-          }
-        }
-
-        saveGroupBtn?.addEventListener("click", (event) => {
-          event.preventDefault();
-          handleSaveGroup();
-        });
-        loadGroups();
-      })();
-    </script>
   </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    const matchSetupTournamentSelect = document.querySelector(
+      'form.setup-form select[name="tournament_id"]'
+    );
+    if (matchSetupTournamentSelect) {
+      matchSetupTournamentSelect.addEventListener("change", (event) => {
+        const select = event.target;
+        const params = new URLSearchParams(window.location.search);
+        params.set("tournament_id", select.value);
+        if (params.has("edit_match_id") && select.value !== "{{ active_tournament_id }}") {
+          params.delete("edit_match_id");
+        }
+        window.location.search = params.toString();
+      });
+    }
+  </script>
 {% endblock %}

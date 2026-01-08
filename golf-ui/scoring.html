@@ -32,13 +32,11 @@
           <div class="hamburger"><span></span></div>
         </button>
       </div>
-      <h1>Scoring</h1>
+      <div class="topbar__titles">
+        <h1 id="courseTitle">Scoring</h1>
+        <div id="groupLabel" class="group-label"></div>
+      </div>
     </header>
-
-    <nav class="tabs" aria-label="Tabs">
-      <div class="tab active" role="button" aria-current="page">Scoring</div>
-      <div class="tab" role="button">Results</div>
-    </nav>
 
     <section class="holebar" aria-label="Hole">
       <div class="nav" id="prevHole">&lt; Hole 11</div>
@@ -50,7 +48,16 @@
     </section>
 
     <main class="container" style="padding-top:12px;">
-      <section class="score-list" id="scoreList" aria-label="Score Entry List"></section>
+      <section class="scoreboard" aria-label="Scoreboard">
+        <div class="scoreboard__header">
+          <div>
+            <h2 class="scoreboard__title"><span>Group</span></h2>
+            <div id="currentHoleLabel" class="scoreboard__hole">Hole 12</div>
+          </div>
+          <div id="scoreboardHoleMeta" class="scoreboard__meta">Par 5 • 533 yds (BLU)</div>
+        </div>
+        <div id="scoreList" class="scoreboard__list" aria-label="Score Entry List"></div>
+      </section>
 
       <section class="keypad-wrap" aria-label="Keypad">
         <div class="keypad" id="keypad"></div>

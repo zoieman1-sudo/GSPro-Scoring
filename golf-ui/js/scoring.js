@@ -9,6 +9,11 @@ const state = {
   selectedPlayerId: null,
   scores: {},
   originalScores: {},
+  groupKey: null,
+  groupLabel: "",
+  matches: [],
+  matchHoleEntries: {},
+  courseName: "Scoring",
 };
 
 const overlay = document.getElementById("codeOverlay");
@@ -16,6 +21,11 @@ const codeForm = document.getElementById("codeForm");
 const codeInput = document.getElementById("matchCodeInput");
 const codeSubmitBtn = document.getElementById("matchCodeSubmit");
 const codeError = document.getElementById("codeError");
+const scoreboardList = document.getElementById("scoreList");
+const groupLabelElement = document.getElementById("groupLabel");
+const courseTitle = document.getElementById("courseTitle");
+const currentHoleLabel = document.getElementById("currentHoleLabel");
+const scoreboardHoleMeta = document.getElementById("scoreboardHoleMeta");
 
 function showCodeError(message) {
   if (codeError) {
@@ -27,18 +37,41 @@ function hideCodeOverlay() {
   overlay?.classList.add("hidden");
 }
 
+function showCodeOverlay() {
+  overlay?.classList.remove("hidden");
+  codeInput?.focus();
+}
+
+function updateCourseTitle(name) {
+  if (courseTitle) {
+    courseTitle.textContent = name || "Scoring";
+  }
+}
+
+function updateGroupLabel(label) {
+  if (groupLabelElement) {
+    groupLabelElement.textContent = label || "";
+  }
+}
+
 function renderHole() {
   const hole = state.hole;
   const holeText = document.getElementById("holeText");
   const holeMeta = document.getElementById("holeMeta");
   if (!hole) {
-    holeText.textContent = "Hole —";
-    holeMeta.textContent = "Par —";
+    if (holeText) holeText.textContent = "Hole —";
+    if (holeMeta) holeMeta.textContent = "Par —";
+    if (currentHoleLabel) currentHoleLabel.textContent = "Hole —";
+    if (scoreboardHoleMeta) scoreboardHoleMeta.textContent = "Par —";
     return;
   }
-  holeText.textContent = `Hole ${hole.number}`;
+  const holeLabel = `Hole ${hole.number}`;
+  if (holeText) holeText.textContent = holeLabel;
+  if (currentHoleLabel) currentHoleLabel.textContent = holeLabel;
   const hcpLabel = hole.handicap !== undefined ? hole.handicap : "—";
-  holeMeta.textContent = `Par ${hole.par} • HCP ${hcpLabel}`;
+  const metaText = `Par ${hole.par} • HCP ${hcpLabel}`;
+  if (holeMeta) holeMeta.textContent = metaText;
+  if (scoreboardHoleMeta) scoreboardHoleMeta.textContent = metaText;
   updateHoleNavLabels();
 }
 
@@ -46,10 +79,14 @@ function updateHoleNavLabels() {
   const prev = document.getElementById("prevHole");
   const next = document.getElementById("nextHole");
   if (!state.holes.length) {
-    prev.textContent = "< Hole —";
-    next.textContent = "Hole — >";
-    prev?.classList.add("disabled");
-    next?.classList.add("disabled");
+    if (prev) {
+      prev.textContent = "< Hole —";
+      prev.classList.add("disabled");
+    }
+    if (next) {
+      next.textContent = "Hole — >";
+      next.classList.add("disabled");
+    }
     return;
   }
   const prevHole = state.holes[state.holeIndex - 1];
@@ -64,45 +101,40 @@ function updateHoleNavLabels() {
   }
 }
 
-function makeScoreRow(player) {
-  const row = document.createElement("div");
-  row.className = "score-row";
-  row.dataset.playerId = player.id;
-
-  const value = state.scores[player.id] ?? "";
-  row.innerHTML = `
-    <div>
-      <div class="name">${player.name}</div>
-      <div class="hcp">(${player.handicap})</div>
-    </div>
-    <div style="display:flex; align-items:center;">
-      <div class="value" aria-label="Score entry">${value || ""}</div>
-      <div class="dot" aria-hidden="true"></div>
-    </div>
-  `;
-
-  row.addEventListener("click", () => {
-    state.selectedPlayerId = player.id;
-    renderScores();
-  });
-
-  return row;
-}
-
 function renderScores() {
-  const list = document.getElementById("scoreList");
-  if (!list) return;
-  list.innerHTML = "";
+  if (!scoreboardList) return;
+  scoreboardList.innerHTML = "";
   if (!state.players.length) {
-    list.innerHTML = '<div class="placeholder">Enter a scoring code to load players.</div>';
+    const placeholder = document.createElement("div");
+    placeholder.className = "placeholder";
+    placeholder.textContent = "Enter a scoring code to load players.";
+    scoreboardList.appendChild(placeholder);
     return;
   }
-  state.players.forEach((p) => {
-    const row = makeScoreRow(p);
-    if (p.id === state.selectedPlayerId) {
-      row.classList.add("selected");
+  state.players.forEach((player) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "player-card";
+    button.dataset.playerId = player.id;
+    const value = state.scores[player.id] ?? "";
+    button.innerHTML = `
+      <div class="player-card__info">
+        <span class="player-card__name">${player.name}</span>
+        <span class="player-card__hcp">(${player.handicap})</span>
+      </div>
+      <div class="player-card__score-group">
+        <span class="player-card__score">${value || ""}</span>
+        <span class="player-card__dot"></span>
+      </div>
+    `;
+    if (player.id === state.selectedPlayerId) {
+      button.classList.add("selected");
     }
-    list.appendChild(row);
+    button.addEventListener("click", () => {
+      state.selectedPlayerId = player.id;
+      renderScores();
+    });
+    scoreboardList.appendChild(button);
   });
 }
 
@@ -112,13 +144,13 @@ function setScoreForSelected(value) {
   renderScores();
 }
 
-function appendDigit(d) {
+function appendDigit(digit) {
   if (!state.selectedPlayerId) return;
   const current = String(state.scores[state.selectedPlayerId] ?? "");
   if (current.toUpperCase() === "X") {
-    state.scores[state.selectedPlayerId] = String(d);
+    state.scores[state.selectedPlayerId] = String(digit);
   } else {
-    const next = (current + String(d)).slice(0, 2);
+    const next = (current + String(digit)).slice(0, 2);
     state.scores[state.selectedPlayerId] = next;
   }
   renderScores();
@@ -131,38 +163,39 @@ function clearSelected() {
 }
 
 function buildKeypad() {
-  const keys = [
-    "1","2","3",
-    "4","5","6",
-    "7","8","9",
-    "Clear","0","X"
-  ];
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "X"];
   const kp = document.getElementById("keypad");
   if (!kp) return;
   kp.innerHTML = "";
-
-  keys.forEach((k) => {
-    const div = document.createElement("div");
-    div.className = "key";
-    div.textContent = k;
-
-    if (k === "Clear" || k === "X") {
-      div.classList.add("small");
+  keys.forEach((key) => {
+    const button = document.createElement("div");
+    button.className = "key";
+    button.textContent = key;
+    if (key === "Clear" || key === "X") {
+      button.classList.add("small");
     }
-
-    div.addEventListener("click", () => {
-      if (k === "Clear") return clearSelected();
-      if (k === "X") return setScoreForSelected("X");
-      appendDigit(k);
+    button.addEventListener("click", () => {
+      if (key === "Clear") return clearSelected();
+      if (key === "X") return setScoreForSelected("X");
+      appendDigit(key);
     });
-
-    kp.appendChild(div);
+    kp.appendChild(button);
   });
 }
 
-function undoChanges() {
-  state.scores = { ...state.originalScores };
-  renderScores();
+function loadScoresForHole(index) {
+  if (!state.players.length) return;
+  state.players.forEach((player) => {
+    const matchHoles = state.matchHoleEntries[player.matchKey] || [];
+    const holeEntry = matchHoles[index] || {};
+    const playerScores = holeEntry.player_scores || [];
+    const raw = playerScores[player.playerIndex]?.gross;
+    state.scores[player.id] = raw !== undefined && raw !== null ? String(raw) : "";
+  });
+  state.originalScores = { ...state.scores };
+  if (!state.selectedPlayerId) {
+    state.selectedPlayerId = state.players[0]?.id || null;
+  }
 }
 
 function parseHoleScore(value) {
@@ -173,7 +206,7 @@ function parseHoleScore(value) {
 }
 
 async function saveCurrentHole() {
-  if (!state.matchId) {
+  if (!state.matches.length) {
     alert("Load a match code first.");
     return;
   }
@@ -181,44 +214,51 @@ async function saveCurrentHole() {
     alert("Select a hole to save.");
     return;
   }
-  const playerA = state.players[0];
-  const playerB = state.players[1];
-  if (!playerA || !playerB) {
-    alert("Match requires two players.");
-    return;
-  }
-  const aScore = parseHoleScore(state.scores[playerA.id]);
-  const bScore = parseHoleScore(state.scores[playerB.id]);
-  if (aScore === null || bScore === null) {
-    alert("Enter valid scores for both players before saving.");
-    return;
-  }
-  const payload = {
-    holes: [
-      {
-        hole_number: state.hole.number,
-        player_a_score: aScore,
-        player_b_score: bScore,
-      },
-    ],
-  };
-  const response = await fetch(`/matches/${state.matchId}/holes`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const result = await response.json().catch(() => null);
-  if (!response.ok) {
-    const detail = result?.detail || "Unable to save scores.";
-    alert(detail);
-    return;
+  const holeNumber = state.hole.number;
+  for (const match of state.matches) {
+    const matchPlayers = state.players.filter((player) => player.matchKey === match.match_key);
+    if (matchPlayers.length < 2) {
+      alert("Each match requires two players.");
+      return;
+    }
+    const playerA = matchPlayers[0];
+    const playerB = matchPlayers[1];
+    const aScore = parseHoleScore(state.scores[playerA.id]);
+    const bScore = parseHoleScore(state.scores[playerB.id]);
+    if (aScore === null || bScore === null) {
+      alert("Enter valid scores for all players before saving.");
+      return;
+    }
+    const payload = {
+      holes: [
+        {
+          hole_number: holeNumber,
+          player_a_score: aScore,
+          player_b_score: bScore,
+        },
+      ],
+    };
+    const response = await fetch(`/matches/${match.match_id}/holes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) {
+      const detail = result?.detail || `Unable to save scores for ${match.match_key}.`;
+      alert(detail);
+      return;
+    }
+    state.matchHoleEntries[match.match_key] = state.matchHoleEntries[match.match_key] || [];
+    const chapter = state.matchHoleEntries[match.match_key][state.holeIndex] || {};
+    const existingScores = chapter.player_scores || [];
+    chapter.player_scores = [
+      { ...(existingScores[0] || {}), gross: aScore },
+      { ...(existingScores[1] || {}), gross: bScore },
+    ];
+    state.matchHoleEntries[match.match_key][state.holeIndex] = chapter;
   }
   state.originalScores = { ...state.scores };
-  const holeEntry = state.holes[state.holeIndex];
-  holeEntry.player_scores = [
-    { ...(holeEntry.player_scores?.[0] || {}), gross: aScore },
-    { ...(holeEntry.player_scores?.[1] || {}), gross: bScore },
-  ];
   alert("Scores saved.");
 }
 
@@ -240,6 +280,19 @@ async function fetchScorecard(params) {
   return payload;
 }
 
+async function fetchGroupScorecard(groupKey) {
+  const url = `/api/match_groups/${encodeURIComponent(groupKey)}/scorecard`;
+  const response = await fetch(url);
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = payload?.detail || `Group lookup failed (${response.status})`;
+    const error = new Error(detail);
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+
 async function loadMatchByIdentifier(identifier) {
   let lastError;
   try {
@@ -253,25 +306,76 @@ async function loadMatchByIdentifier(identifier) {
   }
 }
 
-function initializeMatchFromData(data, fallbackCode) {
-  if (!data?.match_id) {
-    throw new Error("Match data is incomplete.");
+function groupPayloadFromScorecard(scorecard) {
+  return {
+    group_key: `group-${scorecard.match_key}`,
+    label: scorecard.label,
+    course: scorecard.course,
+    holes: scorecard.holes,
+    matches: [
+      {
+        match_key: scorecard.match_key,
+        match_id: scorecard.match_id,
+        match_code: scorecard.match_code,
+        label: scorecard.label,
+        players: (scorecard.players || []).map((player, idx) => ({
+          name: player.name,
+          handicap: player.course_handicap ?? 0,
+          role: idx === 0 ? "A" : "B",
+        })),
+        holes: scorecard.holes,
+      },
+    ],
+  };
+}
+
+function initializeGroupFromScorecard(scorecard, fallbackValue) {
+  const payload = groupPayloadFromScorecard(scorecard);
+  initializeGroupFromData(payload, fallbackValue);
+}
+
+function initializeGroupFromData(groupData, fallbackValue) {
+  if (!groupData?.matches?.length) {
+    throw new Error("Group data is incomplete.");
   }
-  const players = (data.players || []).map((player, idx) => ({
-    id: `player_${idx}`,
-    name: player.name || `Player ${idx + 1}`,
-    handicap: player.course_handicap ?? 0,
-  }));
-  if (!players.length || !Array.isArray(data.holes) || !data.holes.length) {
-    throw new Error("Match lacks player or hole data.");
+  const matches = groupData.matches.filter((match) => match.match_key && match.match_id);
+  if (!matches.length) {
+    throw new Error("Group has no valid matches.");
   }
-  state.matchId = data.match_id;
-  state.matchKey = data.match_key;
-  state.matchCode = data.match_code || fallbackCode || "";
-  state.players = players;
-  state.holes = data.holes;
+  const aggregatedPlayers = [];
+  const matchHoleEntries = {};
+  matches.forEach((match) => {
+    matchHoleEntries[match.match_key] = Array.isArray(match.holes) ? match.holes : [];
+    (match.players || []).forEach((player, playerIndex) => {
+      aggregatedPlayers.push({
+        id: `${match.match_key}-player-${playerIndex}`,
+        matchKey: match.match_key,
+        matchId: match.match_id,
+        name: player.name || `Player ${playerIndex + 1}`,
+        handicap: player.handicap ?? 0,
+        role: player.role || (playerIndex === 0 ? "A" : "B"),
+        playerIndex,
+      });
+    });
+  });
+  state.groupKey = groupData.group_key || null;
+  state.groupLabel = groupData.label || "";
+  state.courseName = groupData.course?.course_name || state.courseName;
+  state.matches = matches;
+  state.matchHoleEntries = matchHoleEntries;
+  state.players = aggregatedPlayers;
+  state.holes = Array.isArray(groupData.holes) && groupData.holes.length
+    ? groupData.holes
+    : matchHoleEntries[matches[0].match_key] || [];
+  state.matchCode = fallbackValue || matches[0].match_code || "";
+  state.selectedPlayerId = aggregatedPlayers[0]?.id || null;
+  state.holeIndex = 0;
+  state.scores = {};
+  state.originalScores = {};
   goToHoleIndex(0);
   hideCodeOverlay();
+  updateCourseTitle(state.courseName);
+  updateGroupLabel(state.groupLabel || state.groupKey || "");
 }
 
 function goToHoleIndex(index) {
@@ -284,14 +388,7 @@ function goToHoleIndex(index) {
     par: entry.par,
     handicap: entry.handicap,
   };
-  state.selectedPlayerId = state.players[0]?.id || null;
-  const scores = entry.player_scores || [];
-  state.scores = {};
-  state.players.forEach((player, idx) => {
-    const raw = scores[idx]?.gross;
-    state.scores[player.id] = raw !== undefined && raw !== null ? String(raw) : "";
-  });
-  state.originalScores = { ...state.scores };
+  loadScoresForHole(safeIndex);
   renderHole();
   renderScores();
 }
@@ -307,8 +404,17 @@ async function handleCodeSubmit(prefilledValue) {
     codeSubmitBtn.disabled = true;
   }
   try {
+    try {
+      const groupData = await fetchGroupScorecard(value);
+      initializeGroupFromData(groupData, value);
+      return;
+    } catch (groupError) {
+      if (groupError.status !== 404) {
+        throw groupError;
+      }
+    }
     const data = await loadMatchByIdentifier(value);
-    initializeMatchFromData(data, value);
+    initializeGroupFromScorecard(data, value);
   } catch (error) {
     const message = error?.message || "Unable to load the match.";
     showCodeError(message);
@@ -323,10 +429,28 @@ function navigateHole(offset) {
   goToHoleIndex(state.holeIndex + offset);
 }
 
+async function loadActiveMatch() {
+  try {
+    const response = await fetch("/api/active_match");
+    if (!response.ok) {
+      return;
+    }
+    const payload = await response.json().catch(() => null);
+    if (payload?.active_match) {
+      initializeGroupFromScorecard(payload.active_match);
+    }
+  } catch (error) {
+    console.warn("Unable to load active match", error);
+  }
+}
+
 function init() {
   buildKeypad();
   renderScores();
-  document.getElementById("undoBtn")?.addEventListener("click", undoChanges);
+  document.getElementById("undoBtn")?.addEventListener("click", () => {
+    state.scores = { ...state.originalScores };
+    renderScores();
+  });
   document.getElementById("saveBtn")?.addEventListener("click", saveCurrentHole);
   document.getElementById("prevHole")?.addEventListener("click", () => navigateHole(-1));
   document.getElementById("nextHole")?.addEventListener("click", () => navigateHole(1));
@@ -339,10 +463,12 @@ function init() {
     handleCodeSubmit();
   });
   const params = new URLSearchParams(window.location.search);
-  const candidate = params.get("match_code") || params.get("match_key");
+  const candidate = params.get("match_code") || params.get("match_key") || params.get("group_key");
   if (candidate) {
     codeInput.value = candidate;
     handleCodeSubmit(candidate);
+  } else {
+    loadActiveMatch();
   }
 }
 

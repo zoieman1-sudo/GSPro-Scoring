@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <article class="mobile-launch-card">
+    <div class="launch-card__content">
+      <p class="eyebrow">Score Operations</p>
+      <h1>Mobile scoring</h1>
+      <p class="muted-label">Tap a group to launch the scoring screen with all four players.</p>
+      <button id="openGroupsBtn" class="pill-link" type="button">Show scoring groups</button>
+    </div>
+  </article>
+
+  <div id="groupsOverlay" class="group-overlay hidden" role="dialog" aria-modal="true">
+    <div class="group-overlay__panel">
+      <header class="group-overlay__header">
+        <h2>Available groups</h2>
+        <button id="closeGroupsBtn" class="pill-link pill-link--inline" type="button">Close</button>
+      </header>
+      <div id="groupList" class="group-overlay__list">
+        <p class="muted-label">Loading groups…</p>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .mobile-launch-card {
+      margin: 32px auto;
+      max-width: 420px;
+      border-radius: 18px;
+      background: radial-gradient(circle at top left, rgba(99, 147, 255, 0.25), transparent 60%),
+        linear-gradient(180deg, #0d1223, #05080f);
+      padding: 32px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      color: #fefefe;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .mobile-launch-card .eyebrow {
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 8px;
+    }
+    .mobile-launch-card h1 {
+      margin: 0 0 12px;
+      font-size: 1.8rem;
+      color: #fdfcff;
+    }
+    .mobile-launch-card .muted-label {
+      color: rgba(255, 255, 255, 0.75);
+      margin-bottom: 24px;
+    }
+    .group-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 15, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 20;
+    }
+    .group-overlay.hidden {
+      display: none;
+    }
+    .group-overlay__panel {
+      width: min(520px, 100%);
+      background: #050911;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .group-overlay__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 26px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .group-overlay__header .pill-link {
+      background: #f4f5ff;
+      color: #050b1f;
+      padding: 6px 16px;
+      border-radius: 999px;
+      border: 0;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .group-overlay__header .pill-link:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45);
+    }
+    .group-overlay__header h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      color: #fefeff;
+    }
+    .group-overlay__list {
+      max-height: 65vh;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 20px 24px 26px;
+      background: radial-gradient(circle at 30% 20%, rgba(67, 115, 255, 0.25), transparent 45%);
+    }
+    .group-item {
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 18px 22px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      background: rgba(5, 8, 20, 0.8);
+      box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.05);
+    }
+    .group-item__info {
+      flex: 1;
+    }
+    .group-item__label {
+      font-weight: 700;
+      margin: 0 0 4px;
+      color: #fff;
+    }
+    .group-item__key {
+      font-size: 0.78rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(226, 235, 255, 0.7);
+      margin: 0 0 6px;
+    }
+    .group-item__matches {
+      margin: 0;
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.7);
+    }
+    .group-item__actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-end;
+    }
+    .group-item__actions .pill-link {
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      padding: 6px 14px;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .group-item__actions .pill-link:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 35px rgba(15, 23, 42, 0.4);
+      background: rgba(73, 125, 255, 0.15);
+      border-color: rgba(73, 125, 255, 0.6);
+    }
+  </style>
+
+  <script>
+    (function () {
+      const overlay = document.getElementById("groupsOverlay");
+      const openBtn = document.getElementById("openGroupsBtn");
+      const closeBtn = document.getElementById("closeGroupsBtn");
+      const listEl = document.getElementById("groupList");
+
+      async function loadGroups() {
+        try {
+          const response = await fetch("/api/match_groups");
+          if (!response.ok) {
+            throw new Error("Unable to load groups.");
+          }
+          const payload = await response.json();
+          const definitions = Array.isArray(payload.group_definitions) ? payload.group_definitions : [];
+          const manualGroups = Array.isArray(payload.manual_groups) ? payload.manual_groups : [];
+          const combined = [...definitions];
+          manualGroups.forEach((group) => {
+            if (!combined.some((entry) => entry.group_key === group.group_key)) {
+              combined.push(group);
+            }
+          });
+          renderGroups(combined);
+        } catch (error) {
+          listEl.innerHTML = `<p class="muted-label">Failed to load groups.</p>`;
+        }
+      }
+
+      function renderGroups(definitions) {
+        if (!definitions.length) {
+          listEl.innerHTML = `<p class="muted-label">No scoring groups recorded yet.</p>`;
+          return;
+        }
+        listEl.innerHTML = "";
+        definitions.forEach((definition) => {
+          const item = document.createElement("article");
+          item.className = "group-item";
+          const info = document.createElement("div");
+          info.className = "group-item__info";
+          const label = document.createElement("p");
+          label.className = "group-item__label";
+          label.textContent = definition.label || definition.group_key || "Group";
+          const key = document.createElement("p");
+          key.className = "group-item__key";
+          key.textContent = definition.group_key || "";
+          const matches = document.createElement("p");
+          matches.className = "group-item__matches";
+          const pairText =
+            (definition.player_pairs && definition.player_pairs.length
+              ? definition.player_pairs.join(" • ")
+              : null) || (definition.match_keys || []).join(" • ");
+          matches.textContent = pairText;
+          info.appendChild(label);
+          info.appendChild(key);
+          info.appendChild(matches);
+
+          const actions = document.createElement("div");
+          actions.className = "group-item__actions";
+          const launch = document.createElement("a");
+          launch.className = "pill-link";
+          launch.textContent = "Launch scoring";
+          launch.href = `/golf-ui/scoring.html?group_key=${encodeURIComponent(definition.group_key || "")}`;
+          launch.target = "_blank";
+          actions.appendChild(launch);
+
+          item.appendChild(info);
+          item.appendChild(actions);
+          listEl.appendChild(item);
+        });
+      }
+
+      openBtn.addEventListener("click", () => {
+        overlay.classList.remove("hidden");
+        loadGroups();
+      });
+      closeBtn.addEventListener("click", () => overlay.classList.add("hidden"));
+    })();
+  </script>
+{% endblock %}

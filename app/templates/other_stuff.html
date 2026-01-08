@@ -600,22 +600,67 @@
       return "*";
     };
 
+    const computeMatchStatusProgress = (holeRows) => {
+      const statuses = [];
+      let lead = 0;
+      holeRows.forEach((hole) => {
+        const scores = hole.player_scores || [];
+        const aScore = parseNumericValue(scores[0]?.gross);
+        const bScore = parseNumericValue(scores[1]?.gross);
+        let winner = 0;
+        if (aScore !== null && bScore !== null) {
+          if (aScore < bScore) {
+            winner = 1;
+          } else if (aScore > bScore) {
+            winner = -1;
+          }
+        }
+        lead += winner;
+        statuses.push(formatMatchLead(lead));
+      });
+      return statuses;
+    };
+
     const computeMatchStatusSymbol = (match) => {
-      if (!match) return "AS";
-      const meta = match.meta || {};
-      const pointsA = parseNumericValue(meta.total_points_a) ?? 0;
-      const pointsB = parseNumericValue(meta.total_points_b) ?? 0;
-      const diff = pointsA - pointsB;
-      if (Math.abs(diff) < 0.01) {
-        return "AS";
+      const holeRows = buildHoleRows(match);
+      const statuses = computeMatchStatusProgress(holeRows);
+      return statuses[statuses.length - 1] || "A/S";
+    };
+
+    const formatMatchLead = (lead) => {
+      if (lead === 0) {
+        return "A/S";
       }
-      const absolute = Math.abs(diff);
-      const formatted =
-        Math.abs(absolute - Math.round(absolute)) < 0.01
-          ? String(Math.round(absolute))
-          : absolute.toFixed(1);
-      const direction = diff > 0 ? "UP" : "DN";
-      return `${formatted} ${direction}`;
+      const absolute = Math.abs(lead);
+      const text = `${absolute} ${lead > 0 ? "UP" : "DN"}`;
+      return text;
+    };
+
+    const buildStatusRow = (statuses) => {
+      if (!statuses.length) {
+        return "";
+      }
+      const cells = statuses
+        .map((value) => {
+          const className =
+            value === "A/S"
+              ? "scoreboard-card__status-value--neutral"
+              : value.includes("UP")
+              ? "scoreboard-card__status-value--up"
+              : "scoreboard-card__status-value--down";
+          return `<span class="scoreboard-card__row-value scoreboard-card__status-value ${className}">${value}</span>`;
+        })
+        .join("");
+      const total = statuses[statuses.length - 1] || "A/S";
+      return `
+        <div class="scoreboard-card__row scoreboard-card__row--status">
+          <span class="scoreboard-card__row-label">
+            <span class="scoreboard-card__row-text">Match status</span>
+          </span>
+          ${cells}
+          <span class="scoreboard-card__row-total">${total}</span>
+        </div>
+      `;
     };
 
     const buildHoleRows = (match) => {
@@ -664,7 +709,13 @@
 
     const buildPlayerGroup = (player, rowsMarkup) => `
       <div class="scoreboard-card__row-group scoreboard-card__row-group--player">
-        <span class="scoreboard-card__row-group-label">${player.name}</span>
+        <span class="scoreboard-card__row-group-label">
+          <span class="scoreboard-card__player-badge">
+            <span></span>
+            <span></span>
+          </span>
+          ${player.name}
+        </span>
         ${rowsMarkup}
       </div>
     `;
