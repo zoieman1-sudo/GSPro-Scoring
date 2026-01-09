@@ -396,24 +396,38 @@
       .match-modal__item {
         border-radius: var(--radius-pill);
         border: 1px solid rgba(255, 255, 255, 0.2);
-        background: rgba(26, 40, 74, 0.85);
+        background: rgba(26, 40, 74, 0.95);
         padding: 12px 18px;
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 12px;
         cursor: pointer;
-        color: #fff;
+        color: #fefefe;
+        text-transform: none;
+      }
+
+      .match-modal__item strong {
+        font-size: 0.9rem;
+        color: #fefefe;
       }
 
       .match-modal__item:hover {
         border-color: rgba(67, 225, 255, 0.6);
-        background: rgba(67, 225, 255, 0.12);
+        background: rgba(67, 225, 255, 0.14);
       }
 
       .match-modal__item--active {
         border-color: rgba(67, 225, 255, 0.8);
-        background: rgba(67, 225, 255, 0.18);
+        background: rgba(67, 225, 255, 0.24);
+      }
+
+      .match-modal__item .match-modal__matchup {
+        display: block;
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.65);
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
       }
 
       @media (max-width: 960px) {
