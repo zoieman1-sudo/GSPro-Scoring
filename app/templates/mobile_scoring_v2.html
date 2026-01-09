@@ -143,6 +143,20 @@
         letter-spacing: 0.2em;
         color: rgba(255, 255, 255, 0.6);
       }
+      .panel-status-group {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+      }
+      .panel-match-key {
+        display: block;
+        font-size: 0.7rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.5);
+        margin-top: 6px;
+      }
       .player-row {
         display: flex;
         justify-content: space-between;
@@ -363,9 +377,9 @@
     </div>
 
     <script>
-      const matches = {{ matches | tojson }};
-      const defaultMatchKeys = {{ default_match_keys | tojson }};
-      const initialSummary = {{ scorecard | tojson }};
+      const matches = {{ matches | default([]) | tojson }};
+      const defaultMatchKeys = {{ default_match_keys | default([]) | tojson }};
+      const initialSummary = {{ scorecard | default({}) | tojson }};
       const MAX_SELECTION = 2;
 
       const state = {
@@ -431,10 +445,10 @@
             return `
               <label class="match-option">
                 <input type="checkbox" value="${match.match_key}" ${checked} />
-                <div>
-                  <strong>${match.display}</strong>
-                  <span>${match.status_label} · ${match.holes} holes recorded</span>
-                </div>
+              <div>
+                <strong>${match.display}</strong>
+                <span>${match.match_key} · ${match.status_label} · ${match.holes} holes recorded</span>
+              </div>
               </label>
             `;
           })
@@ -568,7 +582,10 @@
                     ${summary?.match?.player_b_name || "Player B"} - HCP ${summary?.player_b_handicap ?? 0}
                   </p>
                 </div>
-              <span class="panel-status">${summary?.status_label || "TBD"}</span>
+              <div class="panel-status-group">
+                <span class="panel-status">${summary?.status_label || "TBD"}</span>
+                <span class="panel-match-key">${matchKey}</span>
+              </div>
             </div>
             <div class="player-row">
               <div class="player-info">
