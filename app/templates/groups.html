@@ -37,37 +37,55 @@
           </tr>
         </thead>
         <tbody>
-          {% for match in matches %}
-            <tr>
-              <td>{{ match.match_key }}</td>
-              <td>{{ match.division }}</td>
-              <td class="match-group-pairs">
-                <div>Match 1 · {{ match.player_a_name }} vs {{ match.player_b_name }}</div>
-                <div>Match 2 · {{ match.player_c_name or "—" }} vs {{ match.player_d_name or "—" }}</div>
-              </td>
-              <td>{% if match.course_id %}{{ match.course_id }}{% else %}—{% endif %}</td>
-              <td>{{ match.status }}</td>
-              <td>
-                <div class="match-actions">
-                  <a
-                    href="/admin/match_setup?tournament_id={{ active_tournament_id }}&edit_match_id={{ match.id }}"
-                    class="pill-link pill-link--inline"
-                  >
-                    Edit
-                  </a>
-                  <form action="/admin/match_setup/delete" method="post" class="inline-form">
-                    <input type="hidden" name="match_id" value="{{ match.id }}" />
-                    <input type="hidden" name="tournament_id" value="{{ active_tournament_id }}" />
-                    <button type="submit" class="pill-link pill-link--danger pill-link--inline">
-                      Delete
-                    </button>
-                  </form>
-                </div>
-              </td>
-            </tr>
+          {% if match_groups %}
+            {% for group in match_groups %}
+              {% set primary = group.matches[0] %}
+              {% set secondary = group.matches[1] if group.matches|length > 1 else None %}
+              {% set available_pairs = group.player_pairs or [] %}
+              {% set match_one_label = available_pairs[0] if available_pairs else primary.player_a_name ~ " vs " ~ primary.player_b_name %}
+              {% set match_two_label = available_pairs[1]
+                if available_pairs|length > 1
+                else (secondary.player_a_name ~ " vs " ~ secondary.player_b_name if secondary else "— vs —") %}
+              <tr>
+                <td>{{ group.group_key }}</td>
+                <td>{{ primary.division }}</td>
+                <td class="match-group-pairs">
+                  <div>Match 1 · {{ match_one_label }}</div>
+                  <div>
+                    Match 2 · {{ match_two_label }}
+                  </div>
+                </td>
+                <td>{% if primary.course_id %}{{ primary.course_id }}{% else %}—{% endif %}</td>
+                <td>{{ primary.status }}</td>
+                <td>
+                  <div class="match-actions">
+                    <a
+                      href="/admin/match_setup?tournament_id={{ active_tournament_id }}&edit_match_id={{ primary.id }}"
+                      class="pill-link pill-link--inline"
+                    >
+                      Edit
+                    </a>
+                    <a
+                      href="/golf-ui/scoring.html?group_key={{ group.group_key }}"
+                      target="_blank"
+                      class="pill-link pill-link--inline"
+                    >
+                      Launch scoring
+                    </a>
+                    <form action="/admin/match_setup/delete" method="post" class="inline-form">
+                      <input type="hidden" name="match_id" value="{{ primary.id }}" />
+                      <input type="hidden" name="tournament_id" value="{{ active_tournament_id }}" />
+                      <button type="submit" class="pill-link pill-link--danger pill-link--inline">
+                        Delete
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
           {% else %}
-            <tr><td colspan="6">No matches configured.</td></tr>
-          {% endfor %}
+            <tr><td colspan="6">No groups configured for the active tournament.</td></tr>
+          {% endif %}
         </tbody>
       </table>
     </article>
@@ -169,14 +187,14 @@
         });
       }
 
-      function renderSavedGroups() {
+      function renderSavedGroups(savedDefinitions) {
         if (!savedGroupsList) return;
         savedGroupsList.innerHTML = "";
-        if (!definitions.length) {
+        if (!savedDefinitions.length) {
           savedGroupsList.innerHTML = '<li class="placeholder">No groups have been recorded yet.</li>';
           return;
         }
-        definitions.forEach((definition) => {
+        savedDefinitions.forEach((definition) => {
           const item = document.createElement("li");
           item.className = "group-definition";
           const label = document.createElement("div");
@@ -187,7 +205,11 @@
           keyLabels.textContent = definition.group_key || "";
           const meta = document.createElement("div");
           meta.className = "group-definition__matches";
-          meta.textContent = definition.match_keys.join(" • ");
+          const pairText =
+            (definition.player_pairs && definition.player_pairs.length
+              ? definition.player_pairs.join(" • ")
+              : null) || (definition.match_keys || []).join(" • ");
+          meta.textContent = pairText;
           const removeBtn = document.createElement("button");
           removeBtn.type = "button";
           removeBtn.className = "pill-link pill-link--inline";
@@ -196,16 +218,17 @@
           item.appendChild(label);
           item.appendChild(keyLabels);
           item.appendChild(meta);
+          const launchKey = (definition.match_keys && definition.match_keys[0]) || definition.group_key || "";
           const launchLink = document.createElement("a");
           launchLink.className = "pill-link pill-link--inline";
           launchLink.textContent = "Launch scoring";
-          launchLink.href = `/golf-ui/scoring.html?group_key=${encodeURIComponent(definition.group_key || "")}`;
+          launchLink.href = `/golf-ui/scoring.html?match_key=${encodeURIComponent(launchKey)}`;
           launchLink.target = "_blank";
           item.appendChild(launchLink);
           const editLink = document.createElement("a");
           editLink.className = "pill-link pill-link--inline";
           editLink.textContent = "Edit scorecard";
-          editLink.href = `/golf-ui/scoring.html?group_key=${encodeURIComponent(definition.group_key || "")}&mode=edit`;
+          editLink.href = `/golf-ui/scoring.html?match_key=${encodeURIComponent(launchKey)}&mode=edit`;
           editLink.target = "_blank";
           item.appendChild(editLink);
           item.appendChild(removeBtn);
@@ -285,8 +308,11 @@
           activeMatches = Array.isArray(payload.active_matches) ? payload.active_matches : [];
           definitions = Array.isArray(payload.group_definitions) ? payload.group_definitions : [];
           renderBuilderMatches();
-          renderSavedGroups();
-          setStatus(definitions.length ? `${definitions.length} group(s) saved.` : "No groups saved yet.", !definitions.length);
+          renderSavedGroups(definitions);
+          setStatus(
+            definitions.length ? `${definitions.length} group(s) saved.` : "No groups saved yet.",
+            !definitions.length
+          );
         } catch (error) {
           setStatus(error?.message || "Unable to load match groups.", true);
         }
@@ -300,6 +326,7 @@
     })();
   </script>
   <script>
+    const GROUPS_TOURNAMENT_STORAGE = "gspro.groups.tournament";
     document.addEventListener("DOMContentLoaded", () => {
       const form = document.querySelector("form.match-meta__controls");
       const select = form?.querySelector('select[name="tournament_id"]');
@@ -307,7 +334,21 @@
       if (select && redirectInput) {
         select.addEventListener("change", () => {
           redirectInput.value = `/groups?tournament_id=${select.value}`;
+          if (select.value) {
+            localStorage.setItem(GROUPS_TOURNAMENT_STORAGE, select.value);
+          } else {
+            localStorage.removeItem(GROUPS_TOURNAMENT_STORAGE);
+          }
         });
+      }
+      const params = new URLSearchParams(window.location.search);
+      const currentParam = params.get("tournament_id");
+      const storedId = localStorage.getItem(GROUPS_TOURNAMENT_STORAGE);
+      if (currentParam) {
+        localStorage.setItem(GROUPS_TOURNAMENT_STORAGE, currentParam);
+      } else if (storedId && storedId !== (select?.value || "")) {
+        params.set("tournament_id", storedId);
+        window.location.search = params.toString();
       }
     });
   </script>

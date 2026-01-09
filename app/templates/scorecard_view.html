@@ -170,7 +170,7 @@
             {% if scorecard.match.id %}
               <a class="pill-link" href="/matches/{{ scorecard.match.id }}">Edit hole inputs</a>
             {% else %}
-              <a class="pill-link" href="/scoring">Enter scores</a>
+                      <a class="pill-link" href="/golf-ui/scoring">Enter scores</a>
             {% endif %}
           </div>
         </div>
@@ -425,12 +425,7 @@
               )
               .join("");
 
-          const renderHoleSection = (container, holes) => {
-            if (!container) {
-              return;
-            }
-            const rows = buildHoleRows(holes);
-              const totals = `
+          const buildTotalsRowHTML = (holes) => `
                 <div class="match-scorecard-row match-scorecard-totals">
                   <span></span>
                   <span class="hole-par">${formatNumber(sumColumn(holes, "par"))}</span>
@@ -443,7 +438,14 @@
                   <span class="points-b">${formatNumber(sumColumn(holes, "points_b"))}</span>
               </div>
             `;
-            container.innerHTML = rows + totals;
+
+          const buildHoleSectionHTML = (holes) => buildHoleRows(holes) + buildTotalsRowHTML(holes);
+
+          const renderHoleSection = (container, holes) => {
+            if (!container) {
+              return;
+            }
+            container.innerHTML = buildHoleSectionHTML(holes);
           };
 
           const composeStrokeMessage = (meta, match) => {
@@ -568,10 +570,198 @@
             }
           };
 
+          const groupSelect = document.getElementById("group-select");
+          const groupScorecardsContainer = document.getElementById("group-scorecards");
+          const groupStatusEl = document.getElementById("group-score-status");
+          const groupHeadRow = `
+            <div class="match-scorecard-row match-scorecard-head">
+              <span class="col-label">Hole</span>
+              <span class="col-label">Par</span>
+              <span class="col-label">HCP</span>
+              <span class="col-label col-label--stacked">
+                <abbr title="Player A">A</abbr>
+                <abbr title="Gross">Gross</abbr>
+              </span>
+              <span class="col-label col-label--stacked">
+                <abbr title="Player B">B</abbr>
+                <abbr title="Gross">Gross</abbr>
+              </span>
+              <span class="col-label col-label--stacked">
+                <abbr title="Player A">A</abbr>
+                <abbr title="Net">Net</abbr>
+              </span>
+              <span class="col-label col-label--stacked">
+                <abbr title="Player B">B</abbr>
+                <abbr title="Net">Net</abbr>
+              </span>
+              <span class="col-label">Pts A</span>
+              <span class="col-label">Pts B</span>
+            </div>
+          `;
+
+          const setGroupStatus = (message, isError = false) => {
+            if (!groupStatusEl) {
+              return;
+            }
+            groupStatusEl.textContent = message || "";
+            groupStatusEl.classList.toggle("group-scorecard-status-error", isError);
+          };
+
+          const clearGroupScorecards = (message, isError = false) => {
+            if (groupScorecardsContainer) {
+              groupScorecardsContainer.innerHTML = message
+                ? `<p class="muted-label${isError ? " group-scorecard-status-error" : ""}">${message}</p>`
+                : '<p class="muted-label">The selected group scorecards will render here.</p>';
+            }
+            setGroupStatus(message || "Pick a group to load its matches.", isError);
+          };
+
+          const renderGroupMatchCard = (match) => {
+            const holes = Array.isArray(match.holes) ? match.holes : [];
+            const front = holes.filter((hole) => Number(hole.hole_number) <= 9);
+            const back = holes.filter((hole) => Number(hole.hole_number) >= 10);
+            const players = Array.isArray(match.players) ? match.players : [];
+            const playerA = players.find((p) => p.role === "A") || {};
+            const playerB = players.find((p) => p.role === "B") || {};
+            const label =
+              match.label ||
+              `${playerA.name || "Player A"} vs ${playerB.name || "Player B"}`;
+            return `
+              <article class="group-scorecard">
+                <div class="group-scorecard-headline">
+                  <h3 class="match-title">${label}</h3>
+                  <p class="group-scorecard-status">${match.status_label || match.status || "Status pending"}</p>
+                  <p class="muted-label group-scorecard-players">
+                    ${playerA.name || "Player A"} (hcp ${playerA.handicap ?? 0}) vs ${playerB.name || "Player B"} (hcp ${playerB.handicap ?? 0})
+                  </p>
+                </div>
+                <div class="group-scorecard-table">
+                  <div class="group-scorecard-section">
+                    <h4>Holes 1-9</h4>
+                    ${groupHeadRow}
+                    ${buildHoleSectionHTML(front)}
+                  </div>
+                  <div class="group-scorecard-section">
+                    <h4>Holes 10-18</h4>
+                    ${groupHeadRow}
+                    ${buildHoleSectionHTML(back)}
+                  </div>
+                </div>
+              </article>
+            `;
+          };
+
+          const renderGroupScorecards = (matches) => {
+            if (!groupScorecardsContainer) {
+              return;
+            }
+            if (!matches.length) {
+              clearGroupScorecards("No match data available for this group.");
+              return;
+            }
+            groupScorecardsContainer.innerHTML = matches
+              .map((match) => renderGroupMatchCard(match))
+              .join("");
+            setGroupStatus("");
+          };
+
+          const loadGroupScorecard = async (groupKey) => {
+            if (!groupKey) {
+              clearGroupScorecards("Pick a group to load its matches.");
+              return;
+            }
+            clearGroupScorecards("Loading group matches...");
+            try {
+              const response = await fetch(`/api/match_groups/${encodeURIComponent(groupKey)}/scorecard`);
+              if (!response.ok) {
+                throw new Error("Unable to load the selected group.");
+              }
+              const payload = await response.json();
+              const matches = Array.isArray(payload.matches) ? payload.matches : [];
+              renderGroupScorecards(matches);
+              if (payload.label) {
+                setGroupStatus(`Group · ${payload.label}`);
+              }
+            } catch (error) {
+              clearGroupScorecards(error?.message || "Unable to load the group scorecards.", true);
+            }
+          };
+
+          const buildGroupOptions = (groups) => {
+            if (!groupSelect) {
+              return;
+            }
+            const options = ["<option value=\"\">Choose a group…</option>"];
+            groups.forEach((group) => {
+              const label = group.label || group.group_key;
+              if (!group.group_key) return;
+              options.push(
+                `<option value="${group.group_key}">${label}</option>`
+              );
+            });
+            groupSelect.innerHTML = options.join("");
+          };
+
+          const loadGroupDefinitions = async () => {
+            if (!groupSelect) {
+              return;
+            }
+            try {
+              const response = await fetch("/api/match_groups");
+              if (!response.ok) {
+                throw new Error("Unable to load available groups.");
+              }
+              const payload = await response.json();
+              const groupsList = Array.isArray(payload.group_definitions)
+                ? payload.group_definitions
+                : [];
+              if (!groupsList.length) {
+                clearGroupScorecards("No groups have been configured.");
+                return;
+              }
+              buildGroupOptions(groupsList);
+              groupSelect.value = "";
+            } catch (error) {
+              clearGroupScorecards(error?.message || "Unable to load group definitions.", true);
+            }
+          };
+
+          groupSelect?.addEventListener("change", () => {
+            loadGroupScorecard(groupSelect.value);
+          });
+
+          loadGroupDefinitions();
+
           renderActiveMatchControls(activeMatchKey);
           refreshScorecard();
           setInterval(refreshScorecard, 8000);
         });
       </script>
     </section>
+  {% if match_groups %}
+    <section class="card detail-card group-scorecard-card">
+      <div class="group-scorecard-header">
+        <div>
+          <p class="eyebrow">Group scoring</p>
+          <h2 class="match-title">Select a group</h2>
+          <p class="muted-label">Select a group to preview both scorecards side by side.</p>
+        </div>
+        <label>
+          <span class="muted-label">Group</span>
+          <select id="group-select">
+            <option value="">Choose a group…</option>
+            {% for group in match_groups %}
+              <option value="{{ group.group_key }}">
+                {{ group.label or group.group_key }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <p id="group-score-status" class="muted-label">Pick a group to load its matches.</p>
+      <div id="group-scorecards" class="group-scorecard-grid">
+        <p class="muted-label">The selected group scorecards will render here.</p>
+      </div>
+    </section>
+  {% endif %}
 {% endblock %}

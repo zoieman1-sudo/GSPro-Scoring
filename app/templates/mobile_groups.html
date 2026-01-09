@@ -174,14 +174,7 @@
           }
           const payload = await response.json();
           const definitions = Array.isArray(payload.group_definitions) ? payload.group_definitions : [];
-          const manualGroups = Array.isArray(payload.manual_groups) ? payload.manual_groups : [];
-          const combined = [...definitions];
-          manualGroups.forEach((group) => {
-            if (!combined.some((entry) => entry.group_key === group.group_key)) {
-              combined.push(group);
-            }
-          });
-          renderGroups(combined);
+          renderGroups(definitions);
         } catch (error) {
           listEl.innerHTML = `<p class="muted-label">Failed to load groups.</p>`;
         }
@@ -217,10 +210,11 @@
 
           const actions = document.createElement("div");
           actions.className = "group-item__actions";
+          const launchKey = (definition.match_keys && definition.match_keys[0]) || definition.group_key || "";
           const launch = document.createElement("a");
           launch.className = "pill-link";
           launch.textContent = "Launch scoring";
-          launch.href = `/golf-ui/scoring.html?group_key=${encodeURIComponent(definition.group_key || "")}`;
+          launch.href = `/golf-ui/scoring.html?group_key=${encodeURIComponent(definition.group_key || launchKey)}`;
           launch.target = "_blank";
           actions.appendChild(launch);
 

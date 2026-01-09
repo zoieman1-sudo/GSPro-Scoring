@@ -6,6 +6,7 @@ Starter scaffold for the GSPro Tournament Scoring App (FastAPI + Jinja2).
 - Create venv and install requirements from `requirements.txt`.
 - Set `DATABASE_URL` and `SCORING_PIN` (see `.env.example`); only the admin/admin setup pages still require the PIN, while scoring submissions are open for now.
 - Run `python -m app.seed_db` once before starting the server to create the schema and a baseline tournament so matches can be activated without hitting missing-table errors.
+- Run `python -m app.demo_seed` if you want the demo tournament, players, built matches, and `DEMOGROUP` definition seeded before you open the UI; the FastAPI startup already executes this, but rerunning the script refreshes the demo fixtures.
 - Run FastAPI app locally with uvicorn.
 - Submit a few match scores via `/` or `/matches`; the `/matches` view summaries each encounter and lets you drill into `/matches/{id}` for hole-by-hole score entry.
 - Visit `/standings` to see the updated division leaderboard rendered as the familiar tabular format used in the `dashboard` sheet from `10-man_sim_golf_tournament_scoring_sheet_v2_single_round_robin_playoffs.xlsx`.
@@ -13,6 +14,7 @@ Starter scaffold for the GSPro Tournament Scoring App (FastAPI + Jinja2).
 ## Docker
 - Copy `.env.example` to `.env` and update values as needed (_defaults point at the bundled Postgres service_).
 - `docker compose up --build` (this now starts a `postgres:15` service with the configured password so the app can connect immediately).  
+- The app automatically runs `app.demo_seed` on startup (ensuring the demo event with player pairings and the `DEMOGROUP` definition exists), but you can still exec into the container and rerun `python -m app.demo_seed` if you need to refresh that sample data.
 - The app now publishes on port `18000` (`http://localhost:18000`) and Postgres is exposed as `localhost:15433`; if you connect from an external tool (pgAdmin, psql, etc.) use those host ports when specifying the service.
 
 ## Admin

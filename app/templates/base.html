@@ -19,30 +19,23 @@
         </div>
         {% set nav_sections = [
           {
-            "label": "Programs & setup",
-            "rows": [
-              [
-                {"href":"/tournaments","label":"Tournaments"},
-                {"href":"/admin/tournament_setup","label":"Tournament Setup"},
-                {"href":"/admin/setup/course","label":"Get Courses"}
-              ],
-              [
-                {"href":"/live_matches","label":"Live Matches"},
-                {"href":"/tournament_history","label":"Match History"},
-                {"href":"/other_stuff","label":"Other Stuff"},
-                {"href":"/admin/match_setup","label":"Match Setup"},
-                {"href":"/groups","label":"Groups"}
-              ]
+            "label": "Program and setup",
+            "links": [
+              {"href":"/admin/tournament_setup2","label":"Tournament Setup"},
+              {"href":"/admin/player_entry","label":"Player Entry"},
+              {"href":"/admin/setup/course","label":"Courses"},
+              {"href":"/admin/match_setup","label":"Groups Setup"},
+              {"href":"/groups","label":"Groups"},
+              {"href":"/match_list","label":"Match List"}
             ]
           },
           {
             "label": "Score operations",
             "links": [
-              {"href":"/new_card","label":"Scorecard Studio"},
-              {"href":"/match_list","label":"Match List"},
-              {"href":"/play_match","label":"Play Match"},
               {"href":"/standings","label":"Standings"},
-              {"href":"/mobile","label":"Scoring"}
+              {"href":"/new_card","label":"Scorecard Studio"},
+              {"href":"/golf-ui/scoring","label":"Score Entry (Desktop)"},
+              {"href":"/golf-ui/scoring","label":"Score Entry (Mobile)"}
             ]
           }
         ] %}
@@ -50,6 +43,9 @@
           {% for section in nav_sections %}
             <div class="top-nav__section">
               <div class="top-nav__section-label">{{ section.label }}</div>
+              {% if section.note %}
+                <div class="top-nav__section-note">{{ section.note }}</div>
+              {% endif %}
               {% if section.rows %}
                 {% for row in section.rows %}
                   <div class="top-nav__row{% if loop.first %} top-nav__row--center{% endif %}">
@@ -83,6 +79,7 @@
           {% endfor %}
         </nav>
         <div class="top-nav__actions">
+          <button class="dashboard-cta" id="activateTournamentBtn" type="button">Activate tournament</button>
           <details class="top-nav__admin-menu">
             <summary class="top-nav__admin-toggle">
               <span class="top-nav__admin-icon" aria-hidden="true">⚙️</span>
@@ -103,6 +100,20 @@
                   <span class="top-nav__admin-item-subtitle">player_entry</span>
                 </div>
               </a>
+              <a class="top-nav__admin-item" href="/admin/setup/course">
+                <span class="top-nav__admin-item-icon" aria-hidden="true">🗺️</span>
+                <div>
+                  <span class="top-nav__admin-item-title">Courses</span>
+                  <span class="top-nav__admin-item-subtitle">setup/course</span>
+                </div>
+              </a>
+              <a class="top-nav__admin-item" href="/admin/match_setup">
+                <span class="top-nav__admin-item-icon" aria-hidden="true">👥</span>
+                <div>
+                  <span class="top-nav__admin-item-title">Groups setup</span>
+                  <span class="top-nav__admin-item-subtitle">match_setup</span>
+                </div>
+              </a>
               <a class="top-nav__admin-item" href="/match_list">
                 <span class="top-nav__admin-item-icon" aria-hidden="true">📋</span>
                 <div>
@@ -117,8 +128,172 @@
       <main class="shell">
         {% block content %}{% endblock %}
       </main>
+      <button class="dashboard-cta" id="activateTournamentBtn" type="button">Activate tournament</button>
+    </div>
+    <div id="tournamentPickerOverlay" class="tournament-picker-overlay" hidden data-open="false">
+      <div class="tournament-picker-card">
+        <p class="eyebrow">Tournament selection</p>
+        <h2>Select an event</h2>
+        <p class="muted-label">
+          Choose which tournament you want the dashboard to operate against today. This selection
+          will be remembered in your browser until you switch to a different tournament.
+        </p>
+        <select id="tournamentPickerSelect">
+          <option value="">Loading tournaments…</option>
+        </select>
+        <div class="tournament-picker-actions">
+          <button class="pill-link" id="tournamentPickerConfirm" type="button" disabled>Set active tournament</button>
+          <button class="pill-link pill-link--ghost" id="tournamentPickerCancel" type="button">Cancel</button>
+        </div>
+        <p class="muted-label" id="tournamentPickerStatus"></p>
+      </div>
     </div>
     <script src="/static/js/app.js"></script>
+    <script>
+      (function () {
+        const overlay = document.getElementById("tournamentPickerOverlay");
+        const select = document.getElementById("tournamentPickerSelect");
+        const confirmBtn = document.getElementById("tournamentPickerConfirm");
+        const statusEl = document.getElementById("tournamentPickerStatus");
+
+        const setStatus = (message, isError = false) => {
+          if (!statusEl) return;
+          statusEl.textContent = message || "";
+          statusEl.classList.toggle("muted-label", !isError);
+          statusEl.classList.toggle("tournament-picker-status-error", isError);
+        };
+
+        const toggleConfirm = (enabled) => {
+          if (!confirmBtn) return;
+          confirmBtn.disabled = !enabled;
+        };
+
+        const showOverlay = () => {
+          if (!overlay) return;
+          overlay.hidden = false;
+          overlay.dataset.open = "true";
+        };
+        const hideOverlay = () => {
+          if (!overlay) return;
+          overlay.hidden = true;
+          overlay.dataset.open = "false";
+        };
+
+        const resetPicker = () => {
+          toggleConfirm(false);
+          if (select) {
+            select.value = "";
+          }
+        };
+
+        const fetchActiveTournament = async () => {
+          const response = await fetch("/api/active_tournament");
+          if (!response.ok) {
+            throw new Error("Unable to load the active tournament.");
+          }
+          return response.json();
+        };
+
+        const fetchTournaments = async () => {
+          const response = await fetch("/api/tournaments");
+          if (!response.ok) {
+            throw new Error("Unable to load tournaments.");
+          }
+          const payload = await response.json();
+          return Array.isArray(payload?.tournaments) ? payload.tournaments : [];
+        };
+
+        const persistSelection = async (tournamentId) => {
+          const response = await fetch("/api/active_tournament", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tournament_id: tournamentId }),
+          });
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.detail || "Unable to set the active tournament.");
+          }
+          window.localStorage.setItem("gspro.activeTournamentId", String(tournamentId));
+          window.location.reload();
+        };
+
+        select?.addEventListener("change", () => {
+          toggleConfirm(Boolean(select.value));
+          setStatus("");
+        });
+
+        confirmBtn?.addEventListener("click", () => {
+          if (!select || !select.value) {
+            setStatus("Select a tournament first.", true);
+            return;
+          }
+          setStatus("Saving selection…");
+          persistSelection(Number(select.value)).catch((error) => {
+            setStatus(error?.message || "Unable to save the selection.", true);
+          });
+        });
+
+        const loadTournamentOptions = async () => {
+          if (!select) return;
+          setStatus("Loading tournaments…");
+          select.innerHTML = "<option value=\"\">Loading tournaments…</option>";
+          toggleConfirm(false);
+          try {
+            const tournaments = await fetchTournaments();
+            if (!tournaments.length) {
+              select.innerHTML = '<option value="">No tournaments configured</option>';
+              setStatus("No tournaments are available yet.", true);
+              return;
+            }
+            select.innerHTML =
+              '<option value="">Choose a tournament…</option>' +
+              tournaments
+                .map(
+                  (tournament) =>
+                    `<option value="${tournament.id}">${tournament.name}</option>`
+                )
+                .join("");
+          } catch (error) {
+            select.innerHTML = `<option value="">Unable to load tournaments</option>`;
+            setStatus(error?.message || "Unable to determine the active tournament.", true);
+          }
+        };
+
+        document.addEventListener("DOMContentLoaded", async () => {
+          if (!overlay || !select || !confirmBtn) {
+            return;
+          }
+          try {
+            const active = await fetchActiveTournament();
+            if (active?.active_tournament_id) {
+              setStatus("");
+              window.localStorage.setItem(
+                "gspro.activeTournamentId",
+                String(active.active_tournament_id)
+              );
+            }
+          } catch (error) {
+            console.warn("Unable to fetch active tournament", error);
+          }
+        });
+
+        const pickerTrigger = document.getElementById("activateTournamentBtn");
+        const cancelBtn = document.getElementById("tournamentPickerCancel");
+
+        hideOverlay();
+
+        pickerTrigger?.addEventListener("click", () => {
+          resetPicker();
+          setStatus("");
+          loadTournamentOptions();
+          showOverlay();
+        });
+
+        cancelBtn?.addEventListener("click", () => {
+          hideOverlay();
+        });
+      })();
+    </script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

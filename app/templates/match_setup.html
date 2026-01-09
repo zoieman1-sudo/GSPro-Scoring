@@ -88,28 +88,30 @@
       <div class="group-builder__match" aria-label="Match 2">
         <p class="muted-label">Player C vs Player D</p>
         <div class="form-row form-row--compact">
-          <label>
-            Player C
-            <select name="player_c_id" required>
-              {% for player in players %}
-                <option value="{{ player.id }}" {% if editable_match and editable_match.player_c_id == player.id %}selected{% endif %}>
-                  {{ player.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Player D
-            <select name="player_d_id" required>
-              {% for player in players %}
-                <option value="{{ player.id }}" {% if editable_match and editable_match.player_d_id == player.id %}selected{% endif %}>
-                  {{ player.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </label>
-        </div>
+        <label>
+          Player C
+          <select name="player_c_id" required>
+            <option value="">Select player C</option>
+            {% for player in players %}
+              <option value="{{ player.id }}" {% if editable_match and editable_match.player_c_id == player.id %}selected{% endif %}>
+                {{ player.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Player D
+          <select name="player_d_id" required>
+            <option value="">Select player D</option>
+            {% for player in players %}
+              <option value="{{ player.id }}" {% if editable_match and editable_match.player_d_id == player.id %}selected{% endif %}>
+                {{ player.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
       </div>
+    </div>
       <div class="form-row">
         <label>
           Division

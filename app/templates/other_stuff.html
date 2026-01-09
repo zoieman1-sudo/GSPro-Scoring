@@ -174,6 +174,53 @@
         border-color: rgba(67, 225, 255, 0.8);
       }
 
+      .scoreboard-card--group {
+        background: linear-gradient(145deg, rgba(4, 11, 24, 0.95), rgba(8, 20, 40, 0.95));
+      }
+
+      .scoreboard-card__group-body {
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.02);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .scoreboard-card__match-block {
+        border-radius: var(--radius-md);
+        padding: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(0, 0, 0, 0.35);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .scoreboard-card__match-block--active {
+        border-color: rgba(67, 225, 255, 0.8);
+        box-shadow: 0 0 0 2px rgba(67, 225, 255, 0.2);
+      }
+
+      .scoreboard-card__match-block-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .scoreboard-card__match-block-labels {
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        font-size: 0.65rem;
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .scoreboard-card__grid--match-block {
+        gap: 10px;
+      }
+
       .scoreboard-card__division {
         text-transform: uppercase;
         letter-spacing: 0.3em;
@@ -344,6 +391,29 @@
         display: grid;
         grid-template-columns: repeat(3, minmax(220px, 1fr));
         gap: 14px;
+      }
+
+      .match-modal__item {
+        border-radius: var(--radius-pill);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(26, 40, 74, 0.85);
+        padding: 12px 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        color: #fff;
+      }
+
+      .match-modal__item:hover {
+        border-color: rgba(67, 225, 255, 0.6);
+        background: rgba(67, 225, 255, 0.12);
+      }
+
+      .match-modal__item--active {
+        border-color: rgba(67, 225, 255, 0.8);
+        background: rgba(67, 225, 255, 0.18);
       }
 
       @media (max-width: 960px) {
@@ -541,6 +611,11 @@
       },
     ];
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestedGroupKey = urlParams.get("group_key") || "";
+    let groupDefinitions = [];
+    let selectedGroupKey = "";
+
     const holeReference = {{ hole_reference | tojson }};
     const defaultHoleTemplate = holeReference.length
       ? holeReference
@@ -720,9 +795,9 @@
       </div>
     `;
 
-    const buildScoreboardCard = (match) => {
+    const buildMatchSection = (match) => {
       if (!match) {
-        return `<article class="scoreboard-card scoreboard-card--empty">Match data unavailable</article>`;
+        return "";
       }
       const holeRows = buildHoleRows(match);
       const holeParTotal = sumNumeric(holeRows.map((hole) => hole.par));
@@ -754,31 +829,68 @@
       const statusLabel =
         match.status_label || phaseLabels[match.status] || phaseLabels[match.phase] || "Status";
       return `
-      <article class="scoreboard-card" data-key="${match.match_key}">
-        <div class="scoreboard-card__header">
+      <section class="scoreboard-card__match-block" data-key="${match.match_key}">
+        <div class="scoreboard-card__match-block-header">
           <div>
-            <span class="scoreboard-card__division">${divisionLabel}</span>
+            <span class="scoreboard-card__match-block-labels">${divisionLabel}</span>
             <strong class="scoreboard-card__matchup">${matchupLabel}</strong>
             ${match.match_key ? `<div class="scoreboard-card__meta"><span class="scoreboard-card__matchkey">Key: <strong>${match.match_key}</strong></span></div>` : ""}
           </div>
           <span class="scoreboard-card__status">${statusLabel}</span>
         </div>
-        <div class="scoreboard-card__grid">
+        <div class="scoreboard-card__grid scoreboard-card__grid--match-block">
           ${infoGroup}
           ${playerGroups[0] || ""}
           ${buildRow("Match status", statusCells, statusSymbol, "status")}
           ${playerGroups[1] || ""}
           ${playerGroups.slice(2).join("")}
         </div>
-        ${match.match_key ? `<a class="scoreboard-card__launch" href="/golf-ui/scoring.html?match_key=${encodeURIComponent(match.match_key)}" target="_blank" rel="noopener">Launch scoring</a>` : ""}
+      </section>
+    `;
+    };
+
+    const buildGroupCard = (matches) => {
+      if (!matches.length) {
+        return `<article class="scoreboard-card scoreboard-card--empty">Match data unavailable</article>`;
+      }
+      const groupLabel = selectedGroupKey ? `Group ${selectedGroupKey}` : "Match summary";
+      const groupKeys = matches
+        .map((match) => match.match_key || "")
+        .filter((key) => key)
+        .join(" • ");
+      const statusLabel =
+        matches[0]?.status_label ||
+        phaseLabels[matches[0]?.status] ||
+        phaseLabels[matches[0]?.phase] ||
+        "Preview";
+      const sections = matches.map((match) => buildMatchSection(match)).join("");
+      const matchupLabel =
+        matches[0]?.matchup ||
+        matches[0]?.label ||
+        (matches[0]?.players && matches[0]?.players.length >= 2
+          ? `${matches[0].players[0].name} vs ${matches[0].players[1].name}`
+          : "");
+      return `
+      <article class="scoreboard-card scoreboard-card--group">
+        <div class="scoreboard-card__header">
+          <div>
+            <span class="scoreboard-card__division">${groupLabel}</span>
+            <strong class="scoreboard-card__matchup">${matchupLabel || "Group scoring preview"}</strong>
+            ${groupKeys ? `<div class="scoreboard-card__meta"><span class="scoreboard-card__matchkey">Keys: <strong>${groupKeys}</strong></span></div>` : ""}
+          </div>
+          <span class="scoreboard-card__status">${statusLabel}</span>
+        </div>
+        <div class="scoreboard-card__group-body">
+          ${sections}
+        </div>
       </article>
     `;
-  };
+    };
 
     const highlightScoreboards = (key) => {
       if (!matchTableEl) return;
-      matchTableEl.querySelectorAll(".scoreboard-card").forEach((card) => {
-        card.classList.toggle("scoreboard-card--active", card.dataset.key === key);
+      matchTableEl.querySelectorAll(".scoreboard-card__match-block").forEach((block) => {
+        block.classList.toggle("scoreboard-card__match-block--active", block.dataset.key === key);
       });
     };
 
@@ -813,6 +925,25 @@
         course: entry.course || {},
         meta: entry.meta || {},
       };
+    };
+
+    const fetchGroupDefinitions = async () => {
+      try {
+        const response = await fetch("/api/match_groups");
+        if (!response.ok) {
+          throw new Error("Unable to load match groups.");
+        }
+        const data = await response.json();
+        return Array.isArray(data.group_definitions) ? data.group_definitions : [];
+      } catch (error) {
+        console.warn("Match groups load failed:", error);
+        return [];
+      }
+    };
+
+    const handleGroupSelection = () => {
+      renderGroupGrid();
+      openModal();
     };
 
     const loadMatchData = async (matchKey) => {
@@ -854,81 +985,82 @@
         return;
       }
       const matchDataList = await Promise.all(keys.map((key) => loadMatchData(key)));
-      const cards = matchDataList
-        .map((match) =>
-          match ? buildScoreboardCard(match) : `<article class="scoreboard-card scoreboard-card--empty">Match unavailable</article>`
-        )
-        .join("");
-      matchTableEl.innerHTML = cards
-        ? `<div class="scoreboard-stack">${cards}</div>`
+      const filteredMatches = matchDataList.filter((match) => !!match);
+      matchTableEl.innerHTML = filteredMatches.length
+        ? buildGroupCard(filteredMatches)
         : '<div class="scoreboard-empty">No match registered yet.</div>';
       highlightScoreboards(keys[0] || null);
     };
 
-    const updateModalSelections = () => {
-      if (!matchModalGrid) return;
-      matchModalGrid.querySelectorAll(".match-modal__grid-item").forEach((item) => {
-        const key = item.dataset.key;
-        const checkbox = item.querySelector(".match-modal__checkbox");
-        if (!checkbox) return;
-        checkbox.checked = selectedMatchKeys.has(key);
-        checkbox.disabled = !checkbox.checked && selectedMatchKeys.size >= maxSelectableMatches;
-        item.classList.toggle("match-modal__grid-item--selected", selectedMatchKeys.has(key));
-      });
-    };
-
-    const toggleMatchSelection = (matchKey) => {
-      if (selectedMatchKeys.has(matchKey)) {
-        selectedMatchKeys.delete(matchKey);
-      } else if (selectedMatchKeys.size < maxSelectableMatches) {
-        selectedMatchKeys.add(matchKey);
-      }
-      updateModalSelections();
-    };
-
-    const renderMatchGrid = () => {
+    const renderGroupGrid = () => {
       if (!matchModalGrid) return;
       matchModalGrid.innerHTML = "";
-      sortedMatches.forEach((match) => {
-        const divisionLabel =
-          typeof match.division === "string" && match.division.trim()
-            ? `Division ${match.division}`
-            : (match.display?.split(":")[0] ?? "Division");
-        const displayMatchup =
-          match.matchup ||
-          match.display ||
-          `${match.player_a || "Player"} vs ${match.player_b || "Player"}`;
-        const statusText =
-          match.status_label ||
-          phaseLabels[match.status] ||
-          phaseLabels[match.phase] ||
-          "Status";
-        const item = document.createElement("label");
-        item.className = "match-modal__grid-item";
-        item.dataset.key = match.match_key;
+      const availableGroups = groupDefinitions.length ? groupDefinitions : sortedMatches.map((match) => ({
+        group_key: match.match_key,
+        label: match.label || match.display,
+        match_keys: [match.match_key],
+        status: match.status_label || phaseLabels[match.status] || phaseLabels[match.phase] || "Status",
+        players: match.matchup || `${match.player_a || "Player"} vs ${match.player_b || "Player"}`,
+      }));
+      availableGroups.forEach((entry) => {
+        const groupLabel = entry.label || entry.group_key || "Group";
+        const matchKeys = (entry.match_keys || []).filter((key) => key);
+        const item = document.createElement("button");
+        item.className = "match-modal__item";
+        item.type = "button";
+        item.dataset.matchKeys = JSON.stringify(matchKeys);
         item.innerHTML = `
-          <input type="checkbox" class="match-modal__checkbox" data-key="${match.match_key}" />
-          <span class="match-modal__grid-row match-modal__division">${divisionLabel}</span>
-          <span class="match-modal__grid-row match-modal__matchup">${displayMatchup}</span>
-          <span class="match-modal__grid-row match-modal__status">${statusText}</span>
+          <div>
+            <strong>${groupLabel}</strong>
+            <span class="match-modal__matchup">${entry.players || matchKeys.join(" • ")}</span>
+          </div>
+          <span class="match-modal__status">${entry.status}</span>
         `;
-        const checkbox = item.querySelector(".match-modal__checkbox");
-        if (checkbox) {
-          checkbox.addEventListener("change", () => toggleMatchSelection(match.match_key));
-        }
-        item.addEventListener("click", (event) => {
-          if (!checkbox || event.target === checkbox) return;
-          checkbox.checked = !checkbox.checked;
-          checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+        item.addEventListener("click", () => {
+          if (!matchKeys.length) {
+            return;
+          }
+          selectedGroupKey = entry.group_key || "";
+          selectedMatchKeys = new Set(matchKeys.slice(0, maxSelectableMatches));
+          renderMatchGrid();
+          displaySelectedMatches([...selectedMatchKeys]);
+          closeModal();
         });
+        if (selectedMatchKeys.size && matchKeys.some((key) => selectedMatchKeys.has(key))) {
+          item.classList.add("match-modal__item--active");
+        }
         matchModalGrid.appendChild(item);
       });
-      updateModalSelections();
     };
 
+    const renderMatchGrid = () => renderGroupGrid();
+
     const initializeSelections = () => {
-      const defaults = sortedMatches.slice(0, maxSelectableMatches).map((entry) => entry.match_key);
-      selectedMatchKeys = new Set(defaults);
+      let keys = [];
+      const preferredKey = requestedGroupKey || "";
+      if (preferredKey && groupDefinitions.length) {
+        const preferredDefinition = groupDefinitions.find((definition) => definition.group_key === preferredKey);
+        if (preferredDefinition) {
+          const matchedKeys = ensureGroupMatchKeys(preferredDefinition);
+          if (matchedKeys.length) {
+            keys = matchedKeys;
+            selectedGroupKey = preferredDefinition.group_key || "";
+          }
+        }
+      }
+      if (!keys.length && groupDefinitions.length) {
+        const fallbackDefinition = groupDefinitions[0];
+        const matchedKeys = ensureGroupMatchKeys(fallbackDefinition);
+        if (matchedKeys.length) {
+          keys = matchedKeys;
+          selectedGroupKey = fallbackDefinition.group_key || "";
+        }
+      }
+      if (!keys.length) {
+        keys = sortedMatches.slice(0, maxSelectableMatches).map((entry) => entry.match_key);
+        selectedGroupKey = "";
+      }
+      selectedMatchKeys = new Set(keys.slice(0, maxSelectableMatches));
     };
 
     const openModal = () => modal?.classList.add("active");
@@ -958,6 +1090,7 @@
       }
       const nextMatches = matches.length ? matches : seededMatches.length ? seededMatches : fallbackMatches;
       sortedMatches = sortAvailableMatches(nextMatches);
+      groupDefinitions = await fetchGroupDefinitions();
       if (!matches.length) {
         sortedMatches.forEach((entry) => {
           entry.inlineMatchData = entry;
@@ -995,7 +1128,7 @@
       closeModal();
     });
 
-    openModalBtn?.addEventListener("click", openModal);
+    openModalBtn?.addEventListener("click", handleGroupSelection);
     modalClose?.addEventListener("click", closeModal);
     modal?.addEventListener("click", (event) => {
       if (event.target === modal) {

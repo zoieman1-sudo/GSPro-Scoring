@@ -16,6 +16,9 @@ const state = {
   courseName: "Scoring",
 };
 
+const GROUP_REFRESH_INTERVAL = 6000;
+let groupRefreshTimer = null;
+
 const overlay = document.getElementById("codeOverlay");
 const codeForm = document.getElementById("codeForm");
 const codeInput = document.getElementById("matchCodeInput");
@@ -376,6 +379,53 @@ function initializeGroupFromData(groupData, fallbackValue) {
   hideCodeOverlay();
   updateCourseTitle(state.courseName);
   updateGroupLabel(state.groupLabel || state.groupKey || "");
+  startRealTimeUpdates();
+}
+
+function updateScoresFromServer() {
+  if (!state.players.length) return;
+  const holeIndex = state.holeIndex;
+  let refreshed = false;
+  state.players.forEach((player) => {
+    const holeEntry = state.matchHoleEntries[player.matchKey]?.[holeIndex] || {};
+    const playerScores = holeEntry.player_scores || [];
+    const gross = playerScores[player.playerIndex]?.gross;
+    const serverValue = gross !== undefined && gross !== null ? String(gross) : "";
+    const currentValue = state.scores[player.id] ?? "";
+    const originalValue = state.originalScores[player.id] ?? "";
+    if (currentValue === originalValue && serverValue !== currentValue) {
+      state.scores[player.id] = serverValue;
+      state.originalScores[player.id] = serverValue;
+      refreshed = true;
+    }
+  });
+  if (refreshed) {
+    renderScores();
+  }
+}
+
+async function refreshGroupScores() {
+  if (!state.groupKey) return;
+  try {
+    const groupData = await fetchGroupScorecard(state.groupKey);
+    if (!groupData?.matches?.length) return;
+    groupData.matches.forEach((match) => {
+      if (match.match_key && Array.isArray(match.holes)) {
+        state.matchHoleEntries[match.match_key] = match.holes;
+      }
+    });
+    updateScoresFromServer();
+  } catch (error) {
+    console.warn("Unable to refresh group scorecard", error);
+  }
+}
+
+function startRealTimeUpdates() {
+  if (groupRefreshTimer) {
+    clearInterval(groupRefreshTimer);
+  }
+  refreshGroupScores();
+  groupRefreshTimer = setInterval(refreshGroupScores, GROUP_REFRESH_INTERVAL);
 }
 
 function goToHoleIndex(index) {

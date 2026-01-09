@@ -33,12 +33,14 @@ from app.db import (
     fetch_hole_scores,
     fetch_match_by_id,
     fetch_match_by_key,
+    fetch_match_group_definitions,
     fetch_match_result,
     fetch_match_result_by_code,
     fetch_match_result_by_key,
     fetch_match_result_ids_by_key,
     fetch_matches_by_tournament,
     fetch_matches_by_keys,
+    fetch_player_by_id,
     fetch_player_by_name,
     fetch_players,
     fetch_recent_results,
@@ -59,6 +61,7 @@ from app.db import (
     upsert_course,
     upsert_course_tee,
     upsert_event_setting,
+    upsert_match_group_definition,
     upsert_player,
     upsert_setting,
     update_match,
@@ -72,7 +75,11 @@ from app.seed import (
     find_match,
     match_display,
 )
+from app.seed_db import ensure_base_tournament
+from app.demo_seed import ensure_demo_fixture, ensure_demo_players, ensure_demo_tournament
+from app.demo_state import ACTIVE_TOURNAMENT_ID_KEY, DEFAULT_DIVISION_COUNT
 from app.settings import load_settings, score_outcome
+from app.migrations import apply_migrations
 
 app = FastAPI()
 
@@ -93,8 +100,6 @@ DEFAULT_TOURNAMENT_SETTINGS = {
     "course_id": "",
     "course_tee_id": "",
 }
-DEFAULT_DIVISION_COUNT = {"A": 5, "B": 5}
-DEMO_TOURNAMENT_NAME = "Demo"
 COURSE_TEMPLATE_PATH = Path("app/DATA/Net_Match_Play_Scorecard.xlsx")
 SETUP_SECTIONS = {
     "parameters": "Tournament Sheet",
@@ -118,12 +123,7 @@ STATUS_PRIORITY = {
 
 TOURNAMENT_STATUSES = ["upcoming", "active", "completed", "inactive"]
 
-ACTIVE_TOURNAMENT_ID_KEY = "active_tournament_id"
-
 ACTIVE_MATCH_SETTING_KEY = "active_match_key"
-
-MATCH_GROUPS_SETTING_KEY = "match_groups"
-
 
 def _match_status_info(match_id: str) -> dict[str, int | str | None]:
     match_result = fetch_match_result_by_key(settings.database_url, match_id)
@@ -170,6 +170,14 @@ def _player_handicap_by_name(name: str | None) -> int:
     player = fetch_player_by_name(settings.database_url, name)
     return player.get("handicap", 0) if player else 0
 
+def _player_name_by_id(player_id: int | None) -> str:
+    if not player_id:
+        return "Player"
+    player = fetch_player_by_id(settings.database_url, player_id)
+    if player:
+        return player.get("name") or f"Player {player_id}"
+    return f"Player {player_id}"
+
 
 def _adjust_display_points(value: float | int) -> float:
     if value >= 5:
@@ -186,13 +194,6 @@ def _build_player_divisions() -> dict[str, str]:
     return {player["name"]: player["division"] for player in players}
 
 
-def _default_player_roster() -> dict[str, str]:
-    roster: dict[str, str] = {}
-    for division, size in DEFAULT_DIVISION_COUNT.items():
-        for idx in range(1, size + 1):
-            roster[f"Player {division}{idx}"] = division
-    return roster
-
 def _target_player_roster_size(tournament_settings: dict | None) -> int:
     if not tournament_settings:
         return sum(DEFAULT_DIVISION_COUNT.values())
@@ -204,27 +205,6 @@ def _target_player_roster_size(tournament_settings: dict | None) -> int:
     if count <= 0:
         count = sum(DEFAULT_DIVISION_COUNT.values())
     return count
-
-def _ensure_demo_tournament() -> int | None:
-    tournaments = fetch_tournaments(settings.database_url)
-    demo = next((entry for entry in tournaments if (entry["name"] or "").strip().lower() == DEMO_TOURNAMENT_NAME.lower()), None)
-    if demo:
-        tournament_id = demo["id"]
-    else:
-        tournament_id = insert_tournament(
-            settings.database_url,
-            name=DEMO_TOURNAMENT_NAME,
-            description="Auto-generated demo event populated with seeded players.",
-            status="active",
-        )
-    if tournament_id:
-        total_players = sum(DEFAULT_DIVISION_COUNT.values())
-        total_divisions = len(DEFAULT_DIVISION_COUNT)
-        upsert_event_setting(settings.database_url, tournament_id, "player_count", str(total_players))
-        upsert_event_setting(settings.database_url, tournament_id, "division_count", str(total_divisions))
-        if _get_active_tournament_id() is None:
-            _set_active_tournament_id(tournament_id)
-    return tournament_id
 
 
 def _parse_course_workbook(path: Path) -> list[dict]:
@@ -415,23 +395,7 @@ def _scorecard_data_for_match(
 
 
 def _seed_default_players() -> list[dict]:
-    existing = fetch_players(settings.database_url)
-    if existing:
-        return existing
-    roster = _default_player_roster()
-    demo_tournament_id = _ensure_demo_tournament()
-    for division in sorted(DEFAULT_DIVISION_COUNT):
-        players_in_division = [name for name, div in roster.items() if div == division]
-        for idx, name in enumerate(players_in_division, 1):
-            upsert_player(
-                settings.database_url,
-                None,
-                name,
-                division,
-                0,
-                idx,
-                tournament_id=demo_tournament_id,
-            )
+    ensure_demo_fixture(settings.database_url)
     return fetch_players(settings.database_url)
 
 
@@ -901,7 +865,7 @@ async def scoring_page(request: Request):
 
 
 @app.get("/scoring/mobile", response_class=HTMLResponse)
-async def scoring_mobile_page(request: Request):
+async def scoring_mobile_page(request: Request, group_key: str | None = None):
     matches = _load_pairings()
     default_match = matches[0] if matches else None
     summary = _build_match_summary(default_match, default_match.match_id if default_match else None)
@@ -922,6 +886,25 @@ async def scoring_mobile_page(request: Request):
             }
         )
     default_matches = [m["match_key"] for m in match_options if m["status"] != "completed"]
+    group_match_keys: list[str] = []
+    group_label = ""
+    active_id = _get_active_tournament_id()
+    definitions = _match_group_definitions(active_id)
+    selected_group = None
+    if group_key:
+        selected_group = _group_definition_for_key(definitions, group_key, active_id)
+    if not selected_group and active_id:
+        groups = _match_groups_from_definitions(definitions, active_id)
+        selected_group = groups[0] if groups else None
+        if selected_group:
+            group_key = selected_group.get("group_key") or group_key
+    if selected_group:
+        group_match_keys = [
+            entry.get("match_key")
+            for entry in selected_group.get("matches", [])
+            if entry.get("match_key")
+        ]
+        group_label = selected_group.get("label") or selected_group.get("group_key") or ""
     return templates.TemplateResponse(
         "mobile_scoring_v2.html",
         {
@@ -929,6 +912,9 @@ async def scoring_mobile_page(request: Request):
             "scorecard": summary,
             "matches": match_options,
             "default_match_keys": default_matches[:2],
+            "group_match_keys": group_match_keys,
+            "group_label": group_label,
+            "group_key": group_key or "",
         },
     )
 
@@ -1061,6 +1047,7 @@ async def scorecard_latest(request: Request, match_key: str | None = None):
             "active_matches": context["active_matches"],
             "scorecard": context["scorecard"],
             "active_match_key": context["scorecard"]["match"]["match_key"],
+            "match_groups": context.get("match_groups", []),
         },
     )
 
@@ -1132,11 +1119,14 @@ async def api_match_scorecard(match_key: str | None = None, match_code: str | No
 async def api_match_group_scorecard(group_key: str):
     context = _scorecard_context(None)
     group = next((entry for entry in context.get("match_groups", []) if entry.get("group_key") == group_key), None)
-    manual_group = None
     if not group:
-        manual_group = _manual_group_for_key(group_key, context.get("scorecard", {}).get("match", {}).get("tournament_id"))
-        if manual_group:
-            group = manual_group
+        scorecard = context.get("scorecard") or {}
+        match_info = scorecard.get("match") if scorecard else {}
+        tournament_id = match_info.get("tournament_id") or _get_active_tournament_id()
+        group_definitions = fetch_match_group_definitions(settings.database_url)
+        group = _group_definition_for_key(group_definitions, group_key, tournament_id)
+        if not group:
+            group = _group_definition_for_key(group_definitions, group_key, None)
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     matches_payload: list[dict] = []
@@ -1169,6 +1159,9 @@ async def api_match_group_scorecard(group_key: str):
                 "match_id": serialized.get("match_id"),
                 "match_code": serialized.get("match_code"),
                 "label": serialized.get("label"),
+                "status": serialized.get("status"),
+                "status_label": serialized.get("status_label"),
+                "meta": serialized.get("meta"),
                 "players": players,
                 "holes": serialized.get("holes", []),
             }
@@ -1198,16 +1191,18 @@ class MatchGroupsPayload(BaseModel):
     groups: list[MatchGroupEntry]
 
 
+class ActiveTournamentPayload(BaseModel):
+    tournament_id: int | None = None
+
+
 @app.get("/api/match_groups")
 async def api_match_groups():
     context = _scorecard_context(None)
-    tournament_id = _get_active_tournament_id()
     return JSONResponse(
         {
             "match_groups": context.get("match_groups", []),
             "active_matches": context.get("active_matches", []),
             "group_definitions": context.get("group_definitions", []),
-            "manual_groups": _manual_group_definitions(tournament_id),
         }
     )
 
@@ -1246,6 +1241,50 @@ async def api_store_match_groups(payload: MatchGroupsPayload):
     return JSONResponse({"group_definitions": processed})
 
 
+def _serialize_tournament(entry: dict) -> dict:
+    return {
+        "id": entry.get("id"),
+        "name": entry.get("name"),
+        "description": entry.get("description") or "",
+        "status": entry.get("status") or "",
+    }
+
+
+@app.get("/api/tournaments")
+async def api_list_tournaments():
+    tournaments = fetch_tournaments(settings.database_url)
+    return JSONResponse(
+        {"tournaments": [_serialize_tournament(entry) for entry in tournaments]}
+    )
+
+
+@app.get("/api/active_tournament")
+async def api_get_active_tournament():
+    active_id = _get_active_tournament_id()
+    tournaments = fetch_tournaments(settings.database_url)
+    active = next((entry for entry in tournaments if entry["id"] == active_id), None)
+    return JSONResponse(
+        {
+            "active_tournament_id": active_id,
+            "active_tournament": _serialize_tournament(active) if active else None,
+        }
+    )
+
+
+@app.post("/api/active_tournament")
+async def api_set_active_tournament(payload: ActiveTournamentPayload):
+    tournament_id = payload.tournament_id
+    if tournament_id:
+        if not fetch_tournament_by_id(settings.database_url, tournament_id):
+            raise HTTPException(status_code=404, detail="Tournament not found")
+    _set_active_tournament_id(tournament_id)
+    return JSONResponse(
+        {
+            "active_tournament_id": tournament_id,
+        }
+    )
+
+
 @app.post("/api/courses/import/{course_id}")
 @app.post("/api/courses/import/{course_id}/")
 async def api_course_import(course_id: int):
@@ -1259,9 +1298,12 @@ async def api_course_import(course_id: int):
 @app.on_event("startup")
 def startup() -> None:
     ensure_schema(settings.database_url)
+    apply_migrations(settings.database_url)
+    ensure_base_tournament()
     ensure_pebble_beach_course(settings.database_url)
     ensure_georgia_course(settings.database_url)
     _seed_default_players()
+    ensure_demo_fixture(settings.database_url)
     _load_course_holes()
 
 
@@ -1836,6 +1878,8 @@ async def match_setup_page(
     active_id = tournament_id or _get_active_tournament_id()
     selected_players = _players_for_tournament(active_id) if active_id else fetch_players(settings.database_url)
     matches = fetch_matches_by_tournament(settings.database_url, active_id) if active_id else []
+    group_definitions = _match_group_definitions(active_id) if active_id else []
+    match_groups = _match_groups_from_definitions(group_definitions, active_id) if active_id else []
     course_catalog = fetch_course_catalog(settings.database_url)
     editable_match = None
     if edit_match_id:
@@ -1848,11 +1892,13 @@ async def match_setup_page(
             "request": request,
             "status": status,
             "tournaments": tournaments,
-            "active_tournament_id": active_id,
-            "players": selected_players,
-            "matches": matches,
-            "course_catalog": course_catalog,
-            "editable_match": editable_match,
+        "active_tournament_id": active_id,
+        "players": selected_players,
+        "matches": matches,
+        "group_definitions": group_definitions,
+        "match_groups": match_groups,
+        "course_catalog": course_catalog,
+        "editable_match": editable_match,
         },
     )
 
@@ -1866,6 +1912,8 @@ async def groups_page(
     tournaments = fetch_tournaments(settings.database_url)
     active_id = tournament_id or _get_active_tournament_id()
     matches = fetch_matches_by_tournament(settings.database_url, active_id) if active_id else []
+    group_definitions = _match_group_definitions(active_id) if active_id else []
+    match_groups = _match_groups_from_definitions(group_definitions, active_id) if active_id else []
     return templates.TemplateResponse(
         "groups.html",
         {
@@ -1873,6 +1921,8 @@ async def groups_page(
             "tournaments": tournaments,
             "active_tournament_id": active_id,
             "matches": matches,
+            "group_definitions": group_definitions,
+            "match_groups": match_groups,
             "status": status,
         },
     )
@@ -1901,14 +1951,21 @@ async def match_setup_submit(
     division: str = Form(...),
     player_a_id: int = Form(...),
     player_b_id: int = Form(...),
-    player_c_id: int = Form(...),
-    player_d_id: int = Form(...),
+    player_c_id_raw: str | None = Form(None, alias="player_c_id"),
+    player_d_id_raw: str | None = Form(None, alias="player_d_id"),
     course_id: int | None = Form(None),
     course_tee_id: int | None = Form(None),
     hole_count: int | None = Form(18),
     active: str | None = Form(None),
     match_id: int | None = Form(None),
 ):
+    player_c_id = _safe_int(player_c_id_raw)
+    player_d_id = _safe_int(player_d_id_raw)
+    player_a_name = _player_name_by_id(player_a_id)
+    player_b_name = _player_name_by_id(player_b_id)
+    player_c_name = _player_name_by_id(player_c_id) if player_c_id else ""
+    player_d_name = _player_name_by_id(player_d_id) if player_d_id else ""
+
     if match_id:
         update_match(
             settings.database_url,
@@ -1925,6 +1982,12 @@ async def match_setup_submit(
         )
         message = "Match updated."
     else:
+        if not player_c_id or not player_d_id:
+            message = "Player C and Player D must be selected for four-player scoring."
+            return RedirectResponse(
+                url=f"/admin/match_setup?tournament_id={tournament_id}&status={quote_plus(message)}",
+                status_code=303,
+            )
         match_key = _generate_match_key()
         insert_match(
             settings.database_url,
@@ -1933,18 +1996,42 @@ async def match_setup_submit(
             division=division,
             player_a_id=player_a_id,
             player_b_id=player_b_id,
-            player_c_id=player_c_id,
-            player_d_id=player_d_id,
             course_id=course_id,
             course_tee_id=course_tee_id,
             hole_count=hole_count or 18,
             active=bool(active),
         )
+        match_keys = [match_key]
+        player_pairs = [
+            f"{player_a_name} vs {player_b_name}",
+        ]
+        secondary_key = _generate_match_key()
+        insert_match(
+            settings.database_url,
+            tournament_id=tournament_id,
+            match_key=secondary_key,
+            division=division,
+            player_a_id=player_c_id,
+            player_b_id=player_d_id,
+            course_id=course_id,
+            course_tee_id=course_tee_id,
+            hole_count=hole_count or 18,
+            active=bool(active),
+        )
+        match_keys.append(secondary_key)
+        player_pairs.append(f"{player_c_name} vs {player_d_name}")
+        upsert_match_group_definition(
+            settings.database_url,
+            {
+                "group_key": match_key,
+                "label": match_key,
+                "match_keys": match_keys,
+                "player_pairs": player_pairs,
+                "course": {},
+                "tournament_id": tournament_id,
+            }
+        )
         message = "Match saved."
-    return RedirectResponse(
-        url=f"/admin/match_setup?tournament_id={tournament_id}&status={quote_plus(message)}",
-        status_code=303,
-    )
     return RedirectResponse(
         url=f"/admin/match_setup?tournament_id={tournament_id}&status={quote_plus(message)}",
         status_code=303,
@@ -2554,109 +2641,158 @@ def _build_match_groups(matches: list[dict]) -> list[dict]:
     return groups
 
 
-def _stored_match_group_definitions() -> list[dict]:
-    value = fetch_settings(settings.database_url).get(MATCH_GROUPS_SETTING_KEY)
-    if not value:
+def _normalize_player_pair(pair_text: str) -> tuple[str, str] | None:
+    if not pair_text:
+        return None
+    segments = re.split(r"\s+vs\s+", pair_text, flags=re.IGNORECASE)
+    if len(segments) != 2:
+        return None
+    first, second = segments[0].strip(), segments[1].strip()
+    if not first or not second:
+        return None
+    return first, second
+
+
+def _find_match_key_by_pair(pair: tuple[str, str], matches: list[dict]) -> str | None:
+    if not matches:
+        return None
+    first_lower = pair[0].strip().lower()
+    second_lower = pair[1].strip().lower()
+    for match in matches:
+        player_a = (match.get("player_a_name") or "").strip().lower()
+        player_b = (match.get("player_b_name") or "").strip().lower()
+        if (player_a == first_lower and player_b == second_lower) or (
+            player_a == second_lower and player_b == first_lower
+        ):
+            return match.get("match_key")
+    return None
+
+
+def _resolve_match_keys_from_pairs(
+    definition: dict,
+    tournament_id: int,
+    existing_keys: set[str],
+    cache: dict[int, list[dict]],
+) -> list[str]:
+    pairs = [pair for pair in (definition.get("player_pairs") or []) if pair]
+    if not pairs:
         return []
-    try:
-        parsed = json.loads(value)
-    except (json.JSONDecodeError, TypeError):
-        return []
-    if not isinstance(parsed, list):
-        return []
-    definitions: list[dict] = []
-    for entry in parsed:
-        if not isinstance(entry, dict):
+    matches = cache.get(tournament_id)
+    if matches is None:
+        matches = fetch_matches_by_tournament(settings.database_url, tournament_id)
+        cache[tournament_id] = matches
+    new_keys: list[str] = []
+    for pair in pairs:
+        normalized = _normalize_player_pair(pair)
+        if not normalized:
             continue
-        match_keys = [str(k) for k in (entry.get("match_keys") or []) if k]
-        if not match_keys:
-            continue
-        tournament_id = entry.get("tournament_id")
-        definitions.append(
-            {
-                "group_key": str(entry.get("group_key") or ""),
-                "label": str(entry.get("label") or "").strip(),
-                "match_keys": match_keys,
-                "course": entry.get("course") or {},
-                "tournament_id": int(tournament_id) if tournament_id else None,
-            }
-        )
-    return definitions
+        match_key = _find_match_key_by_pair(normalized, matches)
+        if match_key and match_key not in existing_keys:
+            new_keys.append(match_key)
+            existing_keys.add(match_key)
+    return new_keys
+
+
+def _match_group_definitions(tournament_id: int | None = None) -> list[dict]:
+    return fetch_match_group_definitions(settings.database_url, tournament_id)
+
+
+def _sanitize_group_match(match: dict) -> dict:
+    sanitized = {}
+    for key, value in match.items():
+        sanitized[key] = value.isoformat() if isinstance(value, datetime) else value
+    return sanitized
 
 
 def _match_groups_from_definitions(definitions: list[dict], tournament_id: int | None = None) -> list[dict]:
     if not definitions:
         return []
     groups: list[dict] = []
+    matches_cache: dict[int, list[dict]] = {}
     for definition in definitions:
         definition_tournament = definition.get("tournament_id")
         if definition_tournament is not None and tournament_id is not None and definition_tournament != tournament_id:
             continue
         match_keys = [key for key in definition.get("match_keys", []) if key]
+        match_keys_set = set(match_keys)
+        effective_tournament = definition_tournament if definition_tournament is not None else tournament_id
+        added_keys: list[str] = []
+        if effective_tournament and (definition.get("player_pairs") or []):
+            added_keys = _resolve_match_keys_from_pairs(
+                definition,
+                effective_tournament,
+                match_keys_set,
+                matches_cache,
+            )
+            if added_keys:
+                match_keys.extend(added_keys)
         if not match_keys:
             continue
         matches = fetch_matches_by_keys(settings.database_url, match_keys)
         if not matches:
             continue
+        if added_keys:
+            upsert_match_group_definition(
+                settings.database_url,
+                {
+                    "group_key": definition.get("group_key") or matches[0]["match_key"],
+                    "label": definition.get("label") or "",
+                    "match_keys": match_keys,
+                    "player_pairs": definition.get("player_pairs") or [],
+                    "course": definition.get("course") or {},
+                    "tournament_id": definition_tournament,
+                },
+            )
+        sanitized_matches = [_sanitize_group_match(entry) for entry in matches]
         groups.append(
             {
                 "group_key": definition.get("group_key") or matches[0]["match_key"],
                 "label": definition.get("label") or "",
                 "course": definition.get("course") or {},
-                "matches": matches,
+                "player_pairs": definition.get("player_pairs") or [],
+                "matches": sanitized_matches,
             }
         )
     return groups
 
-def _manual_group_definitions(tournament_id: int | None) -> list[dict]:
-    if not tournament_id:
-        return []
-    matches = fetch_matches_by_tournament(settings.database_url, tournament_id)
-    definitions: list[dict] = []
-    for match in matches:
-        if not match.get("match_key"):
-            continue
-        pairs: list[str] = []
-        if match.get("player_a_name") and match.get("player_b_name"):
-            pairs.append(f"{match['player_a_name']} vs {match['player_b_name']}")
-        if match.get("player_c_name") and match.get("player_d_name"):
-            pairs.append(f"{match['player_c_name']} vs {match['player_d_name']}")
-        definitions.append(
-            {
-                "group_key": match["match_key"],
-                "label": match.get("division") or match["match_key"],
-                "match_keys": [match["match_key"]],
-                "player_pairs": pairs,
-                "manual": True,
-            }
+
+def _group_definition_for_key(definitions: list[dict], key: str, tournament_id: int | None = None) -> dict | None:
+    candidate_keys: list[str] = []
+    if key:
+        candidate_keys.append(key)
+        match_result = (
+            fetch_match_result_by_key(settings.database_url, key)
+            or fetch_match_result_by_code(settings.database_url, key)
         )
-    return definitions
-
-
-def _manual_group_for_key(group_key: str, tournament_id: int | None) -> dict | None:
-    match = fetch_match_by_key(settings.database_url, group_key)
-    if not match:
+    else:
+        match_result = None
+    if match_result:
+        match_key = match_result.get("match_key")
+        if match_key and match_key not in candidate_keys:
+            candidate_keys.append(match_key)
+    if not candidate_keys:
         return None
-    if tournament_id and match.get("tournament_id") and match["tournament_id"] != tournament_id:
-        return None
-    return {
-        "group_key": match["match_key"],
-        "label": match.get("division") or match["match_key"],
-        "course": {
-            "club_name": "",
-            "course_name": "",
-            "tee_name": "",
-            "total_yards": None,
-            "course_rating": None,
-            "slope_rating": None,
-        },
-        "matches": [match],
-    }
 
+    for definition in definitions:
+        definition_tournament = definition.get("tournament_id")
+        if definition_tournament is not None and tournament_id is not None and definition_tournament != tournament_id:
+            continue
+        match_keys = [mk for mk in definition.get("match_keys", []) if mk]
+        if not match_keys:
+            continue
+        for candidate in candidate_keys:
+            if definition.get("group_key") == candidate or candidate in match_keys:
+                matches = fetch_matches_by_keys(settings.database_url, match_keys)
+                if not matches:
+                    break
+                return {
+                    "group_key": definition.get("group_key") or matches[0]["match_key"],
+                    "label": definition.get("label") or "",
+                    "course": definition.get("course") or {},
+                    "matches": matches,
+                }
+    return None
 
-def _persist_match_group_definitions(definitions: list[dict]) -> None:
-    serialized = json.dumps(definitions)
-    upsert_setting(settings.database_url, MATCH_GROUPS_SETTING_KEY, serialized)
 
 
 def _scorecard_context(match_key: str | None, tournament_id: int | None = None) -> dict:
@@ -2785,20 +2921,15 @@ def _scorecard_context(match_key: str | None, tournament_id: int | None = None) 
         key=lambda entry: (STATUS_PRIORITY.get(entry["status"], 3), entry["display"])
     )
     active_matches = [entry for entry in match_statuses if entry["status"] != "completed"]
-    manual_definitions = _stored_match_group_definitions()
-    active_definitions = [
-        entry
-        for entry in manual_definitions
-        if not entry.get("tournament_id") or entry.get("tournament_id") == resolved_tournament_id
-    ]
-    match_groups = _match_groups_from_definitions(active_definitions, resolved_tournament_id)
+    group_definitions = _match_group_definitions(resolved_tournament_id)
+    match_groups = _match_groups_from_definitions(group_definitions, resolved_tournament_id)
     return {
         "matches": matches,
         "match_statuses": match_statuses,
         "active_matches": active_matches,
         "scorecard": scorecard,
         "match_groups": match_groups,
-        "group_definitions": active_definitions,
+        "group_definitions": group_definitions,
     }
 
 
@@ -3113,8 +3244,6 @@ async def match_detail_submit_by_key(match_key: str, request: Request):
             player_b=pairing.player_b,
             match_key=pairing.match_id,
             match_code=None,
-            player_a_points=0,
-            player_b_points=0,
             player_a_handicap=_player_handicap_by_name(pairing.player_a),
             player_b_handicap=_player_handicap_by_name(pairing.player_b),
             course_id=course_id,

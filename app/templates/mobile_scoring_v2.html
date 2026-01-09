@@ -37,6 +37,14 @@
         font-size: 0.95rem;
         color: rgba(255, 255, 255, 0.7);
       }
+      .group-label {
+        margin: 0;
+        font-size: 0.75rem;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.6);
+        visibility: hidden;
+      }
       .hole-bar {
         display: grid;
         grid-template-columns: auto 1fr auto;
@@ -350,6 +358,7 @@
       <div class="header">
         <p class="page-title">Mobile Scoring</p>
         <p class="page-subtitle">All score entry happens here, no refresh required.</p>
+        <p class="group-label" id="group-label" data-default="{{ group_label or "" }}">{{ group_label or "" }}</p>
       </div>
 
       <div class="hole-bar">
@@ -380,6 +389,9 @@
       const matches = {{ matches | default([]) | tojson }};
       const defaultMatchKeys = {{ default_match_keys | default([]) | tojson }};
       const initialSummary = {{ scorecard | default({}) | tojson }};
+      const GROUP_MATCH_KEYS = {{ group_match_keys | default([]) | tojson }};
+      const GROUP_LABEL = {{ group_label | default("") | tojson }};
+      const GROUP_KEY = {{ group_key | default("") | tojson }};
       const MAX_SELECTION = 2;
 
       const state = {
@@ -401,6 +413,7 @@
       const holeNext = document.getElementById("hole-next");
       const saveButton = document.getElementById("save-scores");
       const changeMatchesBtn = document.getElementById("change-matches");
+      const groupLabelEl = document.getElementById("group-label");
 
       const ensureMatchState = (key) => {
         if (!state.matchStates[key]) {
@@ -662,10 +675,73 @@
         updateHoleMeta();
       };
 
+      const updateGroupLabelDisplay = (label) => {
+        if (!groupLabelEl) {
+          return;
+        }
+        if (label) {
+          groupLabelEl.textContent = label;
+          groupLabelEl.style.visibility = "visible";
+        } else {
+          const defaultLabel = groupLabelEl.dataset.default || "";
+          groupLabelEl.textContent = defaultLabel;
+          groupLabelEl.style.visibility = defaultLabel ? "visible" : "hidden";
+        }
+      };
+
       const renderUI = () => {
         renderStatusPills();
         updateHoleMeta();
         renderMatchPanels();
+      };
+
+      const initializeGroupFromData = (groupData) => {
+        const matches = Array.isArray(groupData?.matches) ? groupData.matches : [];
+        const groupKeys = matches
+          .map((match) => match?.match_key)
+          .filter((key) => !!key);
+        if (!groupKeys.length) {
+          return [];
+        }
+        applySelection(groupKeys.slice(0, MAX_SELECTION));
+        return groupKeys;
+      };
+
+      const fetchDefaultGroupKey = async () => {
+        try {
+          const response = await fetch("/api/match_groups");
+          if (!response.ok) {
+            throw new Error("Unable to load group definitions.");
+          }
+          const payload = await response.json();
+          const definitions = Array.isArray(payload.group_definitions)
+            ? payload.group_definitions
+            : [];
+          return (definitions[0]?.group_key || "").trim();
+        } catch (error) {
+          console.warn(error);
+          return "";
+        }
+      };
+
+      const loadGroupFromServer = async () => {
+        let targetKey = GROUP_KEY;
+        if (!targetKey) {
+          targetKey = await fetchDefaultGroupKey();
+        }
+        if (!targetKey) {
+          return false;
+        }
+        try {
+          const groupData = await fetchGroupScorecard(targetKey);
+          initializeGroupFromData(groupData);
+          updateGroupLabelDisplay(GROUP_LABEL || groupData.label || "");
+          renderUI();
+          return true;
+        } catch (error) {
+          console.warn("Unable to load group scorecard", error);
+          return false;
+        }
       };
 
       const collectPayload = (matchKey) => {
@@ -759,9 +835,19 @@
         }
       });
 
-      const initialize = () => {
+      const initialize = async () => {
         seedInitialSummary();
         renderMatchOptions();
+        if (await loadGroupFromServer()) {
+          return;
+        }
+        const groupKeys = GROUP_MATCH_KEYS.filter((key) => matches.some((match) => match.match_key === key));
+        if (groupKeys.length) {
+          applySelection(groupKeys.slice(0, MAX_SELECTION));
+          updateGroupLabelDisplay(GROUP_LABEL);
+          closeModal();
+          return;
+        }
         const keys = defaultMatchKeys.filter((key) => matches.some((match) => match.match_key === key));
         const selected = keys.slice(0, MAX_SELECTION);
         if (!selected.length && initialSummary?.match?.match_key) {
@@ -771,6 +857,7 @@
           selected.push(matches[0].match_key);
         }
         applySelection(selected);
+        updateGroupLabelDisplay("");
         if (!selected.length) {
           openModal();
         } else {
@@ -778,7 +865,11 @@
         }
       };
 
-      renderMatchOptions();
+      const params = new URLSearchParams(window.location.search);
+      const candidate = params.get("match_code") || params.get("match_key") || params.get("group_key");
+      if (candidate && !GROUP_KEY) {
+        handleCodeSubmit(candidate);
+      }
       initialize();
     </script>
   </body>

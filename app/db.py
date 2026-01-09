@@ -182,6 +182,19 @@ def ensure_schema(database_url: str) -> None:
             unique (tournament_id, player_name)
         );
         """,
+        """
+        create table if not exists match_groups (
+            id serial primary key,
+            group_key text not null unique,
+            label text,
+            match_keys text[] not null,
+            player_pairs text[] not null default '{}'::text[],
+            course jsonb not null default '{}'::jsonb,
+            tournament_id integer null references tournaments(id) on delete cascade,
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now()
+        );
+        """,
     ]
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
@@ -280,6 +293,31 @@ def fetch_player_by_name(database_url: str, name: str) -> dict[str, int] | None:
                 limit 1;
                 """,
                 (name,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            return {
+                "id": row[0],
+                "name": row[1],
+                "division": row[2],
+                "handicap": row[3],
+                "seed": row[4],
+                "tournament_id": row[5],
+            }
+
+
+def fetch_player_by_id(database_url: str, player_id: int) -> dict[str, int] | None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select id, name, division, handicap, seed, tournament_id
+                from players
+                where id = %s
+                limit 1;
+                """,
+                (player_id,),
             )
             row = cur.fetchone()
             if not row:
@@ -1417,6 +1455,85 @@ def delete_match_results_by_key(database_url: str, match_key: str) -> None:
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
             cur.execute("delete from match_results where match_key = %s;", (match_key,))
+
+
+def fetch_match_group_definitions(database_url: str, tournament_id: int | None = None) -> list[dict]:
+    filters = ""
+    params: tuple = ()
+    if tournament_id is not None:
+        filters = "where tournament_id = %s or tournament_id is null"
+        params = (tournament_id,)
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                select
+                    group_key,
+                    coalesce(label, '') as label,
+                    match_keys,
+                    coalesce(player_pairs, array[]::text[]) as player_pairs,
+                    coalesce(course, '{{}}'::jsonb) as course,
+                    tournament_id
+                from match_groups
+                {filters}
+                order by created_at desc, group_key;
+                """,
+                params,
+            )
+            rows = cur.fetchall()
+    return [
+        {
+            "group_key": row[0],
+            "label": row[1],
+            "match_keys": row[2] or [],
+            "player_pairs": row[3] or [],
+            "course": row[4] or {},
+            "tournament_id": row[5],
+        }
+        for row in rows
+    ]
+
+
+def upsert_match_group_definition(database_url: str, definition: dict) -> None:
+    match_keys = [str(key) for key in (definition.get("match_keys") or []) if key]
+    if not match_keys:
+        return
+    group_key = str(definition.get("group_key") or match_keys[0])
+    label = str(definition.get("label") or "")
+    player_pairs = [str(pair) for pair in (definition.get("player_pairs") or []) if pair]
+    course = definition.get("course") or {}
+    tournament_id = definition.get("tournament_id")
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                insert into match_groups (
+                    group_key,
+                    label,
+                    match_keys,
+                    player_pairs,
+                    course,
+                    tournament_id
+                )
+                values (%s, %s, %s, %s, %s, %s)
+                on conflict (group_key) do update
+                    set
+                        label = excluded.label,
+                        match_keys = excluded.match_keys,
+                        player_pairs = excluded.player_pairs,
+                        course = excluded.course,
+                        tournament_id = excluded.tournament_id,
+                        updated_at = now();
+                """,
+                (
+                    group_key,
+                    label,
+                    match_keys,
+                    player_pairs,
+                    Json(course),
+                    tournament_id,
+                ),
+            )
 
 
 def upsert_setting(database_url: str, key: str, value: str) -> None:
