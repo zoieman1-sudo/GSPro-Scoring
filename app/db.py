@@ -545,6 +545,14 @@ def delete_players_not_in(database_url: str, names: list[str]) -> None:
                 """
                 delete from players
                 where name not in ({})
+                  and not exists (
+                    select 1
+                    from matches m
+                    where m.player_a_id = players.id
+                      or m.player_b_id = players.id
+                      or m.player_c_id = players.id
+                      or m.player_d_id = players.id
+                  )
                 """
             ).format(placeholders)
             cur.execute(query, names)
