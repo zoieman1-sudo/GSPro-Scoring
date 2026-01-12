@@ -260,6 +260,12 @@ body.popup-open {
   font-size: 0.95rem;
 }
 
+.tournament-picker-card select option:hover,
+.tournament-picker-card select option:focus {
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.95);
+}
+
 .tournament-picker-actions {
   display: flex;
   justify-content: flex-end;
@@ -858,6 +864,12 @@ body.popup-open {
   font-size: 0.65rem;
   background: rgba(7, 9, 20, 0.95);
   color: #f7f7ff;
+}
+
+.scorecard-selector select option:hover,
+.scorecard-selector select option:focus {
+  color: #ffffff;
+  background: rgba(67, 225, 255, 0.18);
 }
 
 .scorecard-selector select:focus-visible {

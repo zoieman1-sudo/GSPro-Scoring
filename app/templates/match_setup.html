@@ -3,176 +3,217 @@
 {% block content %}
   <section class="card">
     <div class="match-meta">
-      <p class="eyebrow">Group Management</p>
-      <h1 class="match-title">Match Group Builder</h1>
+      <p class="eyebrow">Match Setup</p>
+      <h1 class="match-title">Pairings &amp; live scoring</h1>
+      <p class="match-sub">
+        Once players are seeded in the Player Entry screen, use this page to pair them up and
+        launch Scorecard Studio with a live match.
+      </p>
     </div>
-    <form action="/admin/match_setup" method="post" class="setup-form">
-      {% if editable_match %}
-        <input type="hidden" name="match_id" value="{{ editable_match.id }}" />
-      {% endif %}
-      <div class="match-setup__intro">
-        <div class="match-setup__add-players">
-          <p class="eyebrow">Group builder</p>
-          <h1 class="match-title">Match Group Setup</h1>
-          <p class="muted-label">Pick the course and pair two head-to-head matches to form the group.</p>
-          <a class="pill-link" href="/admin/player_entry">Player entry</a>
-        </div>
-        <label>
-          Tournament
-          <select name="tournament_id" required>
-            {% for tournament in tournaments %}
-              <option value="{{ tournament.id }}" {% if tournament.id == active_tournament_id %}selected{% endif %}>
-                {{ tournament.name }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-      </div>
-      <div class="group-builder__course form-row">
-        <label>
-          Course
-          <select name="course_id">
-            <option value="">-- Choose course --</option>
-            {% for course in course_catalog %}
-              <option
-                value="{{ course.id }}"
-                {% if editable_match and editable_match.course_id == course.id %}selected{% endif %}
-              >
-                {{ course.club_name }} — {{ course.course_name }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>
-          Tee
-          <select name="course_tee_id">
-            <option value="">-- Choose tee --</option>
-            {% for course in course_catalog %}
-              {% for tee in course.tees %}
-                <option
-                  value="{{ tee.id }}"
-                  {% if editable_match and editable_match.course_tee_id == tee.id %}selected{% endif %}
-                >
-                  {{ course.course_name }} — {{ tee.tee_name }}
-                </option>
-              {% endfor %}
-            {% endfor %}
-          </select>
-        </label>
-      </div>
-      <div class="group-builder__match" aria-label="Match 1">
-        <p class="muted-label">Player A vs Player B</p>
-        <div class="form-row form-row--compact">
-          <label>
-            Player A
-            <select name="player_a_id" required>
-              {% for player in players %}
-                <option value="{{ player.id }}" {% if editable_match and editable_match.player_a_id == player.id %}selected{% endif %}>
-                  {{ player.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Player B
-            <select name="player_b_id" required>
-              {% for player in players %}
-                <option value="{{ player.id }}" {% if editable_match and editable_match.player_b_id == player.id %}selected{% endif %}>
-                  {{ player.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </label>
-        </div>
-      </div>
-      <div class="group-builder__match" aria-label="Match 2">
-        <p class="muted-label">Player C vs Player D</p>
-        <div class="form-row form-row--compact">
-        <label>
-          Player C
-          <select name="player_c_id" required>
-            <option value="">Select player C</option>
-            {% for player in players %}
-              <option value="{{ player.id }}" {% if editable_match and editable_match.player_c_id == player.id %}selected{% endif %}>
-                {{ player.name }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>
-          Player D
-          <select name="player_d_id" required>
-            <option value="">Select player D</option>
-            {% for player in players %}
-              <option value="{{ player.id }}" {% if editable_match and editable_match.player_d_id == player.id %}selected{% endif %}>
-                {{ player.name }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-      </div>
-    </div>
-      <div class="form-row">
-        <label>
-          Division
-          <input
-            type="text"
-            name="division"
-            required
-            value="{{ editable_match.division if editable_match else 'A' }}"
-          />
-        </label>
-        <label>
-          Holes
-          <input
-            type="number"
-            name="hole_count"
-            min="9"
-            max="18"
-            value="{{ editable_match.hole_count if editable_match else 18 }}"
-          />
-        </label>
-        <label>
-          Active
-          <input
-            type="checkbox"
-            name="active"
-            value="1"
-            {% if editable_match and editable_match.active %}checked{% endif %}
-          />
-        </label>
-      </div>
-      <p class="muted-label">Match key is generated automatically when the group is saved.</p>
-      <button type="submit" class="submit-btn">
-        {{ "Update match" if editable_match else "Save match" }}
-      </button>
-      {% if editable_match %}
-        <a href="/admin/match_setup?tournament_id={{ active_tournament_id }}" class="pill-link">
-          Cancel edit
-        </a>
-      {% endif %}
-      {% if status %}
-        <p class="muted-label">{{ status }}</p>
-      {% endif %}
-    </form>
-  </section>
-{% endblock %}
 
-{% block scripts %}
-  <script>
-    const matchSetupTournamentSelect = document.querySelector(
-      'form.setup-form select[name="tournament_id"]'
-    );
-    if (matchSetupTournamentSelect) {
-      matchSetupTournamentSelect.addEventListener("change", (event) => {
-        const select = event.target;
-        const params = new URLSearchParams(window.location.search);
-        params.set("tournament_id", select.value);
-        if (params.has("edit_match_id") && select.value !== "{{ active_tournament_id }}") {
-          params.delete("edit_match_id");
+    {% if status %}
+      <div class="status">{{ status }}</div>
+    {% endif %}
+
+    {% if not active_tournament %}
+      <div class="status">Pick an active tournament to begin scheduling matches.</div>
+    {% endif %}
+
+    <div class="split-grid">
+      <article>
+        <h3>Create a match</h3>
+        {% if active_tournament %}
+          {% if players|length >= 2 %}
+            <form class="setup-form" method="post" action="/admin/match_setup">
+              <input type="hidden" name="tournament_id" value="{{ active_tournament.id }}" />
+              <label>
+                Course
+                <select
+                  name="course_id"
+                  id="match-course-select"
+                  {% if not course_catalog %}disabled{% endif %}
+                >
+                  <option value="">
+                    {% if course_catalog %}Select a course{% else %}No courses available{% endif %}
+                  </option>
+                  {% for course in course_catalog %}
+                    <option
+                      value="{{ course.id }}"
+                      {% if course.id == selected_course_id %}selected{% endif %}
+                    >
+                      {{ course.club_name }} — {{ course.course_name }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Tee
+                <select
+                  name="course_tee_id"
+                  id="match-tee-select"
+                  {% if not course_catalog %}disabled{% endif %}
+                >
+                  <option value="">Choose a tee</option>
+                </select>
+              </label>
+              <label>
+                Holes
+                <select name="hole_count" id="match-hole-count">
+                  <option value="18" {% if selected_hole_count != 9 %}selected{% endif %}>18 holes</option>
+                  <option value="9" {% if selected_hole_count == 9 %}selected{% endif %}>9 holes</option>
+                </select>
+              </label>
+              <label id="match-start-hole-label" style="display:none;">
+                Starting hole
+                <select name="start_hole" id="match-start-hole">
+                  <option value="1" {% if selected_start_hole != 10 %}selected{% endif %}>Front (Hole 1)</option>
+                  <option value="10" {% if selected_start_hole == 10 %}selected{% endif %}>Back (Hole 10)</option>
+                </select>
+              </label>
+              <label>
+                Player A
+                <select name="player_a_id">
+                  {% for player in players %}
+                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Player C
+                <select name="player_c_id">
+                  {% for player in players %}
+                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Player B
+                <select name="player_b_id">
+                  {% for player in players %}
+                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Player D
+                <select name="player_d_id">
+                  {% for player in players %}
+                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Match key (optional)
+                <input type="text" name="match_key" placeholder="e.g. A-01" />
+              </label>
+              <div class="setup-actions">
+                <button type="submit" class="submit-btn">Save match</button>
+              </div>
+            </form>
+          {% else %}
+            <p class="status">Add at least two players to schedule a match.</p>
+          {% endif %}
+        {% else %}
+          <p class="status">Create or select a tournament before pairing players.</p>
+        {% endif %}
+      </article>
+
+      <article>
+        <h3>Scheduled matches</h3>
+        {% if matches %}
+          <div class="match-grid">
+            {% for match in matches %}
+              <div class="match-card">
+                <div class="match-info">
+                  {% if match.course_name or match.tee_name %}
+                    <p class="match-player-chip">
+                      {{ match.course_name or "Course configured" }}
+                      {% if match.tee_name %} — {{ match.tee_name }}{% endif %}
+                    </p>
+                  {% endif %}
+                  <strong>
+                    {{ match.player_a_name }} &amp; {{ match.player_c_name }} vs
+                    {{ match.player_b_name }} &amp; {{ match.player_d_name }}
+                  </strong>
+                  <p class="muted-label">Key: {{ match.match_key }}</p>
+                </div>
+                <div class="match-actions">
+                  <a
+                    class="pill-link"
+                    href="/golf-ui/scoring.html?match_key={{ match.match_key }}"
+                    target="_blank"
+                  >
+                    Launch Golf UI
+                  </a>
+                  <form method="post" action="/admin/match_setup/delete">
+                    <input type="hidden" name="match_id" value="{{ match.id }}" />
+                    <button class="pill-link pill-link--ghost" type="submit">Remove</button>
+                  </form>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="status">No matches are scheduled yet.</p>
+        {% endif %}
+      </article>
+    </div>
+    <script>
+      (function () {
+        const courseTeeMap = {{ course_tee_map | tojson }};
+        const courseSelect = document.getElementById("match-course-select");
+        const teeSelect = document.getElementById("match-tee-select");
+        const holeCountSelect = document.getElementById("match-hole-count");
+        const startHoleLabel = document.getElementById("match-start-hole-label");
+        const startHoleSelect = document.getElementById("match-start-hole");
+        const initialCourse = {{ selected_course_id | tojson }};
+        const initialTee = {{ selected_course_tee_id | tojson }};
+        const defaultCourse = initialCourse == null ? "" : String(initialCourse);
+        const defaultTee = initialTee == null ? "" : String(initialTee);
+
+        function buildTeeOptions(courseId) {
+          if (!teeSelect) return;
+          const resolvedCourse = courseId ? String(courseId) : "";
+          const tees = resolvedCourse ? courseTeeMap[resolvedCourse] || [] : [];
+          teeSelect.innerHTML = '<option value="">Choose a tee</option>';
+          tees.forEach((tee) => {
+            const option = document.createElement("option");
+            option.value = String(tee.id);
+            option.textContent = tee.label || tee.tee_name || "Tee";
+            teeSelect.appendChild(option);
+          });
+          teeSelect.disabled = !tees.length;
+          if (defaultTee && tees.some((tee) => String(tee.id) === defaultTee)) {
+            teeSelect.value = defaultTee;
+          }
         }
-        window.location.search = params.toString();
-      });
-    }
-  </script>
+
+        function updateStartHoleVisibility() {
+          if (!holeCountSelect || !startHoleLabel) return;
+          const isNine = Number(holeCountSelect.value) === 9;
+          startHoleLabel.style.display = isNine ? "block" : "none";
+          if (!isNine && startHoleSelect) {
+            startHoleSelect.value = "1";
+          }
+        }
+
+        courseSelect?.addEventListener("change", function () {
+          buildTeeOptions(this.value);
+        });
+
+        holeCountSelect?.addEventListener("change", updateStartHoleVisibility);
+
+        document.addEventListener("DOMContentLoaded", function () {
+          if (courseSelect && defaultCourse) {
+            courseSelect.value = defaultCourse;
+          }
+          buildTeeOptions(courseSelect?.value || "");
+          if (teeSelect && defaultTee) {
+            teeSelect.value = defaultTee;
+          }
+          updateStartHoleVisibility();
+        });
+      })();
+    </script>
+  </section>
 {% endblock %}

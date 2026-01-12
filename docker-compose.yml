@@ -1,9 +1,8 @@
 services:
   app:
     build: .
-    container_name: gspro-scoring
     ports:
-      - "18000:8000"
+      - "${APP_HOST_PORT:-18000}:8000"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:change_me@db:5432/gspro_scoring}
       SCORING_PIN: ${SCORING_PIN:-1234}
@@ -30,7 +29,7 @@ services:
       timeout: 5s
       retries: 5
     ports:
-      - "15433:5432"
+      - "${DB_HOST_PORT:-15433}:5432"
     networks:
       - gspro-network
 
@@ -45,7 +44,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: pgadmin@gspro.local
       PGADMIN_DEFAULT_PASSWORD: change_me
     ports:
-      - "5050:80"
+      - "${PGADMIN_HOST_PORT:-5050}:80"
     volumes:
       - pgadmin-data:/var/lib/pgadmin
     networks:

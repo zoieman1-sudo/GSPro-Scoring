@@ -31,6 +31,39 @@ def ensure_schema(database_url: str) -> None:
         );
         """,
         """
+        create table if not exists matches (
+            id serial primary key,
+            tournament_id integer not null references tournaments(id),
+            match_key text not null unique,
+            division text not null default 'Open',
+            player_a_id integer not null references players(id),
+            player_b_id integer not null references players(id),
+            player_c_id integer null references players(id),
+            player_d_id integer null references players(id),
+            course_id integer null references courses(id),
+            course_tee_id integer null references course_tees(id),
+            player_a_handicap integer not null default 0,
+            player_b_handicap integer not null default 0,
+            hole_count integer not null default 18,
+            start_hole integer not null default 1,
+            status text not null default 'not_started',
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now()
+        );
+        """,
+        """
+        alter table matches add column if not exists player_c_id integer null references players(id);
+        """,
+        """
+        alter table matches add column if not exists player_d_id integer null references players(id);
+        """,
+        """
+        alter table matches add column if not exists hole_count integer not null default 18;
+        """,
+        """
+        alter table matches add column if not exists start_hole integer not null default 1;
+        """,
+        """
         create table if not exists courses (
             id integer primary key,
             club_name text not null,
@@ -77,35 +110,6 @@ def ensure_schema(database_url: str) -> None:
         );
         """,
         """
-        create table if not exists matches (
-            id serial primary key,
-            tournament_id integer not null references tournaments(id) on delete cascade,
-            match_key text not null unique,
-            match_code text not null default '',
-            division text not null,
-            player_a_id integer not null references players(id),
-            player_b_id integer not null references players(id),
-            player_c_id integer null references players(id),
-            player_d_id integer null references players(id),
-            course_id integer null references courses(id),
-            course_tee_id integer null references course_tees(id),
-            player_a_handicap integer not null default 0,
-            player_b_handicap integer not null default 0,
-            status text not null default 'not_started',
-            strokes jsonb,
-            hole_count smallint not null default 18,
-            active boolean not null default false,
-            created_at timestamptz not null default now(),
-            updated_at timestamptz not null default now()
-        );
-        """,
-        """
-        alter table matches add column if not exists player_c_id integer null references players(id);
-        """,
-        """
-        alter table matches add column if not exists player_d_id integer null references players(id);
-        """,
-        """
         create table if not exists match_results (
             id serial primary key,
             match_name text not null,
@@ -125,11 +129,19 @@ def ensure_schema(database_url: str) -> None:
             tournament_id integer null,
             player_a_handicap integer not null default 0,
             player_b_handicap integer not null default 0,
+            hole_count integer not null default 18,
+            start_hole integer not null default 1,
             finalized boolean not null default false,
             course_snapshot jsonb,
             scorecard_snapshot jsonb,
             submitted_at timestamptz not null default now()
         );
+        """,
+        """
+        alter table match_results add column if not exists hole_count integer not null default 18;
+        """,
+        """
+        alter table match_results add column if not exists start_hole integer not null default 1;
         """,
         """
         create table if not exists hole_scores (
@@ -140,6 +152,14 @@ def ensure_schema(database_url: str) -> None:
             player_b_score smallint not null,
             recorded_at timestamptz not null default now()
         );
+        """,
+        """
+        alter table hole_scores
+        add column if not exists player_c_score smallint not null default 0;
+        """,
+        """
+        alter table hole_scores
+        add column if not exists player_d_score smallint not null default 0;
         """,
         """
         create table if not exists tournament_settings (
@@ -180,19 +200,6 @@ def ensure_schema(database_url: str) -> None:
             holes_played integer not null default 0,
             updated_at timestamptz not null default now(),
             unique (tournament_id, player_name)
-        );
-        """,
-        """
-        create table if not exists match_groups (
-            id serial primary key,
-            group_key text not null unique,
-            label text,
-            match_keys text[] not null,
-            player_pairs text[] not null default '{}'::text[],
-            course jsonb not null default '{}'::jsonb,
-            tournament_id integer null references tournaments(id) on delete cascade,
-            created_at timestamptz not null default now(),
-            updated_at timestamptz not null default now()
         );
         """,
     ]
@@ -330,6 +337,219 @@ def fetch_player_by_id(database_url: str, player_id: int) -> dict[str, int] | No
                 "seed": row[4],
                 "tournament_id": row[5],
             }
+
+
+def _row_to_match(row: tuple) -> dict:
+    return {
+        "id": row[0],
+        "tournament_id": row[1],
+        "match_key": row[2],
+        "division": row[3],
+        "player_a_id": row[4],
+        "player_b_id": row[5],
+        "player_c_id": row[6],
+        "player_d_id": row[7],
+        "course_id": row[8],
+        "course_tee_id": row[9],
+        "player_a_handicap": row[10],
+        "player_b_handicap": row[11],
+        "hole_count": row[12] or 18,
+        "start_hole": row[13] or 1,
+        "status": row[14],
+        "created_at": row[15],
+        "updated_at": row[16],
+        "player_a_name": row[17] or "",
+        "player_b_name": row[18] or "",
+        "player_c_name": row[19] or "",
+        "player_d_name": row[20] or "",
+        "course_name": row[21] or "",
+        "tee_name": row[22] or "",
+        "tee_yards": row[23] or "",
+    }
+
+
+def insert_match(
+    database_url: str,
+    *,
+    tournament_id: int,
+    match_key: str,
+    division: str,
+    player_a_id: int,
+    player_b_id: int,
+    player_c_id: int | None = None,
+    player_d_id: int | None = None,
+    course_id: int | None = None,
+    course_tee_id: int | None = None,
+    player_a_handicap: int = 0,
+    player_b_handicap: int = 0,
+    hole_count: int = 18,
+    start_hole: int = 1,
+    status: str = "not_started",
+) -> int | None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                insert into matches (
+                    tournament_id,
+                    match_key,
+                    division,
+                    player_a_id,
+                    player_b_id,
+                    player_c_id,
+                    player_d_id,
+                    course_id,
+                    course_tee_id,
+                    player_a_handicap,
+                    player_b_handicap,
+                    hole_count,
+                    start_hole,
+                    status
+                )
+                values (
+                    %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s, %s
+                )
+                on conflict (match_key) do update
+                    set
+                        division = excluded.division,
+                        player_a_id = excluded.player_a_id,
+                        player_b_id = excluded.player_b_id,
+                        player_c_id = excluded.player_c_id,
+                        player_d_id = excluded.player_d_id,
+                        course_id = excluded.course_id,
+                        course_tee_id = excluded.course_tee_id,
+                        player_a_handicap = excluded.player_a_handicap,
+                        player_b_handicap = excluded.player_b_handicap,
+                        hole_count = excluded.hole_count,
+                        start_hole = excluded.start_hole,
+                        status = excluded.status,
+                        updated_at = now()
+                returning id;
+                """,
+                (
+                    tournament_id,
+                    match_key,
+                    division,
+                    player_a_id,
+                    player_b_id,
+                    player_c_id,
+                    player_d_id,
+                    course_id,
+                    course_tee_id,
+                    player_a_handicap,
+                    player_b_handicap,
+                    hole_count,
+                    start_hole,
+                    status,
+                ),
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
+
+
+def fetch_match_by_key(database_url: str, match_key: str) -> dict | None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select
+                    m.id,
+                    m.tournament_id,
+                    m.match_key,
+                    m.division,
+                    m.player_a_id,
+                    m.player_b_id,
+                    m.player_c_id,
+                    m.player_d_id,
+                    m.course_id,
+                    m.course_tee_id,
+                    m.player_a_handicap,
+                    m.player_b_handicap,
+                    m.hole_count,
+                    m.start_hole,
+                    m.status,
+                    m.created_at,
+                    m.updated_at,
+                    pa.name,
+                    pb.name,
+                    pc.name,
+                    pd.name,
+                    c.course_name,
+                    ct.tee_name,
+                    ct.total_yards
+                from matches m
+                left join players pa on pa.id = m.player_a_id
+                left join players pb on pb.id = m.player_b_id
+                left join players pc on pc.id = m.player_c_id
+                left join players pd on pd.id = m.player_d_id
+                where m.match_key = %s
+                limit 1;
+                """,
+                (match_key,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            return _row_to_match(row)
+
+
+def fetch_matches_by_tournament(database_url: str, tournament_id: int) -> list[dict]:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select
+                    m.id,
+                    m.tournament_id,
+                    m.match_key,
+                    m.division,
+                    m.player_a_id,
+                    m.player_b_id,
+                    m.player_c_id,
+                    m.player_d_id,
+                    m.course_id,
+                    m.course_tee_id,
+                    m.player_a_handicap,
+                    m.player_b_handicap,
+                    m.hole_count,
+                    m.start_hole,
+                    m.status,
+                    m.created_at,
+                    m.updated_at,
+                    pa.name,
+                    pb.name,
+                    pc.name,
+                    pd.name,
+                    c.course_name,
+                    ct.tee_name,
+                    ct.total_yards
+                from matches m
+                left join players pa on pa.id = m.player_a_id
+                left join players pb on pb.id = m.player_b_id
+                left join players pc on pc.id = m.player_c_id
+                left join players pd on pd.id = m.player_d_id
+                left join courses c on c.id = m.course_id
+                left join course_tees ct on ct.id = m.course_tee_id
+                where m.tournament_id = %s
+                order by m.match_key;
+                """,
+                (tournament_id,),
+            )
+            rows = cur.fetchall()
+    return [_row_to_match(row) for row in rows]
+
+
+def delete_match(database_url: str, match_id: int) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute("delete from matches where id = %s;", (match_id,))
+
+
+def delete_match_results_by_key(database_url: str, match_key: str) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute("delete from match_results where match_key = %s;", (match_key,))
 
 
 def fetch_course_holes(database_url: str) -> list[dict]:
@@ -656,6 +876,8 @@ def insert_hole_scores(
             entry["hole_number"],
             entry["player_a_score"],
             entry["player_b_score"],
+            entry.get("player_c_score", 0),
+            entry.get("player_d_score", 0),
         )
         for entry in hole_entries
     ]
@@ -670,8 +892,8 @@ def insert_hole_scores(
             )
             cur.executemany(
                 """
-                insert into hole_scores (match_result_id, hole_number, player_a_score, player_b_score)
-                values (%s, %s, %s, %s)
+                insert into hole_scores (match_result_id, hole_number, player_a_score, player_b_score, player_c_score, player_d_score)
+                values (%s, %s, %s, %s, %s, %s)
                 """,
                 values,
             )
@@ -688,7 +910,7 @@ def fetch_hole_scores(database_url: str, match_id: int) -> list[dict]:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                select hole_number, player_a_score, player_b_score
+                select hole_number, player_a_score, player_b_score, player_c_score, player_d_score
                 from hole_scores
                 where match_result_id = %s
                 order by hole_number;
@@ -700,6 +922,8 @@ def fetch_hole_scores(database_url: str, match_id: int) -> list[dict]:
                     "hole_number": row[0],
                     "player_a_score": row[1],
                     "player_b_score": row[2],
+                    "player_c_score": row[3],
+                    "player_d_score": row[4],
                 }
                 for row in cur.fetchall()
             ]
@@ -729,6 +953,8 @@ def fetch_match_result(database_url: str, match_id: int) -> dict | None:
                     tournament_id,
                     player_a_handicap,
                     player_b_handicap,
+                    hole_count,
+                    start_hole,
                     finalized,
                     course_snapshot,
                     scorecard_snapshot,
@@ -760,10 +986,12 @@ def fetch_match_result(database_url: str, match_id: int) -> dict | None:
                 "tournament_id": row[15],
                 "player_a_handicap": row[16],
                 "player_b_handicap": row[17],
-                "finalized": row[18],
-                "course_snapshot": row[19],
-                "scorecard_snapshot": row[20],
-                "submitted_at": row[21],
+                "hole_count": row[18],
+                "start_hole": row[19],
+                "finalized": row[20],
+                "course_snapshot": row[21],
+                "scorecard_snapshot": row[22],
+                "submitted_at": row[23],
             }
 
 
@@ -786,6 +1014,8 @@ def insert_match_result(
     player_a_handicap: int = 0,
     player_b_handicap: int = 0,
     tournament_id: int | None = None,
+    hole_count: int = 18,
+    start_hole: int = 1,
 ) -> Optional[int]:
     def _next_code(cur) -> str:
         while True:
@@ -816,9 +1046,11 @@ def insert_match_result(
                     course_tee_id,
                     tournament_id,
                     player_a_handicap,
-                    player_b_handicap
+                    player_b_handicap,
+                    hole_count,
+                    start_hole
                 )
-                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 returning id;
                 """,
                 (
@@ -839,6 +1071,8 @@ def insert_match_result(
                     tournament_id,
                     player_a_handicap,
                     player_b_handicap,
+                    hole_count,
+                    start_hole,
                 ),
             )
             row = cur.fetchone()
@@ -1075,8 +1309,8 @@ def fetch_match_result_by_code(database_url: str, match_code: str) -> dict | Non
             row = cur.fetchone()
             if not row:
                 return None
-            return {
-                "id": row[0],
+    return {
+        "id": row[0],
                 "match_name": row[1],
                 "player_a_name": row[2],
                 "player_b_name": row[3],
@@ -1098,468 +1332,59 @@ def fetch_match_result_by_code(database_url: str, match_code: str) -> dict | Non
                 "course_snapshot": row[19],
                 "scorecard_snapshot": row[20],
                 "submitted_at": row[21],
-            }
+        }
 
 
-def _row_to_match(row: tuple) -> dict:
-    return {
-        "id": row[0],
-        "tournament_id": row[1],
-        "match_key": row[2],
-        "match_code": row[3],
-        "division": row[4],
-        "player_a_id": row[5],
-        "player_b_id": row[6],
-        "player_c_id": row[7],
-        "player_d_id": row[8],
-        "course_id": row[9],
-        "course_tee_id": row[10],
-        "player_a_handicap": row[11],
-        "player_b_handicap": row[12],
-        "status": row[13],
-        "strokes": row[14],
-        "hole_count": row[15],
-        "active": row[16],
-        "created_at": row[17],
-        "updated_at": row[18],
-        "player_a_name": row[19],
-        "player_b_name": row[20],
-        "player_c_name": row[21],
-        "player_d_name": row[22],
-    }
-
-
-def insert_match(
+def insert_tournament(
     database_url: str,
-    *,
-    tournament_id: int,
-    match_key: str,
-    division: str,
-    player_a_id: int,
-    player_b_id: int,
-    player_c_id: int | None = None,
-    player_d_id: int | None = None,
-    course_id: int | None = None,
-    course_tee_id: int | None = None,
-    player_a_handicap: int = 0,
-    player_b_handicap: int = 0,
-    hole_count: int = 18,
-    strokes: dict | None = None,
-    status: str = "not_started",
-    active: bool = False,
+    name: str,
+    description: str | None = None,
+    status: str = "upcoming",
+    settings: dict | None = None,
 ) -> int | None:
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                insert into matches (
-                    tournament_id,
-                    match_key,
-                    division,
-                    player_a_id,
-                    player_b_id,
-                    player_c_id,
-                    player_d_id,
-                    course_id,
-                    course_tee_id,
-                    player_a_handicap,
-                    player_b_handicap,
-                    hole_count,
-                    status,
-                    active,
-                    strokes
-                )
-                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                insert into tournaments (name, description, status, settings)
+                values (%s, %s, %s, %s)
                 returning id;
                 """,
                 (
-                    tournament_id,
-                    match_key,
-                    division,
-                    player_a_id,
-                    player_b_id,
-                    player_c_id,
-                    player_d_id,
-                    course_id,
-                    course_tee_id,
-                    player_a_handicap,
-                    player_b_handicap,
-                    hole_count,
+                    name,
+                    description,
                     status,
-                    active,
-                    Json(strokes) if strokes else None,
+                    Json(settings or {}),
                 ),
             )
             row = cur.fetchone()
             return row[0] if row else None
 
 
-def fetch_match_by_key(database_url: str, match_key: str) -> dict | None:
+def fetch_tournament_by_id(database_url: str, tournament_id: int) -> dict | None:
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                select
-                    m.id,
-                    m.tournament_id,
-                    m.match_key,
-                    m.match_code,
-                    m.division,
-                    m.player_a_id,
-                    m.player_b_id,
-                    m.player_c_id,
-                    m.player_d_id,
-                    m.course_id,
-                    m.course_tee_id,
-                    m.player_a_handicap,
-                    m.player_b_handicap,
-                    m.status,
-                    m.strokes,
-                    m.hole_count,
-                    m.active,
-                    m.created_at,
-                    m.updated_at,
-                    pa.name,
-                    pb.name,
-                    pc.name,
-                    pd.name
-                from matches m
-                left join players pa on pa.id = m.player_a_id
-                left join players pb on pb.id = m.player_b_id
-                left join players pc on pc.id = m.player_c_id
-                left join players pd on pd.id = m.player_d_id
-                where m.match_key = %s
+                select id, name, description, status, settings, created_at, updated_at
+                from tournaments
+                where id = %s
                 limit 1;
                 """,
-                (match_key,),
-            )
-            row = cur.fetchone()
-        if not row:
-            return None
-        return _row_to_match(row)
-
-
-def fetch_match_by_id(database_url: str, match_id: int) -> dict | None:
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                select
-                    m.id,
-                    m.tournament_id,
-                    m.match_key,
-                    m.match_code,
-                    m.division,
-                    m.player_a_id,
-                    m.player_b_id,
-                    m.player_c_id,
-                    m.player_d_id,
-                    m.course_id,
-                    m.course_tee_id,
-                    m.player_a_handicap,
-                    m.player_b_handicap,
-                    m.status,
-                    m.strokes,
-                    m.hole_count,
-                    m.active,
-                    m.created_at,
-                    m.updated_at,
-                    pa.name,
-                    pb.name,
-                    pc.name,
-                    pd.name
-                from matches m
-                left join players pa on pa.id = m.player_a_id
-                left join players pb on pb.id = m.player_b_id
-                left join players pc on pc.id = m.player_c_id
-                left join players pd on pd.id = m.player_d_id
-                where m.id = %s
-                limit 1;
-                """,
-                (match_id,),
+                (tournament_id,),
             )
             row = cur.fetchone()
             if not row:
                 return None
-            return _row_to_match(row)
-
-
-def fetch_matches_by_tournament(database_url: str, tournament_id: int) -> list[dict]:
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                select
-                    m.id,
-                    m.tournament_id,
-                    m.match_key,
-                    m.match_code,
-                    m.division,
-                    m.player_a_id,
-                    m.player_b_id,
-                    m.player_c_id,
-                    m.player_d_id,
-                    m.course_id,
-                    m.course_tee_id,
-                    m.player_a_handicap,
-                    m.player_b_handicap,
-                    m.status,
-                    m.strokes,
-                    m.hole_count,
-                    m.active,
-                    m.created_at,
-                    m.updated_at,
-                    pa.name,
-                    pb.name,
-                    pc.name,
-                    pd.name
-                from matches m
-                left join players pa on pa.id = m.player_a_id
-                left join players pb on pb.id = m.player_b_id
-                left join players pc on pc.id = m.player_c_id
-                left join players pd on pd.id = m.player_d_id
-                where m.tournament_id = %s
-                order by m.division, m.match_key;
-                """,
-                (tournament_id,),
-            )
-            rows = cur.fetchall()
-    return [_row_to_match(row) for row in rows]
-
-
-def fetch_matches_by_keys(database_url: str, match_keys: list[str]) -> list[dict]:
-    if not match_keys:
-        return []
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                select
-                    m.id,
-                    m.tournament_id,
-                    m.match_key,
-                    m.match_code,
-                    m.division,
-                    m.player_a_id,
-                    m.player_b_id,
-                    m.player_c_id,
-                    m.player_d_id,
-                    m.course_id,
-                    m.course_tee_id,
-                    m.player_a_handicap,
-                    m.player_b_handicap,
-                    m.status,
-                    m.strokes,
-                    m.hole_count,
-                    m.active,
-                    m.created_at,
-                    m.updated_at,
-                    pa.name,
-                    pb.name,
-                    pc.name,
-                    pd.name
-                from matches m
-                left join players pa on pa.id = m.player_a_id
-                left join players pb on pb.id = m.player_b_id
-                left join players pc on pc.id = m.player_c_id
-                left join players pd on pd.id = m.player_d_id
-                where m.match_key = any(%s)
-                order by m.match_key;
-                """,
-                (match_keys,),
-            )
-            rows = cur.fetchall()
-    return [_row_to_match(row) for row in rows]
-
-
-def update_match(
-    database_url: str,
-    match_id: int,
-    *,
-    division: str | None = None,
-    player_a_id: int | None = None,
-    player_b_id: int | None = None,
-    player_c_id: int | None = None,
-    player_d_id: int | None = None,
-    course_id: int | None = None,
-    course_tee_id: int | None = None,
-    player_a_handicap: int | None = None,
-    player_b_handicap: int | None = None,
-    status: str | None = None,
-    strokes: dict | None = None,
-    hole_count: int | None = None,
-    active: bool | None = None,
-) -> None:
-    updates = []
-    values: list = []
-    if division is not None:
-        updates.append("division = %s")
-        values.append(division)
-    if player_a_id is not None:
-        updates.append("player_a_id = %s")
-        values.append(player_a_id)
-    if player_b_id is not None:
-        updates.append("player_b_id = %s")
-        values.append(player_b_id)
-    if player_c_id is not None:
-        updates.append("player_c_id = %s")
-        values.append(player_c_id)
-    if player_d_id is not None:
-        updates.append("player_d_id = %s")
-        values.append(player_d_id)
-    if course_id is not None:
-        updates.append("course_id = %s")
-        values.append(course_id)
-    if course_tee_id is not None:
-        updates.append("course_tee_id = %s")
-        values.append(course_tee_id)
-    if player_a_handicap is not None:
-        updates.append("player_a_handicap = %s")
-        values.append(player_a_handicap)
-    if player_b_handicap is not None:
-        updates.append("player_b_handicap = %s")
-        values.append(player_b_handicap)
-    if status is not None:
-        updates.append("status = %s")
-        values.append(status)
-    if strokes is not None:
-        updates.append("strokes = %s")
-        values.append(Json(strokes))
-    if hole_count is not None:
-        updates.append("hole_count = %s")
-        values.append(hole_count)
-    if active is not None:
-        updates.append("active = %s")
-        values.append(active)
-    if not updates:
-        return
-    updates.append("updated_at = now()")
-    query = f"""
-        update matches
-        set {', '.join(updates)}
-        where id = %s;
-        """
-    values.append(match_id)
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute(query, tuple(values))
-
-
-def delete_match(database_url: str, match_id: int) -> None:
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute("delete from matches where id = %s;", (match_id,))
-
-
-def delete_match_results_by_key(database_url: str, match_key: str) -> None:
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute("delete from match_results where match_key = %s;", (match_key,))
-
-
-def fetch_match_group_definitions(database_url: str, tournament_id: int | None = None) -> list[dict]:
-    filters = ""
-    params: tuple = ()
-    if tournament_id is not None:
-        filters = "where tournament_id = %s or tournament_id is null"
-        params = (tournament_id,)
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                f"""
-                select
-                    group_key,
-                    coalesce(label, '') as label,
-                    match_keys,
-                    coalesce(player_pairs, array[]::text[]) as player_pairs,
-                    coalesce(course, '{{}}'::jsonb) as course,
-                    tournament_id
-                from match_groups
-                {filters}
-                order by created_at desc, group_key;
-                """,
-                params,
-            )
-            rows = cur.fetchall()
-    return [
-        {
-            "group_key": row[0],
-            "label": row[1],
-            "match_keys": row[2] or [],
-            "player_pairs": row[3] or [],
-            "course": row[4] or {},
-            "tournament_id": row[5],
-        }
-        for row in rows
-    ]
-
-
-def upsert_match_group_definition(database_url: str, definition: dict) -> None:
-    match_keys = [str(key) for key in (definition.get("match_keys") or []) if key]
-    if not match_keys:
-        return
-    group_key = str(definition.get("group_key") or match_keys[0])
-    label = str(definition.get("label") or "")
-    player_pairs = [str(pair) for pair in (definition.get("player_pairs") or []) if pair]
-    course = definition.get("course") or {}
-    tournament_id = definition.get("tournament_id")
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                insert into match_groups (
-                    group_key,
-                    label,
-                    match_keys,
-                    player_pairs,
-                    course,
-                    tournament_id
-                )
-                values (%s, %s, %s, %s, %s, %s)
-                on conflict (group_key) do update
-                    set
-                        label = excluded.label,
-                        match_keys = excluded.match_keys,
-                        player_pairs = excluded.player_pairs,
-                        course = excluded.course,
-                        tournament_id = excluded.tournament_id,
-                        updated_at = now();
-                """,
-                (
-                    group_key,
-                    label,
-                    match_keys,
-                    player_pairs,
-                    Json(course),
-                    tournament_id,
-                ),
-            )
-
-
-def upsert_setting(database_url: str, key: str, value: str) -> None:
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                insert into tournament_settings (key, value)
-                values (%s, %s)
-                on conflict (key) do update
-                    set value = excluded.value;
-                """,
-                (key, value),
-            )
-
-
-def fetch_settings(database_url: str) -> dict[str, str]:
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                select key, value
-                from tournament_settings
-                """
-            )
-            return {row[0]: row[1] for row in cur.fetchall()}
+            return {
+                "id": row[0],
+                "name": row[1],
+                "description": row[2],
+                "status": row[3],
+                "settings": row[4] or {},
+                "created_at": row[5],
+                "updated_at": row[6],
+            }
 
 
 def fetch_tournaments(database_url: str) -> list[dict]:
@@ -1594,32 +1419,6 @@ def fetch_tournaments(database_url: str) -> list[dict]:
     ]
 
 
-def insert_tournament(
-    database_url: str,
-    name: str,
-    description: str | None = None,
-    status: str = "upcoming",
-    settings: dict | None = None,
-) -> int | None:
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                insert into tournaments (name, description, status, settings)
-                values (%s, %s, %s, %s)
-                returning id;
-                """,
-                (
-                    name,
-                    description,
-                    status,
-                    Json(settings or {}),
-                ),
-            )
-            row = cur.fetchone()
-            return row[0] if row else None
-
-
 def update_tournament_status(database_url: str, tournament_id: int, status: str) -> None:
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
@@ -1632,32 +1431,6 @@ def update_tournament_status(database_url: str, tournament_id: int, status: str)
                 """,
                 (status, tournament_id),
             )
-
-
-def fetch_tournament_by_id(database_url: str, tournament_id: int) -> dict | None:
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                select id, name, description, status, settings, created_at, updated_at
-                from tournaments
-                where id = %s
-                limit 1;
-                """,
-                (tournament_id,),
-            )
-            row = cur.fetchone()
-            if not row:
-                return None
-            return {
-                "id": row[0],
-                "name": row[1],
-                "description": row[2],
-                "status": row[3],
-                "settings": row[4] or {},
-                "created_at": row[5],
-                "updated_at": row[6],
-            }
 
 
 def fetch_event_settings(database_url: str, tournament_id: int) -> dict[str, str]:
@@ -1685,7 +1458,33 @@ def upsert_event_setting(database_url: str, tournament_id: int, key: str, value:
                     set value = excluded.value;
                 """,
                 (tournament_id, key, value),
-        )
+            )
+
+
+def upsert_setting(database_url: str, key: str, value: str) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                insert into tournament_settings (key, value)
+                values (%s, %s)
+                on conflict (key) do update
+                    set value = excluded.value;
+                """,
+                (key, value),
+            )
+
+
+def fetch_settings(database_url: str) -> dict[str, str]:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select key, value
+                from tournament_settings
+                """
+            )
+            return {row[0]: row[1] for row in cur.fetchall()}
 
 
 def delete_match_results_by_tournament(database_url: str, tournament_id: int) -> int:

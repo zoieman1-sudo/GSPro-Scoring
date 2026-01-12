@@ -83,12 +83,6 @@ input,button,select,textarea{font-size:16px;}
   align-items:center;
   gap:4px;
 }
-.group-label{
-  font-size:12px;
-  letter-spacing:.25em;
-  text-transform:uppercase;
-  color:#6b7280;
-}
 .date-block{
   text-align:center;
   padding:18px 0 10px;
@@ -305,18 +299,6 @@ input,button,select,textarea{font-size:16px;}
   color:#0f172a;
   width:60px;
   text-align:right;
-}
-.player-card__score-group{
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-.player-card__dot{
-  width:6px;
-  height:6px;
-  border-radius:999px;
-  background:#101828;
-  opacity:.6;
 }
 .score-list{
   margin:0 -14px;

@@ -9,15 +9,10 @@ const state = {
   selectedPlayerId: null,
   scores: {},
   originalScores: {},
-  groupKey: null,
-  groupLabel: "",
   matches: [],
   matchHoleEntries: {},
   courseName: "Scoring",
 };
-
-const GROUP_REFRESH_INTERVAL = 6000;
-let groupRefreshTimer = null;
 
 const overlay = document.getElementById("codeOverlay");
 const codeForm = document.getElementById("codeForm");
@@ -25,10 +20,47 @@ const codeInput = document.getElementById("matchCodeInput");
 const codeSubmitBtn = document.getElementById("matchCodeSubmit");
 const codeError = document.getElementById("codeError");
 const scoreboardList = document.getElementById("scoreList");
-const groupLabelElement = document.getElementById("groupLabel");
 const courseTitle = document.getElementById("courseTitle");
 const currentHoleLabel = document.getElementById("currentHoleLabel");
 const scoreboardHoleMeta = document.getElementById("scoreboardHoleMeta");
+
+let advanceTimerId = null;
+
+function clearAdvanceTimer() {
+  if (advanceTimerId) {
+    window.clearTimeout(advanceTimerId);
+    advanceTimerId = null;
+  }
+}
+
+function focusSaveButton() {
+  document.getElementById("saveBtn")?.focus();
+}
+
+function advanceToNextPlayer() {
+  clearAdvanceTimer();
+  if (!state.players.length || !state.selectedPlayerId) {
+    return;
+  }
+  const currentIndex = state.players.findIndex((player) => player.id === state.selectedPlayerId);
+  if (currentIndex === -1) {
+    return;
+  }
+  const nextPlayer = state.players[currentIndex + 1];
+  if (nextPlayer) {
+    state.selectedPlayerId = nextPlayer.id;
+    renderScores();
+    return;
+  }
+  focusSaveButton();
+}
+
+function scheduleAdvanceAfterInput() {
+  clearAdvanceTimer();
+  advanceTimerId = window.setTimeout(() => {
+    advanceToNextPlayer();
+  }, 400);
+}
 
 function showCodeError(message) {
   if (codeError) {
@@ -48,12 +80,6 @@ function showCodeOverlay() {
 function updateCourseTitle(name) {
   if (courseTitle) {
     courseTitle.textContent = name || "Scoring";
-  }
-}
-
-function updateGroupLabel(label) {
-  if (groupLabelElement) {
-    groupLabelElement.textContent = label || "";
   }
 }
 
@@ -125,15 +151,13 @@ function renderScores() {
         <span class="player-card__name">${player.name}</span>
         <span class="player-card__hcp">(${player.handicap})</span>
       </div>
-      <div class="player-card__score-group">
-        <span class="player-card__score">${value || ""}</span>
-        <span class="player-card__dot"></span>
-      </div>
+      <div class="player-card__score">${value || ""}</div>
     `;
     if (player.id === state.selectedPlayerId) {
       button.classList.add("selected");
     }
     button.addEventListener("click", () => {
+      clearAdvanceTimer();
       state.selectedPlayerId = player.id;
       renderScores();
     });
@@ -145,6 +169,7 @@ function setScoreForSelected(value) {
   if (!state.selectedPlayerId) return;
   state.scores[state.selectedPlayerId] = value;
   renderScores();
+  advanceToNextPlayer();
 }
 
 function appendDigit(digit) {
@@ -157,12 +182,14 @@ function appendDigit(digit) {
     state.scores[state.selectedPlayerId] = next;
   }
   renderScores();
+  scheduleAdvanceAfterInput();
 }
 
 function clearSelected() {
   if (!state.selectedPlayerId) return;
   state.scores[state.selectedPlayerId] = "";
   renderScores();
+  clearAdvanceTimer();
 }
 
 function buildKeypad() {
@@ -220,24 +247,37 @@ async function saveCurrentHole() {
   const holeNumber = state.hole.number;
   for (const match of state.matches) {
     const matchPlayers = state.players.filter((player) => player.matchKey === match.match_key);
-    if (matchPlayers.length < 2) {
-      alert("Each match requires two players.");
+    if (!matchPlayers.length) {
+      alert("Each match requires players before scoring.");
       return;
     }
-    const playerA = matchPlayers[0];
-    const playerB = matchPlayers[1];
-    const aScore = parseHoleScore(state.scores[playerA.id]);
-    const bScore = parseHoleScore(state.scores[playerB.id]);
-    if (aScore === null || bScore === null) {
-      alert("Enter valid scores for all players before saving.");
+    const teamTotals = new Map();
+    const perPlayerScores = {};
+    for (const player of matchPlayers) {
+      const scoreValue = parseHoleScore(state.scores[player.id]);
+      if (scoreValue === null) {
+        alert("Enter valid scores for all players before saving.");
+        return;
+      }
+      perPlayerScores[player.playerIndex] = scoreValue;
+      const teamIndex =
+        typeof player.teamIndex === "number" ? player.teamIndex : player.playerIndex < 2 ? 0 : 1;
+      teamTotals.set(teamIndex, (teamTotals.get(teamIndex) ?? 0) + scoreValue);
+    }
+    const aScore = teamTotals.get(0);
+    const bScore = teamTotals.get(1);
+    if (aScore === undefined || bScore === undefined) {
+      alert("Each match needs two teams to submit scores.");
       return;
     }
     const payload = {
       holes: [
         {
           hole_number: holeNumber,
-          player_a_score: aScore,
-          player_b_score: bScore,
+          player_a_score: perPlayerScores[0] ?? 0,
+          player_b_score: perPlayerScores[2] ?? 0,
+          player_c_score: perPlayerScores[1] ?? 0,
+          player_d_score: perPlayerScores[3] ?? 0,
         },
       ],
     };
@@ -255,10 +295,12 @@ async function saveCurrentHole() {
     state.matchHoleEntries[match.match_key] = state.matchHoleEntries[match.match_key] || [];
     const chapter = state.matchHoleEntries[match.match_key][state.holeIndex] || {};
     const existingScores = chapter.player_scores || [];
-    chapter.player_scores = [
-      { ...(existingScores[0] || {}), gross: aScore },
-      { ...(existingScores[1] || {}), gross: bScore },
-    ];
+    const updatedPlayerScores = [0, 1, 2, 3].map((index) => ({
+      ...(existingScores[index] || {}),
+      gross: perPlayerScores[index] ?? 0,
+      net: perPlayerScores[index] ?? 0,
+    }));
+    chapter.player_scores = updatedPlayerScores;
     state.matchHoleEntries[match.match_key][state.holeIndex] = chapter;
   }
   state.originalScores = { ...state.scores };
@@ -283,19 +325,6 @@ async function fetchScorecard(params) {
   return payload;
 }
 
-async function fetchGroupScorecard(groupKey) {
-  const url = `/api/match_groups/${encodeURIComponent(groupKey)}/scorecard`;
-  const response = await fetch(url);
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    const detail = payload?.detail || `Group lookup failed (${response.status})`;
-    const error = new Error(detail);
-    error.status = response.status;
-    throw error;
-  }
-  return payload;
-}
-
 async function loadMatchByIdentifier(identifier) {
   let lastError;
   try {
@@ -309,77 +338,53 @@ async function loadMatchByIdentifier(identifier) {
   }
 }
 
-function groupPayloadFromScorecard(scorecard) {
-  return {
-    group_key: `group-${scorecard.match_key}`,
-    label: scorecard.label,
-    course: scorecard.course,
-    holes: scorecard.holes,
-    matches: [
-      {
-        match_key: scorecard.match_key,
-        match_id: scorecard.match_id,
-        match_code: scorecard.match_code,
-        label: scorecard.label,
-        players: (scorecard.players || []).map((player, idx) => ({
-          name: player.name,
-          handicap: player.course_handicap ?? 0,
-          role: idx === 0 ? "A" : "B",
-        })),
-        holes: scorecard.holes,
-      },
-    ],
-  };
-}
-
-function initializeGroupFromScorecard(scorecard, fallbackValue) {
-  const payload = groupPayloadFromScorecard(scorecard);
-  initializeGroupFromData(payload, fallbackValue);
-}
-
-function initializeGroupFromData(groupData, fallbackValue) {
-  if (!groupData?.matches?.length) {
-    throw new Error("Group data is incomplete.");
+function initializeMatchFromScorecard(scorecard, fallbackValue) {
+  if (!scorecard || !scorecard.match_key) {
+    throw new Error("Scorecard data is incomplete.");
   }
-  const matches = groupData.matches.filter((match) => match.match_key && match.match_id);
-  if (!matches.length) {
-    throw new Error("Group has no valid matches.");
-  }
-  const aggregatedPlayers = [];
-  const matchHoleEntries = {};
-  matches.forEach((match) => {
-    matchHoleEntries[match.match_key] = Array.isArray(match.holes) ? match.holes : [];
-    (match.players || []).forEach((player, playerIndex) => {
-      aggregatedPlayers.push({
-        id: `${match.match_key}-player-${playerIndex}`,
-        matchKey: match.match_key,
-        matchId: match.match_id,
-        name: player.name || `Player ${playerIndex + 1}`,
-        handicap: player.handicap ?? 0,
-        role: player.role || (playerIndex === 0 ? "A" : "B"),
-        playerIndex,
-      });
-    });
+  const matchKey = scorecard.match_key;
+  const players = (scorecard.players || []).map((player, idx) => {
+    const teamIndex =
+      typeof player.team_index === "number"
+        ? player.team_index
+        : idx < 2
+        ? 0
+        : 1;
+    const role = player.role || (teamIndex === 0 ? "A" : "B");
+    return {
+      id: `${matchKey}-player-${idx}`,
+      matchKey,
+      matchId: scorecard.match_id,
+      name: player.name || `Player ${idx + 1}`,
+      handicap: player.course_handicap ?? 0,
+      role,
+      teamIndex,
+      playerIndex: idx,
+    };
   });
-  state.groupKey = groupData.group_key || null;
-  state.groupLabel = groupData.label || "";
-  state.courseName = groupData.course?.course_name || state.courseName;
-  state.matches = matches;
-  state.matchHoleEntries = matchHoleEntries;
-  state.players = aggregatedPlayers;
-  state.holes = Array.isArray(groupData.holes) && groupData.holes.length
-    ? groupData.holes
-    : matchHoleEntries[matches[0].match_key] || [];
-  state.matchCode = fallbackValue || matches[0].match_code || "";
-  state.selectedPlayerId = aggregatedPlayers[0]?.id || null;
+  state.matches = [
+    {
+      match_key: matchKey,
+      match_id: scorecard.match_id,
+      match_code: scorecard.match_code,
+    },
+  ];
+  state.matchHoleEntries = {
+    ...state.matchHoleEntries,
+    [matchKey]: Array.isArray(scorecard.holes) ? scorecard.holes : [],
+  };
+  state.players = players;
+  state.holes = state.matchHoleEntries[matchKey];
+  state.matchCode = fallbackValue || scorecard.match_code || "";
+  state.selectedPlayerId = players[0]?.id || null;
   state.holeIndex = 0;
   state.scores = {};
   state.originalScores = {};
-  goToHoleIndex(0);
+  state.courseName = scorecard.course?.course_name || "Scoring";
   hideCodeOverlay();
   updateCourseTitle(state.courseName);
-  updateGroupLabel(state.groupLabel || state.groupKey || "");
-  startRealTimeUpdates();
+  goToHoleIndex(0);
+  renderScores();
 }
 
 function updateScoresFromServer() {
@@ -402,30 +407,6 @@ function updateScoresFromServer() {
   if (refreshed) {
     renderScores();
   }
-}
-
-async function refreshGroupScores() {
-  if (!state.groupKey) return;
-  try {
-    const groupData = await fetchGroupScorecard(state.groupKey);
-    if (!groupData?.matches?.length) return;
-    groupData.matches.forEach((match) => {
-      if (match.match_key && Array.isArray(match.holes)) {
-        state.matchHoleEntries[match.match_key] = match.holes;
-      }
-    });
-    updateScoresFromServer();
-  } catch (error) {
-    console.warn("Unable to refresh group scorecard", error);
-  }
-}
-
-function startRealTimeUpdates() {
-  if (groupRefreshTimer) {
-    clearInterval(groupRefreshTimer);
-  }
-  refreshGroupScores();
-  groupRefreshTimer = setInterval(refreshGroupScores, GROUP_REFRESH_INTERVAL);
 }
 
 function goToHoleIndex(index) {
@@ -454,17 +435,8 @@ async function handleCodeSubmit(prefilledValue) {
     codeSubmitBtn.disabled = true;
   }
   try {
-    try {
-      const groupData = await fetchGroupScorecard(value);
-      initializeGroupFromData(groupData, value);
-      return;
-    } catch (groupError) {
-      if (groupError.status !== 404) {
-        throw groupError;
-      }
-    }
     const data = await loadMatchByIdentifier(value);
-    initializeGroupFromScorecard(data, value);
+    initializeMatchFromScorecard(data, value);
   } catch (error) {
     const message = error?.message || "Unable to load the match.";
     showCodeError(message);
@@ -487,7 +459,7 @@ async function loadActiveMatch() {
     }
     const payload = await response.json().catch(() => null);
     if (payload?.active_match) {
-      initializeGroupFromScorecard(payload.active_match);
+      initializeMatchFromScorecard(payload.active_match);
     }
   } catch (error) {
     console.warn("Unable to load active match", error);
@@ -513,7 +485,7 @@ function init() {
     handleCodeSubmit();
   });
   const params = new URLSearchParams(window.location.search);
-  const candidate = params.get("match_code") || params.get("match_key") || params.get("group_key");
+  const candidate = params.get("match_code") || params.get("match_key");
   if (candidate) {
     codeInput.value = candidate;
     handleCodeSubmit(candidate);

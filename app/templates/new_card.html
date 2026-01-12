@@ -1,522 +1,428 @@
 {% extends "base.html" %}
 {% block content %}
-  <section class="new-card-shell">
+  <section class="studio-shell">
     <style>
-      .new-card-shell {
+      .studio-shell {
         display: flex;
         flex-direction: column;
-        gap: 28px;
+        gap: 24px;
+        padding: 16px;
       }
-
-      .new-card-hero {
-        padding: 32px 36px;
-        background: linear-gradient(140deg, rgba(67, 225, 255, 0.15), rgba(4, 11, 24, 0.95));
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        box-shadow: 0 35px 60px rgba(4, 8, 20, 0.65);
-        backdrop-filter: blur(18px);
-        position: relative;
-        overflow: hidden;
-      }
-
-      .new-card-hero::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
-        pointer-events: none;
-      }
-
-      .hero-top {
-        position: relative;
-        z-index: 1;
-      }
-
-      .hero-description {
-        margin-top: 16px;
-        max-width: 720px;
-        color: rgba(255, 255, 255, 0.8);
-        line-height: 1.6;
-      }
-
-      .hero-meta {
-        margin-top: 12px;
-        font-size: 0.9rem;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.7);
-      }
-
-      .hero-legend {
-        margin-top: 18px;
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        position: relative;
-        z-index: 1;
-      }
-
-      .hero-legend__tag {
-        padding: 8px 16px;
-        border-radius: var(--radius-pill);
-        background: rgba(255, 255, 255, 0.06);
+      .studio-hero {
+        border-radius: var(--radius-lg);
         border: 1px solid rgba(255, 255, 255, 0.15);
-        font-size: 0.75rem;
-        letter-spacing: 0.3em;
-        text-transform: uppercase;
+        background: linear-gradient(145deg, rgba(255, 191, 71, 0.18), rgba(4, 8, 24, 0.95));
+        padding: 32px;
+        color: #fff;
+        box-shadow: 0 25px 65px rgba(0, 0, 0, 0.45);
       }
-
-      .hero-legend__tag--muted {
+      .studio-hero .eyebrow {
+        letter-spacing: 0.4em;
+        text-transform: uppercase;
+        font-size: 0.75rem;
         opacity: 0.65;
       }
-
-      .hole-reference {
-        margin-top: 24px;
-        border-radius: var(--radius-md);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        padding: 14px 18px;
+      .studio-hero h1 {
+        margin: 8px 0 8px;
+        font-size: 2rem;
+      }
+      .studio-hero p {
+        margin: 0;
+      }
+      .studio-hero .hero-meta {
+        margin-top: 12px;
+        font-size: 0.8rem;
+        letter-spacing: 0.35em;
+      }
+      .studio-hero .course-meta {
+        margin-top: 6px;
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.9);
+      }
+      .hero-hole-reference {
+        margin-top: 18px;
         display: grid;
+        grid-template-columns: 80px repeat(auto-fit, minmax(30px, 1fr));
         gap: 6px;
-        background: rgba(2, 6, 18, 0.55);
-      }
-
-      .hole-reference__row {
-        display: grid;
-        grid-template-columns: 80px repeat(9, minmax(28px, 1fr));
-        font-size: 0.78rem;
-        letter-spacing: 0.3em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.65);
-        align-items: center;
-      }
-
-      .hole-reference__label {
         font-size: 0.65rem;
-        letter-spacing: 0.4em;
-      }
-
-      .hole-reference__row span:not(.hole-reference__label) {
-        text-align: center;
-      }
-
-      .match-grid {
-        display: flex;
-        justify-content: center;
-      }
-
-      .match-card {
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 0;
-        position: relative;
-        overflow: hidden;
-        width: min(1040px, 100%);
-        border-radius: var(--radius-lg);
-      }
-
-      .match-info {
-        background: linear-gradient(135deg, rgba(10, 32, 70, 0.85), rgba(6, 15, 40, 0.8));
-        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        padding: 16px 32px;
-        display: flex;
-        align-items: flex-start;
-        justify-content: flex-start;
-        gap: 12px;
-        position: relative;
-      }
-
-      .match-info__left {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-
-      .match-info__mid {
-        display: flex;
-        align-items: center;
-        font-size: 0.85rem;
         letter-spacing: 0.35em;
         text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(255, 255, 255, 0.75);
       }
-
-      .match-select-button {
-        position: absolute;
-        top: 10px;
-        right: 16px;
+      .hero-hole-reference span {
+        padding: 4px 6px;
+        border-radius: var(--radius-pill);
+        background: rgba(255, 255, 255, 0.07);
       }
-
-      .match-card__placeholder-button {
-        margin: 12px 0 0;
+      .studio-matches {
+        display: grid;
+        gap: 20px;
       }
-
-      .match-modal {
-        position: fixed;
-        inset: 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.6);
-        z-index: 10;
+      .studio-match {
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 24px;
+        background: rgba(4, 6, 18, 0.90);
+        box-shadow: 0 30px 60px rgba(2, 3, 10, 0.6);
       }
-
-      .match-modal.active {
-        display: flex;
-      }
-
-      .match-modal__content {
-        background: rgba(6, 10, 26, 0.95);
-        border-radius: var(--radius-md);
-        padding: 28px;
-        width: min(460px, 90%);
-        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
-      }
-
-      .match-modal__header {
+      .studio-match__header {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
+        gap: 12px;
         margin-bottom: 16px;
       }
-
-      .match-modal__list {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        max-height: 220px;
-        overflow-y: auto;
-        padding-right: 4px;
+      .studio-match__header h2 {
+        margin: 0;
+        font-size: 1.25rem;
       }
-
-      .match-modal__item {
-        padding: 10px 14px;
-        border-radius: var(--radius-pill);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        background: rgba(255, 255, 255, 0.03);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        cursor: pointer;
-        color: #fff;
+      .studio-match__header p {
+        margin: 2px 0 0;
+        color: rgba(255, 255, 255, 0.75);
       }
-      .match-modal__item span {
-        color: inherit;
-      }
-
-      .match-modal__item.active {
-        border-color: rgba(67, 225, 255, 0.5);
-        background: rgba(67, 225, 255, 0.1);
-      }
-
-      .horizontal-score-table {
-        background: rgba(10, 18, 40, 0.7);
-        border-radius: var(--radius-md);
-        padding: 16px;
-        display: grid;
-        gap: 12px;
-        grid-template-columns: auto repeat(9, minmax(50px, 1fr)) auto;
-        align-items: center;
-      }
-
-      .horizontal-score-table span {
-        text-align: center;
-      }
-
-      .horizontal-score-table .label-cell {
-        text-transform: uppercase;
-        letter-spacing: 0.3em;
-        font-size: 0.65rem;
-        color: rgba(255, 255, 255, 0.65);
-      }
-
-      .horizontal-row {
-        display: contents;
-      }
-
-      .horizontal-score-table .hole-label {
-        font-weight: 700;
-        font-size: 0.85rem;
-      }
-
-      .horizontal-score-table__player {
-        font-size: 0.75rem;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.6);
-      }
-
-      .horizontal-score-table__value {
-        font-size: 1rem;
-      }
-
-      .match-card--primary {
-        background: linear-gradient(150deg, rgba(67, 225, 255, 0.14), rgba(4, 14, 32, 0.95));
-      }
-
-      .match-card--secondary {
-        background: linear-gradient(150deg, rgba(255, 180, 126, 0.12), rgba(5, 9, 15, 0.96));
-      }
-
-      .match-card--primary::after,
-      .match-card--secondary::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(circle at 10% 20%, rgba(67, 225, 255, 0.06), rgba(0, 0, 0, 0));
-        pointer-events: none;
-      }
-
-      .match-card__header {
-        display: flex;
-        justify-content: space-between;
-        gap: 16px;
-        align-items: flex-start;
-      }
-
-      .match-card__header h2 {
-        margin: 4px 0 0;
-        font-size: 1.1rem;
-      }
-
-      .match-card__status {
-        text-align: right;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-
-      .match-status-pill {
+      .status-pill {
+        display: inline-flex;
         padding: 6px 14px;
         border-radius: var(--radius-pill);
         border: 1px solid rgba(255, 255, 255, 0.2);
-        background: rgba(67, 225, 255, 0.16);
-        color: #b5f5ff;
-        font-size: 0.72rem;
-        letter-spacing: 0.35em;
-        text-transform: uppercase;
-      }
-
-      .match-status-detail {
-        font-size: 0.75rem;
-        color: var(--muted);
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-      }
-
-      .match-card__players {
-        margin-top: 18px;
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-
-      .match-player-chip {
-        padding: 10px 16px;
-        border-radius: var(--radius-md);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        background: rgba(255, 255, 255, 0.03);
-        min-width: 140px;
-      }
-
-      .match-player-chip strong {
-        display: block;
-        margin-top: 4px;
-        font-size: 0.8rem;
         letter-spacing: 0.3em;
         text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.65);
-      }
-
-      .match-table {
-        margin-top: 18px;
-        border-radius: var(--radius-md);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        overflow-x: auto;
-      }
-
-      .match-table__header,
-      .match-table__row,
-      .match-table__footer {
-        display: grid;
-        grid-template-columns: 48px 40px 40px repeat(2, minmax(130px, 1fr)) 90px;
-        gap: 8px;
-        padding: 8px 16px;
-        align-items: center;
-      }
-
-      .match-table__header {
-        background: rgba(255, 255, 255, 0.04);
         font-size: 0.65rem;
-        letter-spacing: 0.25em;
-        text-transform: uppercase;
       }
-
-      .match-table__row {
-        font-size: 0.9rem;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+      .status-pill--completed { background: rgba(67, 225, 255, 0.12); }
+      .status-pill--in_progress { background: rgba(255, 206, 85, 0.12); }
+      .status-pill--not_started { background: rgba(255, 255, 255, 0.06); }
+      .studio-scorecard {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 14px;
+        font-size: 0.85rem;
       }
-
-      .match-table__row:nth-child(even) {
-        background: rgba(255, 255, 255, 0.02);
+      .studio-scorecard th,
+      .studio-scorecard td {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 6px;
+        text-align: center;
       }
-
-      .player-header {
-        font-size: 0.75rem;
+      .studio-scorecard th {
+        background: rgba(255, 255, 255, 0.12);
+        font-weight: 600;
         letter-spacing: 0.2em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.65);
       }
-
-      .player-score {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        font-size: 0.9rem;
+      .studio-status-row td {
+        background: rgba(255, 255, 255, 0.05);
+        font-weight: 600;
+        border: 1px solid rgba(0, 0, 0, 0.8);
       }
-
-      .player-score strong {
-        font-size: 1rem;
+      .studio-scorecard .player-row.team-a,
+      .studio-scorecard .player-row.team-b {
+        color: #fff;
+      }
+      .studio-scorecard .player-row--navy .player-score-cell--filled,
+      .studio-scorecard .player-row--navy td.player-total {
+        background: #000066;
+      }
+      .studio-scorecard .player-row--orange .player-score-cell--filled,
+      .studio-scorecard .player-row--orange td.player-total {
+        background: #ff9900;
+      }
+      .studio-scorecard .player-score-cell,
+      .studio-scorecard .player-total {
+        background: #04060e;
+        color: #fff;
+      }
+      .studio-scorecard .player-score-cell--filled {
+        font-weight: 700;
+      }
+      .studio-scorecard td.status-cell {
+        font-weight: 700;
+        color: #fff;
+      }
+      .studio-scorecard td.status-cell--navy {
+        background: #000066;
+      }
+      .studio-scorecard td.status-cell--orange {
+        background: #ff9900;
+      }
+      .studio-scorecard td.status-cell--as {
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .studio-scorecard .player-row td {
+        font-weight: 600;
         letter-spacing: 0.1em;
       }
-
-      .player-score small {
-        font-size: 0.6rem;
+      .studio-summary-grid {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .studio-summary-block {
+        flex: 1;
+        min-width: 180px;
+        padding: 12px 14px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .studio-summary-block .muted-label {
+        font-size: 0.65rem;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.65);
+      }
+      .studio-summary-block strong {
+        display: block;
+        font-size: 1.2rem;
+        margin-top: 4px;
+      }
+      .pill-link--launch {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        padding: 8px 18px;
+        border-radius: var(--radius-pill);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        text-transform: uppercase;
         letter-spacing: 0.3em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.55);
-      }
-
-      .player-score--total {
-        font-weight: 600;
-      }
-
-      .match-winner {
-        font-size: 0.85rem;
-        letter-spacing: 0.25em;
-        text-transform: uppercase;
-        color: var(--text);
-      }
-
-      .match-table__footer {
-        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+        text-decoration: none;
         font-size: 0.75rem;
       }
-
-      .match-card__footer {
-        margin-top: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
+      .pill-link--launch:hover {
+        background: rgba(255, 179, 71, 0.2);
+        border-color: #ffb347;
       }
-
-      .match-detail {
-        font-size: 0.85rem;
-        letter-spacing: 0.3em;
-        color: rgba(255, 255, 255, 0.65);
-        text-transform: uppercase;
-      }
-
-      .skins-card {
-        padding: 26px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(5, 10, 20, 0.9));
-      }
-
-      .skins-card__header h3 {
-        margin: 4px 0 0;
-      }
-
-      .skins-card__body {
-        margin-top: 14px;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 24px;
-      }
-
-      .skins-card__label {
-        font-size: 0.7rem;
-        letter-spacing: 0.35em;
-        text-transform: uppercase;
-        color: var(--muted);
-      }
-
-      .skins-card__winners ul {
-        list-style: none;
-        margin: 12px 0 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .skins-card__winners li {
-        display: flex;
-        justify-content: space-between;
-        padding: 8px 10px;
-        border-radius: var(--radius-md);
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-      }
-
-      .skin-hole {
-        font-size: 0.8rem;
-        letter-spacing: 0.3em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.6);
-      }
-
-      .skins-count-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 12px;
-      }
-
-      .skin-chip {
-        padding: 14px 18px;
-        border-radius: var(--radius-md);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(5, 9, 18, 0.6);
-      }
-
-      .skin-chip strong {
-        display: block;
-        font-size: 1.4rem;
-        margin: 6px 0;
-      }
-
-      .skin-chip small {
-        letter-spacing: 0.3em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.6);
-      }
-
-      .skins-card__note {
-        margin-top: 18px;
-        text-transform: uppercase;
-        letter-spacing: 0.35em;
-        font-size: 0.7rem;
-        color: rgba(255, 255, 255, 0.55);
-      }
-
     </style>
 
-    <article class="card new-card-hero">
+    {% macro hole_score(hole, index) -%}
+      {%- set rows = hole.player_scores or [] -%}
+      {%- if rows|length > index and rows[index].gross is not none -%}
+        {{ rows[index].gross }}
+      {%- else -%}
+        —
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% macro hole_score_has_value(hole, index) -%}
+      {%- set rows = hole.player_scores or [] -%}
+      {%- if rows|length > index and rows[index].gross is not none -%}
+        1
+      {%- else -%}
+        0
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% macro format_stroke_value(value) -%}
+      {%- if value is none -%}
+        —
+      {%- elif value == value|int -%}
+        {{ value|int }}
+      {%- else -%}
+        {{ value }}
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% set player_color_classes = ["player-row--navy", "player-row--orange", "player-row--orange", "player-row--navy"] %}
+    {% set status_color_map = {
+      "player-row--navy": "status-cell--navy",
+      "player-row--orange": "status-cell--orange",
+    } %}
+    {% set status_color_classes = [
+      status_color_map[player_color_classes[0]],
+      status_color_map[player_color_classes[2]],
+    ] %}
+
+    {% macro player_total(holes, index) -%}
+      {%- set total = 0 -%}
+      {%- set has_score = false -%}
+      {%- for hole in holes -%}
+        {%- set rows = hole.player_scores or [] -%}
+        {%- if rows|length > index and rows[index].gross is not none -%}
+          {%- set total = total + (rows[index].gross | float) -%}
+          {%- set has_score = true -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ total|int if has_score else "—" }}
+    {%- endmacro %}
+
+    {% set hero_holes = hero.holes or [] %}
+    <article class="studio-hero" style="display:none;">
       <div class="hero-top">
         <p class="eyebrow">Scorecard Studio</p>
         <h1 id="heroTitle">{{ hero.title }}</h1>
         <p class="hero-description" id="heroSummary">{{ hero.subtitle }}</p>
       </div>
-      <p class="hero-meta" id="heroMeta">{{ hero.meta }}</p>
-      <div class="hole-reference" id="heroHoleReference">
-        <div class="hole-reference__row" id="hole-ref-hole-row">
-          <span class="hole-reference__label">Hole</span>
-        </div>
-        <div class="hole-reference__row" id="hole-ref-par-row">
-          <span class="hole-reference__label">Par</span>
-        </div>
-        <div class="hole-reference__row" id="hole-ref-hcp-row">
-          <span class="hole-reference__label">HCP</span>
-        </div>
+      <p class="hero-meta">{{ hero.meta }}</p>
+      {% if hero.course and hero.course.course_name %}
+        <p class="hero-subtle course-meta">
+          {{ hero.course.club_name or "Course" }} — {{ hero.course.course_name }}
+          {% if hero.course.tee_name %}| Tee: {{ hero.course.tee_name }}{% endif %}
+        </p>
+      {% endif %}
+      <div class="hero-hole-reference">
+        <span>Hole</span>
+        {% for hole in hero_holes %}
+          <span>{{ hole.number }}</span>
+        {% endfor %}
+      </div>
+      <div class="hero-hole-reference">
+        <span>Par</span>
+        {% for hole in hero_holes %}
+          <span>{{ hole.par }}</span>
+        {% endfor %}
+      </div>
+      <div class="hero-hole-reference">
+        <span>HCP</span>
+        {% for hole in hero_holes %}
+          <span>{{ hole.hcp }}</span>
+        {% endfor %}
       </div>
     </article>
 
+    {% if studio_matches %}
+      <div class="studio-matches">
+        {% for studio_match in studio_matches %}
+          {% set scorecard = studio_match.scorecard %}
+          {% set holes = scorecard.holes[:9] if scorecard.holes else [] %}
+          <article class="studio-match">
+            <header class="studio-match__header">
+              <div>
+                <p class="muted-label">Match {{ loop.index }}</p>
+                <h2>{{ studio_match.display }}</h2>
+                <p>
+                  Start hole {{ scorecard.meta.start_hole or 1 }} •
+                  {{ scorecard.meta.is_nine_hole and "9 holes" or "18 holes" }}
+                </p>
+              </div>
+              <div>
+                <span class="status-pill status-pill--{{ studio_match.status }}">
+                  {{ studio_match.status_label }}
+                </span>
+                <p class="match-status-detail">
+                  {{ studio_match.holes_recorded or 0 }} / {{ scorecard.match.total_holes }} holes recorded
+                </p>
+              </div>
+            </header>
+            {% if holes %}
+              <table class="studio-scorecard">
+                <thead>
+                  <tr>
+                    <th>Hole</th>
+                    {% for hole in holes %}
+                      <th>{{ hole.hole_number }}</th>
+                    {% endfor %}
+                    <th class="player-total">ToT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th>HCP</th>
+                    {% for hole in holes %}
+                      <td>{{ hole.handicap }}</td>
+                    {% endfor %}
+                    <td>—</td>
+                  </tr>
+                  <tr class="stroke-row">
+                    <th>Strokes</th>
+                    {% for hole in holes %}
+                      {% if hole.stroke_owner %}
+                        <td>
+                          {{ hole.stroke_owner }} +{{ format_stroke_value(hole.stroke_count) }}
+                        </td>
+                      {% else %}
+                        <td>—</td>
+                      {% endif %}
+                    {% endfor %}
+                    <td>—</td>
+                  </tr>
+                  {% for idx in range(0, 2) %}
+                    {% set color_class = player_color_classes[idx] %}
+                    <tr class="player-row team-a {{ color_class }}">
+                      <th>{{ scorecard.players[idx].name }}</th>
+                      {% for hole in holes %}
+                        {% set hole_value = hole_score(hole, idx) %}
+                        {% set hole_has_value = hole_score_has_value(hole, idx) == "1" %}
+                        <td class="player-score-cell {% if hole_has_value %}player-score-cell--filled{% endif %}">
+                          {{ hole_value }}
+                        </td>
+                      {% endfor %}
+                      <td class="player-total">{{ player_total(holes, idx) }}</td>
+                    </tr>
+                  {% endfor %}
+                  <tr class="studio-status-row">
+                    <th>Status</th>
+                    {% for hole in holes %}
+                      {% if hole.status_active_pair1 %}
+                        {% set status_class = status_color_classes[0] if hole.status_label_pair1 != "A/S" else "status-cell--as" %}
+                        <td class="status-cell {{ status_class }}">
+                          {{ hole.status_label_pair1 }}
+                        </td>
+                      {% else %}
+                        <td class="status-cell">—</td>
+                      {% endif %}
+                    {% endfor %}
+                    <td class="status-cell">—</td>
+                  </tr>
+                  {% for idx in range(2, 4) %}
+                    {% set color_class = player_color_classes[idx] %}
+                    <tr class="player-row team-b {{ color_class }}">
+                      <th>{{ scorecard.players[idx].name }}</th>
+                      {% for hole in holes %}
+                        {% set hole_value = hole_score(hole, idx) %}
+                        {% set hole_has_value = hole_score_has_value(hole, idx) == "1" %}
+                        <td class="player-score-cell {% if hole_has_value %}player-score-cell--filled{% endif %}">
+                          {{ hole_value }}
+                        </td>
+                      {% endfor %}
+                      <td class="player-total">{{ player_total(holes, idx) }}</td>
+                    </tr>
+                  {% endfor %}
+                  <tr class="studio-status-row">
+                    <th>Status</th>
+                    {% for hole in holes %}
+                      {% if hole.status_active_pair2 %}
+                        {% set status_class = status_color_classes[1] if hole.status_label_pair2 != "A/S" else "status-cell--as" %}
+                        <td class="status-cell {{ status_class }}">
+                          {{ hole.status_label_pair2 }}
+                        </td>
+                      {% else %}
+                        <td class="status-cell">—</td>
+                      {% endif %}
+                    {% endfor %}
+                    <td class="status-cell">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            {% else %}
+              <p class="muted-label">No hole data recorded yet.</p>
+            {% endif %}
+            <div class="studio-summary-grid">
+              <div class="studio-summary-block">
+                <span class="muted-label">Points A</span>
+                <strong>{{ scorecard.meta.total_points_a|default(0) }}</strong>
+              </div>
+              <div class="studio-summary-block">
+                <span class="muted-label">Points B</span>
+                <strong>{{ scorecard.meta.total_points_b|default(0) }}</strong>
+              </div>
+              <div class="studio-summary-block">
+                <span class="muted-label">Stroke Allocation</span>
+                <strong>
+                  {{ scorecard.meta.stroke_owner == 'A' and 'A' or scorecard.meta.stroke_owner == 'B' and 'B' or '—' }}
+                  {{ scorecard.meta.stroke_count|default(0) }}
+                </strong>
+              </div>
+              <div class="studio-summary-block">
+                <span class="muted-label">Launch</span>
+                <a class="pill-link--launch" href="/golf-ui/scoring.html?match_key={{ studio_match.match_id }}" target="_blank">Play</a>
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted-label">No Scorecard Studio matches available right now.</p>
+    {% endif %}
   </section>
 {% endblock %}
