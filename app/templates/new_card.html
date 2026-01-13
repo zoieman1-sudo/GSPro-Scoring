@@ -372,7 +372,7 @@
                     {% endfor %}
                     <td>—</td>
                   </tr>
-                  <tr class="stroke-row">
+      <tr class="stroke-row">
                     <th>Strokes</th>
                     {% for hole in holes %}
                       {% if hole.stroke_owner %}
@@ -385,7 +385,9 @@
                     {% endfor %}
                     <td>—</td>
                   </tr>
-                  {% for idx in range(0, 2) %}
+                  {% set players_count = scorecard.players|length if scorecard.players else 0 %}
+                  {% set team_a_count = players_count if players_count <= 2 else 2 %}
+                  {% for idx in range(0, team_a_count) %}
                     {% set color_class = player_color_classes[idx] %}
                     <tr class="player-row team-a {{ color_class }}">
                       <th>{{ scorecard.players[idx].name }}</th>
@@ -399,7 +401,6 @@
                       <td class="player-total">{{ player_total(holes, idx) }}</td>
                     </tr>
                   {% endfor %}
-                  {% set players_count = scorecard.players|length if scorecard.players else 0 %}
                   {% set visible_players = players_count if players_count <= 2 else 2 %}
                   {% set player_point_totals = scorecard.player_point_totals if scorecard.player_point_totals else [0, 0, 0, 0] %}
                   {% for player_idx in range(visible_players) %}
@@ -426,7 +427,9 @@
                       </td>
                     </tr>
                   {% endfor %}
-                  {% for idx in range(2, 4) %}
+                  {% set team_b_count = (players_count - 2) if players_count > 2 else 0 %}
+                  {% set team_b_limit = 2 if team_b_count >= 2 else team_b_count %}
+                  {% for idx in range(2, 2 + team_b_limit) %}
                     {% set color_class = player_color_classes[idx] %}
                     <tr class="player-row team-b {{ color_class }}">
                       <th>{{ scorecard.players[idx].name }}</th>

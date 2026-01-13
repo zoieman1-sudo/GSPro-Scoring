@@ -143,6 +143,43 @@
         justify-content: center;
         min-width: 22px;
       }
+      .scorecard-data__selector {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+      .scorecard-data__selector form {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+      }
+      .scorecard-data__selector label {
+        font-size: 0.65rem;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.7);
+        display: inline-flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .scorecard-data__selector select {
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(4, 6, 16, 0.6);
+        color: #fff;
+        padding: 6px 12px;
+        font-size: 0.75rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+      .scorecard-data__selector .scorecard-select-status {
+        font-size: 0.7rem;
+        letter-spacing: 0.2em;
+        color: rgba(255, 255, 255, 0.65);
+      }
     </style>
 
     {% macro format_value(value) -%}
@@ -210,18 +247,45 @@
         —
       {%- endif -%}
     {%- endmacro %}
-    {% set match_info = scorecard.match or {} %}
-    {% set meta = scorecard.meta or {} %}
-    {% set pair_cards = scorecard.pair_cards or [] %}
-    <div class="scorecard-data">
-      <div class="scorecard-data__header">
-        <h1>Scorecard</h1>
-        <div class="scorecard-data__summary">
-          <span>Match {{ match_info.match_key }}</span>
-          <span>{{ match_info.division }}</span>
-          <span>Status: {{ match_info.status_label or match_info.status or "—" }}</span>
+      {% set match_info = scorecard.match or {} %}
+      {% set meta = scorecard.meta or {} %}
+      {% set pair_cards = scorecard.pair_cards or [] %}
+      {% set selected_key = selected_match_key or (matches[0].match_id if matches else None) %}
+      {% set status_entry = match_status_map[selected_key] if selected_key and match_status_map else None %}
+      <div class="scorecard-data">
+        <div class="scorecard-data__header">
+          <h1>Scorecard</h1>
+          <div class="scorecard-data__summary">
+            <span>Match {{ match_info.match_key }}</span>
+            <span>{{ match_info.division }}</span>
+            <span>Status: {{ match_info.status_label or match_info.status or "—" }}</span>
+          </div>
         </div>
-      </div>
+        {% if matches %}
+          <div class="scorecard-data__selector">
+            <form method="get" action="/scorecard_data">
+              <label>
+                Match
+                <select name="match_key" onchange="this.form.submit()">
+                  {% for match in matches %}
+                    <option
+                      value="{{ match.match_id }}"
+                      {% if match.match_id == selected_key %}selected{% endif %}
+                    >
+                      {{ match.division }} {{ match.match_id }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+              {% if status_entry %}
+                <span class="scorecard-select-status">
+                  Status: {{ status_entry.status_label or status_entry.status }}
+                </span>
+              {% endif %}
+              <noscript><button type="submit">Go</button></noscript>
+            </form>
+          </div>
+        {% endif %}
       {% set player_totals = [] %}
       {% for card in pair_cards %}
         {% set player_totals = player_totals + [

@@ -19,6 +19,33 @@
       <div class="status">Pick an active tournament to begin scheduling matches.</div>
     {% endif %}
 
+    <style>
+      .match-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .match-actions form {
+        margin: 0;
+        display: inline-flex;
+      }
+      .match-actions .pill-link--remove {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+        padding: 8px 20px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: 0.35em;
+      }
+      .match-actions .pill-link--remove:hover,
+      .match-actions .pill-link--remove:focus-visible {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.55);
+      }
+    </style>
     <div class="split-grid">
       <article>
         <h3>Create a match</h3>
@@ -162,9 +189,9 @@
                   >
                     Launch Golf UI
                   </a>
-                  <form method="post" action="/admin/match_setup/delete">
+                  <form class="match-actions__form" method="post" action="/admin/match_setup/delete">
                     <input type="hidden" name="match_id" value="{{ match.id }}" />
-                    <button class="pill-link pill-link--ghost" type="submit">Remove</button>
+                    <button class="pill-link pill-link--remove" type="submit">Remove</button>
                   </form>
                 </div>
               </div>
