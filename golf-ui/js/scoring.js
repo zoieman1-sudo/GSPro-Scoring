@@ -23,6 +23,10 @@ const scoreboardList = document.getElementById("scoreList");
 const courseTitle = document.getElementById("courseTitle");
 const currentHoleLabel = document.getElementById("currentHoleLabel");
 const scoreboardHoleMeta = document.getElementById("scoreboardHoleMeta");
+const prevHole = document.getElementById("prevHole");
+const nextHole = document.getElementById("nextHole");
+const prevHoleNumber = document.getElementById("prevHoleNumber");
+const nextHoleNumber = document.getElementById("nextHoleNumber");
 
 let advanceTimerId = null;
 
@@ -104,30 +108,28 @@ function renderHole() {
   updateHoleNavLabels();
 }
 
+function configureHoleNavButton(button, numberElement, entry, label) {
+  if (!button) return;
+  const hasEntry = Boolean(entry);
+  button.disabled = !hasEntry;
+  const holeText = entry?.hole_number ?? entry?.number ?? "—";
+  button.setAttribute("aria-label", hasEntry ? `${label} ${holeText}` : label);
+  button.classList.toggle("disabled", !hasEntry);
+  if (numberElement) {
+    numberElement.textContent = hasEntry ? String(holeText) : "—";
+  }
+}
+
 function updateHoleNavLabels() {
-  const prev = document.getElementById("prevHole");
-  const next = document.getElementById("nextHole");
   if (!state.holes.length) {
-    if (prev) {
-      prev.textContent = "< Hole —";
-      prev.classList.add("disabled");
-    }
-    if (next) {
-      next.textContent = "Hole — >";
-      next.classList.add("disabled");
-    }
+    configureHoleNavButton(prevHole, prevHoleNumber, null, "Previous hole");
+    configureHoleNavButton(nextHole, nextHoleNumber, null, "Next hole");
     return;
   }
-  const prevHole = state.holes[state.holeIndex - 1];
-  const nextHole = state.holes[state.holeIndex + 1];
-  if (prev) {
-    prev.textContent = prevHole ? `< Hole ${prevHole.hole_number}` : "";
-    prev.classList.toggle("disabled", !prevHole);
-  }
-  if (next) {
-    next.textContent = nextHole ? `Hole ${nextHole.hole_number} >` : "";
-    next.classList.toggle("disabled", !nextHole);
-  }
+  const prevEntry = state.holes[state.holeIndex - 1];
+  const nextEntry = state.holes[state.holeIndex + 1];
+  configureHoleNavButton(prevHole, prevHoleNumber, prevEntry, "Previous hole");
+  configureHoleNavButton(nextHole, nextHoleNumber, nextEntry, "Next hole");
 }
 
 function renderScores() {
@@ -305,6 +307,10 @@ async function saveCurrentHole() {
   }
   state.originalScores = { ...state.scores };
   alert("Scores saved.");
+  state.selectedPlayerId = state.players[0]?.id || null;
+  renderScores();
+  const focusTarget = scoreboardList?.querySelector(`[data-player-id="${state.selectedPlayerId}"]`);
+  focusTarget?.focus();
 }
 
 async function fetchScorecard(params) {
@@ -474,8 +480,8 @@ function init() {
     renderScores();
   });
   document.getElementById("saveBtn")?.addEventListener("click", saveCurrentHole);
-  document.getElementById("prevHole")?.addEventListener("click", () => navigateHole(-1));
-  document.getElementById("nextHole")?.addEventListener("click", () => navigateHole(1));
+  prevHole?.addEventListener("click", () => navigateHole(-1));
+  nextHole?.addEventListener("click", () => navigateHole(1));
   codeForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     handleCodeSubmit();

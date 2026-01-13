@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card scheduled-matches-panel">
+    <div class="match-meta">
+      <p class="eyebrow">Scheduled matches</p>
+      <h1 class="match-title">Live pairings</h1>
+      <p class="match-sub">
+        Balanced matches are ready to deploy. Launch Scorecard Studio, finalize the results, or remove stale pairings directly from this board.
+      </p>
+    </div>
+
+    {% if matches %}
+      <div class="scheduled-matches-grid">
+        {% for match in matches %}
+          <article class="scheduled-match-card">
+            <div class="scheduled-match-card__meta">
+              <div>
+                <p class="match-player-chip">
+                  {{ match.course_name or "Course pending" }}
+                  {% if match.tee_name %} — {{ match.tee_name }}{% endif %}
+                </p>
+                <span class="muted-label">
+                  Key: {{ match.match_key }} · {{ match.hole_count }} holes · Start hole {{ match.start_hole }}
+                </span>
+              </div>
+              <span class="scheduled-match-card__status">
+                {{ match.status|default("scheduled")|upper }}
+              </span>
+            </div>
+            <div class="scheduled-match-card__teams">
+              <div>
+                <p class="scheduled-match-card__team-label">Team A</p>
+                <p class="scheduled-match-card__team-names">
+                  {{ match.player_a_name }}
+                  {% if match.player_c_name %}&amp; {{ match.player_c_name }}{% endif %}
+                </p>
+              </div>
+              <div>
+                <p class="scheduled-match-card__team-label">Team B</p>
+                <p class="scheduled-match-card__team-names">
+                  {{ match.player_b_name }}
+                  {% if match.player_d_name %}&amp; {{ match.player_d_name }}{% endif %}
+                </p>
+              </div>
+            </div>
+            <div class="scheduled-match-card__footer">
+              {% if match.tee_yards %}
+                <span class="muted-label">{{ match.tee_yards }} yards</span>
+              {% endif %}
+              <div class="scheduled-match-card__actions">
+                <a
+                  class="pill-link"
+                  href="/golf-ui/scoring?match_key={{ match.match_key }}"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Launch Scorecard
+                </a>
+                <div class="scheduled-match-card__quick-actions">
+                  <form
+                    data-finalize-match-form="{{ match.id }}"
+                    class="match-actions__form"
+                    method="post"
+                    action="/matches/{{ match.id }}/finalize"
+                  >
+                    <input type="hidden" name="redirect" value="/standings" />
+                    <button
+                      type="button"
+                      class="pill-link pill-link--finalize"
+                      data-finalize-match="{{ match.id }}"
+                      data-finalize-match-key="{{ match.match_key }}"
+                    >
+                      Finalize
+                    </button>
+                  </form>
+                  <form class="match-actions__form" method="post" action="/admin/match_setup/delete">
+                    <input type="hidden" name="match_id" value="{{ match.id }}" />
+                    <button class="pill-link pill-link--remove" type="submit">Remove</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="status">No matches are scheduled yet. Create pairings on the match setup screen.</p>
+    {% endif %}
+    <div id="finalizeConfirmOverlay" class="finalize-confirm-overlay" role="dialog" aria-modal="true" data-open="false">
+      <div class="finalize-confirm-card">
+        <h3>Finalize match</h3>
+        <p id="finalizeConfirmText">Are you sure you want to finalize this match? This will lock the scores and update the standings.</p>
+        <div class="confirm-actions">
+          <button type="button" class="confirm" id="finalizeConfirmYes">Yes</button>
+          <button type="button" id="finalizeConfirmCancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        const overlay = document.getElementById("finalizeConfirmOverlay");
+        const finalizeButtons = document.querySelectorAll("[data-finalize-match]");
+        const confirmBtn = document.getElementById("finalizeConfirmYes");
+        const cancelBtn = document.getElementById("finalizeConfirmCancel");
+        const confirmText = document.getElementById("finalizeConfirmText");
+        let pendingMatchId = null;
+
+        const showOverlay = (matchId, matchKey) => {
+          if (!overlay) return;
+          pendingMatchId = matchId;
+          if (confirmText) {
+            confirmText.textContent = `Finalize ${matchKey}? This will lock the scores and refresh standings.`;
+          }
+          overlay.dataset.open = "true";
+          overlay.removeAttribute("aria-hidden");
+        };
+
+        const hideOverlay = () => {
+          if (!overlay) return;
+          overlay.dataset.open = "false";
+          overlay.setAttribute("aria-hidden", "true");
+          pendingMatchId = null;
+        };
+
+        finalizeButtons.forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.preventDefault();
+            const matchId = button.getAttribute("data-finalize-match");
+            const matchKey = button.getAttribute("data-finalize-match-key") || "match";
+            if (matchId) {
+              showOverlay(matchId, matchKey);
+            }
+          });
+        });
+
+        confirmBtn?.addEventListener("click", () => {
+          if (!pendingMatchId) return;
+          const form = document.querySelector(`[data-finalize-match-form="${pendingMatchId}"]`);
+          if (form) {
+            form.submit();
+          }
+        });
+        cancelBtn?.addEventListener("click", hideOverlay);
+      })();
+    </script>
+  </section>
+{% endblock %}

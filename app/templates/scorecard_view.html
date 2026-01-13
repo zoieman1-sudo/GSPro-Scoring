@@ -81,76 +81,39 @@
     <section class="card detail-card scorecard-panel">
       <div class="scorecard-layout">
         <div class="scorecard-info">
-          <div class="scorecard-header-row">
-            <div class="match-meta">
-              <p class="eyebrow">Match Scorecard</p>
-              <h1 class="match-title" id="match-division">Division {{ scorecard.match.division }}</h1>
-              <div class="match-sub match-sub--stacked" id="match-player-stack">
-                <span class="match-player" id="match-player-a">{{ scorecard.match.player_a_name }}</span>
-                <span class="match-hcp" id="match-hcp-a">hcp {{ scorecard.player_a_handicap }}</span>
-                <span class="match-vs">vs</span>
-                <span class="match-player" id="match-player-b">{{ scorecard.match.player_b_name }}</span>
-                <span class="match-hcp" id="match-hcp-b">hcp {{ scorecard.player_b_handicap }}</span>
-              </div>
-              {% if scorecard.course %}
-                <p class="match-subtle course-meta" id="course-meta">
-                  {{ scorecard.course.club_name }} — {{ scorecard.course.course_name }}
-                  {% if scorecard.course.tee_name %}
-                    | Tee: {{ scorecard.course.tee_name }}
-                  {% endif %}
-                  {% if scorecard.course.total_yards %}
-                    | {{ scorecard.course.total_yards }} yds
-                  {% endif %}
-                  {% if scorecard.course.course_rating %}
-                    | CR {{ scorecard.course.course_rating }} / SR {{ scorecard.course.slope_rating or "—" }}
-                  {% endif %}
-                </p>
-              {% endif %}
-              <div class="match-status-row">
-                <span class="status-pill status-pill--{{ scorecard.match.status }}" id="match-status-pill">
-                  {{ scorecard.match.status_label }}
-                </span>
-                <span class="status-detail" id="match-status-detail">
-                  {{ scorecard.match.holes_recorded }} / {{ scorecard.match.total_holes }} holes recorded
-                </span>
-              </div>
-              <div class="match-status-control" id="match-status-control">
-                {% if active_matches %}
-                  {% for entry in active_matches %}
-                    <button
-                      type="button"
-                      class="match-status-btn {% if entry.match_key == active_match_key %}active{% endif %}"
-                      data-match-key="{{ entry.match_key }}"
-                    >
-                      <span class="match-status-btn__title">{{ entry.display }}</span>
-                      <span class="match-status-btn__meta">{{ entry.status_label }} · {{ entry.holes }} holes recorded</span>
-                    </button>
-                  {% endfor %}
-                {% else %}
-                  <p class="muted-label match-status-control__empty">No matches currently in progress.</p>
-                {% endif %}
-              </div>
+          <div class="scorecard-header-row scorecard-data">
+            <div class="scorecard-data__header">
+              <h1>Scorecard</h1>
+              <p class="scorecard-data__summary">
+                Match {{ scorecard.match.match_key }} · Division {{ scorecard.match.division }}
+                <span>Status: {{ scorecard.match.status_label }}</span>
+              </p>
             </div>
-            <div class="scorecard-tabs" role="tablist">
-              <button type="button" class="tab-btn active" data-tab="front">Holes 1-9</button>
-              <button type="button" class="tab-btn" data-tab="back">Holes 10-18</button>
+            <div class="scorecard-data__selector">
+              <form class="scorecard-selector" id="match-select-form" method="get" action="/scorecard">
+                <label>
+                  <span>Select match</span>
+                  <select id="match-select" name="match_key" onchange="this.form.submit()">
+                    {% for match_option in matches %}
+                      <option value="{{ match_option.match_id }}" {% if match_option.match_id == active_match_key %}selected{% endif %}>
+                        Division {{ match_option.division }}: {{ match_option.player_a }} vs {{ match_option.player_b }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </label>
+              </form>
+              <span class="scorecard-select-status">
+                {{ scorecard.match.holes_recorded }} / {{ scorecard.match.total_holes }} holes recorded
+              </span>
             </div>
           </div>
 
-          <form class="scorecard-selector" id="scorecard-selector-form" method="get" action="/scorecard">
-            <label>
-              <span class="muted-label">Select match</span>
-              <select id="match-select" name="match_key" onchange="this.form.submit()">
-                {% for match_option in matches %}
-                  <option value="{{ match_option.match_id }}" {% if match_option.match_id == active_match_key %}selected{% endif %}>
-                    Division {{ match_option.division }}: {{ match_option.player_a }} vs {{ match_option.player_b }}
-                  </option>
-                {% endfor %}
-              </select>
-            </label>
-          </form>
+          <div class="scorecard-tabs" role="tablist">
+            <button type="button" class="tab-btn active" data-tab="front">Holes 1-9</button>
+            <button type="button" class="tab-btn" data-tab="back">Holes 10-18</button>
+          </div>
 
-          <div class="scorecard-summary-grid">
+<div class="scorecard-summary-grid">
             <div class="scorecard-summary-block">
               <span class="muted-label">Stroke allocation</span>
               <p class="match-subtle" id="stroke-allocation">

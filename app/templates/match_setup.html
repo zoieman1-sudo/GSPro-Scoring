@@ -19,33 +19,6 @@
       <div class="status">Pick an active tournament to begin scheduling matches.</div>
     {% endif %}
 
-    <style>
-      .match-actions {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      .match-actions form {
-        margin: 0;
-        display: inline-flex;
-      }
-      .match-actions .pill-link--remove {
-        background: rgba(255, 255, 255, 0.15);
-        color: #fff;
-        border: 1px solid rgba(255, 255, 255, 0.35);
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-        padding: 8px 20px;
-        border-radius: 999px;
-        text-transform: uppercase;
-        letter-spacing: 0.35em;
-      }
-      .match-actions .pill-link--remove:hover,
-      .match-actions .pill-link--remove:focus-visible {
-        background: rgba(255, 255, 255, 0.25);
-        border-color: rgba(255, 255, 255, 0.55);
-      }
-    </style>
     <div class="split-grid">
       <article>
         <h3>Create a match</h3>
@@ -140,10 +113,10 @@
                 Match key (optional)
                 <input type="text" name="match_key" placeholder="e.g. A-01" />
               </label>
-              <div class="setup-actions">
-                <button type="submit" class="submit-btn">Save match</button>
-              </div>
-            </form>
+            <div class="setup-actions">
+              <button type="submit" class="submit-btn">Save match</button>
+            </div>
+          </form>
           {% else %}
             <p class="status">
               Add at least two players to schedule a match.
@@ -154,52 +127,30 @@
           <p class="status">Create or select a tournament before pairing players.</p>
         {% endif %}
       </article>
-
-      <article>
-        <h3>Scheduled matches</h3>
-        {% if matches %}
-          <div class="match-grid">
-            {% for match in matches %}
-            <div class="match-card">
-              <div class="match-info">
-                {% if match.course_name or match.tee_name %}
-                  <p class="match-player-chip">
-                    {{ match.course_name or "Course configured" }}
-                      {% if match.tee_name %} — {{ match.tee_name }}{% endif %}
-                    </p>
-                  {% endif %}
-                <strong>
-                    {% set team_a_label = match.player_a_name %}
-                    {% if match.player_c_name %}
-                      {% set team_a_label = team_a_label ~ " & " ~ match.player_c_name %}
-                    {% endif %}
-                    {% set team_b_label = match.player_b_name %}
-                    {% if match.player_d_name %}
-                      {% set team_b_label = team_b_label ~ " & " ~ match.player_d_name %}
-                    {% endif %}
-                    {{ team_a_label }} vs {{ team_b_label }}
-                </strong>
-                  <p class="muted-label">Key: {{ match.match_key }}</p>
-                </div>
-                <div class="match-actions">
-                  <a
-                    class="pill-link"
-                    href="/golf-ui/scoring.html?match_key={{ match.match_key }}"
-                    target="_blank"
-                  >
-                    Launch Golf UI
-                  </a>
-                  <form class="match-actions__form" method="post" action="/admin/match_setup/delete">
-                    <input type="hidden" name="match_id" value="{{ match.id }}" />
-                    <button class="pill-link pill-link--remove" type="submit">Remove</button>
-                  </form>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <p class="status">No matches are scheduled yet.</p>
-        {% endif %}
+      <article class="match-setup-info">
+        <h3>Match setup intelligence</h3>
+        <p class="muted-label">
+          This sidebar keeps the active tournament, player pool, and scheduled-match counts visible while you build the next pairing.
+        </p>
+        <ul class="match-setup-summary">
+          <li>
+            <span>Active tournament</span>
+            <strong>{{ active_tournament.name if active_tournament else "None" }}</strong>
+          </li>
+          <li>
+            <span>Players seeded</span>
+            <strong>{{ players|length }}</strong>
+          </li>
+          <li>
+            <span>Matches scheduled</span>
+            <strong>{{ matches|length }}</strong>
+          </li>
+        </ul>
+        <div class="match-setup-insights">
+          <p>Tip: Reserve a match key for each tee slot so you can quickly locate and launch the pairing from the scheduled matches screen.</p>
+          <p>Reminder: Use the player mode toggle to hide the C/D slots when sending two players to a live pairing.</p>
+        </div>
+        <a class="pill-link pill-link--ghost" href="/admin/scheduled_matches">View scheduled matches</a>
       </article>
     </div>
     <script>

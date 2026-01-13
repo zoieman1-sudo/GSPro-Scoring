@@ -17,72 +17,61 @@
           <span class="top-nav__brand">GSPro Score</span>
           <span class="top-nav__subline">Tournament operations</span>
         </div>
-        {% set nav_sections = [
-          {
-            "label": "Program and setup",
-            "links": [
-              {"href":"/admin/tournament_setup2","label":"Tournament Setup"},
-              {"href":"/admin/player_entry","label":"Player Entry"},
-              {"href":"/admin/match_setup","label":"Match Setup"},
-              {"href":"/admin/setup/course","label":"Courses"}
-            ]
-          },
-          {
-            "label": "Score operations",
-            "links": [
-              {"href":"/standings","label":"Standings"},
-              {"href":"/golf-ui/scoring","label":"Score Entry (Desktop)"},
-              {"href":"/golf-ui/scoring","label":"Score Entry (Mobile)"}
-            ]
-          }
-        ] %}
-        <nav class="top-nav__grid">
-          {% for section in nav_sections %}
-            <div class="top-nav__section">
-              <div class="top-nav__section-label">{{ section.label }}</div>
-              {% if section.note %}
-                <div class="top-nav__section-note">{{ section.note }}</div>
-              {% endif %}
-              {% if section.rows %}
-                {% for row in section.rows %}
-                  <div class="top-nav__row{% if loop.first %} top-nav__row--center{% endif %}">
-                    {% for item in row %}
-                      {% set is_active = request.url.path.startswith(item.href) %}
-                      <a
-                        class="top-nav__pill{% if is_active %} is-active{% endif %}"
-                        href="{{ item.href }}"
-                        role="button"
-                      >
-                        {{ item.label }}
-                      </a>
-                    {% endfor %}
-                  </div>
-                {% endfor %}
-              {% else %}
-                <div class="top-nav__row">
-                  {% for item in section.links %}
-                    {% set is_active = request.url.path.startswith(item.href) %}
-                    <a
-                      class="top-nav__pill{% if is_active %} is-active{% endif %}"
-                      href="{{ item.href }}"
-                      role="button"
-                    >
-                      {{ item.label }}
-                    </a>
-                  {% endfor %}
-                </div>
-              {% endif %}
-            </div>
-          {% endfor %}
-        </nav>
         <div class="top-nav__actions">
-          <button class="dashboard-cta" id="activateTournamentBtn" type="button">Activate tournament</button>
+          <details class="top-nav__scoring-menu">
+            <summary class="top-nav__scoring-toggle">
+              <span class="top-nav__scoring-icon" aria-hidden="true">⛳️</span>
+              Scoring
+            </summary>
+            <div class="top-nav__scoring-items">
+              <a class="top-nav__scoring-item" href="/admin/match_setup">
+                <span class="top-nav__scoring-item-icon" aria-hidden="true">🧩</span>
+                <div>
+                  <span class="top-nav__scoring-item-title">Match setup</span>
+                  <span class="top-nav__scoring-item-subtitle">match_setup</span>
+                </div>
+              </a>
+              <a class="top-nav__scoring-item" href="/scorecard_data">
+                <span class="top-nav__scoring-item-icon" aria-hidden="true">🧾</span>
+                <div>
+                  <span class="top-nav__scoring-item-title">Scorecards</span>
+                  <span class="top-nav__scoring-item-subtitle">scorecard_data</span>
+                </div>
+              </a>
+              <a class="top-nav__scoring-item" href="/admin/scheduled_matches">
+                <span class="top-nav__scoring-item-icon" aria-hidden="true">🕑</span>
+                <div>
+                  <span class="top-nav__scoring-item-title">Scheduled matches</span>
+                  <span class="top-nav__scoring-item-subtitle">scheduled_matches</span>
+                </div>
+              </a>
+              <a class="top-nav__scoring-item" href="/standings">
+                <span class="top-nav__scoring-item-icon" aria-hidden="true">📊</span>
+                <div>
+                  <span class="top-nav__scoring-item-title">Standings</span>
+                  <span class="top-nav__scoring-item-subtitle">standings</span>
+                </div>
+              </a>
+            </div>
+          </details>
           <details class="top-nav__admin-menu">
             <summary class="top-nav__admin-toggle">
               <span class="top-nav__admin-icon" aria-hidden="true">⚙️</span>
               Admin
             </summary>
             <div class="top-nav__admin-items">
+              <a
+                class="top-nav__admin-item"
+                href="#"
+                role="button"
+                id="adminActivateTournament"
+              >
+                <span class="top-nav__admin-item-icon" aria-hidden="true">⚡</span>
+                <div>
+                  <span class="top-nav__admin-item-title">Activate tournament</span>
+                  <span class="top-nav__admin-item-subtitle">active_tournament</span>
+                </div>
+              </a>
               <a class="top-nav__admin-item" href="/admin/tournament_setup2">
                 <span class="top-nav__admin-item-icon" aria-hidden="true">🏆</span>
                 <div>
@@ -111,7 +100,6 @@
       <main class="shell">
         {% block content %}{% endblock %}
       </main>
-      <button class="dashboard-cta" id="activateTournamentBtn" type="button">Activate tournament</button>
     </div>
     <div id="tournamentPickerOverlay" class="tournament-picker-overlay" hidden data-open="false">
       <div class="tournament-picker-card">
@@ -260,16 +248,23 @@
           }
         });
 
-        const pickerTrigger = document.getElementById("activateTournamentBtn");
+        const adminPickerTrigger = document.getElementById("adminActivateTournament");
         const cancelBtn = document.getElementById("tournamentPickerCancel");
+        const adminMenu = document.querySelector(".top-nav__admin-menu");
 
-        hideOverlay();
-
-        pickerTrigger?.addEventListener("click", () => {
+        const openTournamentPicker = () => {
           resetPicker();
           setStatus("");
           loadTournamentOptions();
           showOverlay();
+          adminMenu?.removeAttribute("open");
+        };
+
+        hideOverlay();
+
+        adminPickerTrigger?.addEventListener("click", (event) => {
+          event.preventDefault();
+          openTournamentPicker();
         });
 
         cancelBtn?.addEventListener("click", () => {

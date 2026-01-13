@@ -38,12 +38,18 @@
     </header>
 
     <section class="holebar" aria-label="Hole">
-      <div class="nav" id="prevHole">&lt; Hole 11</div>
+      <button class="holebar__nav holebar__nav--prev" type="button" id="prevHole" aria-label="Previous hole">
+        <span class="holebar__nav-arrow" aria-hidden="true">◀</span>
+        <span class="holebar__nav-number" id="prevHoleNumber">—</span>
+      </button>
       <div class="center">
         <div class="hole" id="holeText">Hole 12</div>
         <div class="meta" id="holeMeta">Par 5 • 533 yds (BLU)</div>
       </div>
-      <div class="nav right" id="nextHole">Hole 13 &gt;</div>
+      <button class="holebar__nav holebar__nav--next" type="button" id="nextHole" aria-label="Next hole">
+        <span class="holebar__nav-number" id="nextHoleNumber">—</span>
+        <span class="holebar__nav-arrow" aria-hidden="true">▶</span>
+      </button>
     </section>
 
     <main class="container" style="padding-top:12px;">

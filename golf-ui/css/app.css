@@ -199,11 +199,6 @@ input,button,select,textarea{font-size:16px;}
   top:56px;
   z-index:8;
 }
-.holebar .nav{
-  width:90px;
-  font-weight:700;
-  opacity:.95;
-}
 .holebar .center{
   text-align:center;
   flex:1;
@@ -219,7 +214,41 @@ input,button,select,textarea{font-size:16px;}
   opacity:.95;
   margin-top:4px;
 }
-.holebar .nav.right{text-align:right;}
+.holebar__nav{
+  width:64px;
+  height:64px;
+  min-width:64px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.3);
+  background:#fff;
+  color:#111;
+  font-weight:700;
+  font-size:0.95rem;
+  letter-spacing:0.1em;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  transition:transform .15s ease, box-shadow .2s ease, border-color .2s ease;
+  cursor:pointer;
+}
+.holebar__nav:disabled{
+  opacity:.35;
+  cursor:not-allowed;
+  border-color:rgba(0,0,0,.1);
+}
+.holebar__nav:hover:not(:disabled){
+  transform:translateY(-1px);
+  border-color:rgba(242,140,0,.8);
+  box-shadow:0 10px 20px rgba(0,0,0,.08);
+}
+.holebar__nav-number{
+  font-size:1.05rem;
+  letter-spacing:0;
+}
+.holebar__nav-arrow{
+  font-size:1rem;
+}
 .scoreboard{
   margin:0 -14px;
   border-top:1px solid var(--line);
@@ -474,7 +503,7 @@ input,button,select,textarea{font-size:16px;}
   color:#ffb3b3;
   letter-spacing:.04em;
 }
-.holebar .nav.disabled{
+.holebar__nav.disabled{
   opacity:.45;
   pointer-events:none;
 }
