@@ -63,6 +63,13 @@
                   <option value="9" {% if selected_hole_count == 9 %}selected{% endif %}>9 holes</option>
                 </select>
               </label>
+              <label>
+                Format
+                <select name="match_mode" id="match-mode-select">
+                  <option value="four" selected>Four players</option>
+                  <option value="two">Two players</option>
+                </select>
+              </label>
               <label id="match-start-hole-label" style="display:none;">
                 Starting hole
                 <select name="start_hole" id="match-start-hole">
@@ -79,14 +86,6 @@
                 </select>
               </label>
               <label>
-                Player C
-                <select name="player_c_id">
-                  {% for player in players %}
-                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
                 Player B
                 <select name="player_b_id">
                   {% for player in players %}
@@ -94,7 +93,15 @@
                   {% endfor %}
                 </select>
               </label>
-              <label>
+              <label data-match-player="c">
+                Player C
+                <select name="player_c_id">
+                  {% for player in players %}
+                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label data-match-player="d">
                 Player D
                 <select name="player_d_id">
                   {% for player in players %}
@@ -111,7 +118,10 @@
               </div>
             </form>
           {% else %}
-            <p class="status">Add at least two players to schedule a match.</p>
+            <p class="status">
+              Add at least two players to schedule a match.
+              <a class="pill-link" href="/admin/player_entry">Go to Player Entry</a>
+            </p>
           {% endif %}
         {% else %}
           <p class="status">Create or select a tournament before pairing players.</p>
@@ -123,18 +133,25 @@
         {% if matches %}
           <div class="match-grid">
             {% for match in matches %}
-              <div class="match-card">
-                <div class="match-info">
-                  {% if match.course_name or match.tee_name %}
-                    <p class="match-player-chip">
-                      {{ match.course_name or "Course configured" }}
+            <div class="match-card">
+              <div class="match-info">
+                {% if match.course_name or match.tee_name %}
+                  <p class="match-player-chip">
+                    {{ match.course_name or "Course configured" }}
                       {% if match.tee_name %} — {{ match.tee_name }}{% endif %}
                     </p>
                   {% endif %}
-                  <strong>
-                    {{ match.player_a_name }} &amp; {{ match.player_c_name }} vs
-                    {{ match.player_b_name }} &amp; {{ match.player_d_name }}
-                  </strong>
+                <strong>
+                    {% set team_a_label = match.player_a_name %}
+                    {% if match.player_c_name %}
+                      {% set team_a_label = team_a_label ~ " & " ~ match.player_c_name %}
+                    {% endif %}
+                    {% set team_b_label = match.player_b_name %}
+                    {% if match.player_d_name %}
+                      {% set team_b_label = team_b_label ~ " & " ~ match.player_d_name %}
+                    {% endif %}
+                    {{ team_a_label }} vs {{ team_b_label }}
+                </strong>
                   <p class="muted-label">Key: {{ match.match_key }}</p>
                 </div>
                 <div class="match-actions">
@@ -166,6 +183,9 @@
         const holeCountSelect = document.getElementById("match-hole-count");
         const startHoleLabel = document.getElementById("match-start-hole-label");
         const startHoleSelect = document.getElementById("match-start-hole");
+        const matchModeSelect = document.getElementById("match-mode-select");
+        const playerSlotC = document.querySelector("[data-match-player='c']");
+        const playerSlotD = document.querySelector("[data-match-player='d']");
         const initialCourse = {{ selected_course_id | tojson }};
         const initialTee = {{ selected_course_tee_id | tojson }};
         const defaultCourse = initialCourse == null ? "" : String(initialCourse);
@@ -203,6 +223,20 @@
 
         holeCountSelect?.addEventListener("change", updateStartHoleVisibility);
 
+        function updatePlayerMode() {
+          const isTwoPlayer = matchModeSelect?.value === "two";
+          [playerSlotC, playerSlotD].forEach((slot) => {
+            if (!slot) return;
+            const select = slot.querySelector("select");
+            slot.style.display = isTwoPlayer ? "none" : "";
+            if (select) {
+              select.disabled = isTwoPlayer;
+            }
+          });
+        }
+
+        matchModeSelect?.addEventListener("change", updatePlayerMode);
+
         document.addEventListener("DOMContentLoaded", function () {
           if (courseSelect && defaultCourse) {
             courseSelect.value = defaultCourse;
@@ -212,6 +246,7 @@
             teeSelect.value = defaultTee;
           }
           updateStartHoleVisibility();
+          updatePlayerMode();
         });
       })();
     </script>

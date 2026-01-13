@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <style>
+      .scorecard-data {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .scorecard-data__header {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .scorecard-data__header h1 {
+        margin: 0;
+        font-size: 1.25rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+      }
+      .scorecard-data__summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 0.75rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .scorecard-block {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+      }
+      .scorecard-block__item {
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(4, 6, 16, 0.65);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .scorecard-block__label {
+        font-size: 0.65rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .scorecard-block__value {
+        margin-top: 6px;
+        font-size: 1.5rem;
+        font-weight: 600;
+      }
+      .scorecard-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      .scorecard-card {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(4, 6, 16, 0.65);
+        padding: 20px;
+      }
+      .scorecard-card__header {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+      }
+      .scorecard-card__label {
+        font-size: 0.65rem;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .scorecard-card__players {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+      }
+      .scorecard-data__table-wrapper {
+        overflow-x: auto;
+      }
+      .scorecard-data-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .scorecard-data-table th,
+      .scorecard-data-table td {
+        border: none;
+        padding: 4px 6px;
+        font-size: 0.75rem;
+        text-align: center;
+        color: #fff;
+        white-space: nowrap;
+      }
+      .scorecard-data-table th:first-child,
+      .scorecard-data-table td:first-child {
+        width: 140px;
+        text-align: left;
+        font-size: 0.65rem;
+      }
+      .scorecard-data-table th.totals,
+      .scorecard-data-table td.totals {
+        width: 90px;
+      }
+      .scorecard-data-table th:not(:first-child):not(.totals),
+      .scorecard-data-table td:not(:first-child):not(.totals) {
+        width: 40px;
+      }
+      .scorecard-data-table tbody th {
+        font-size: 0.65rem;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .scorecard-data-table td.totals {
+        font-weight: 600;
+      }
+      .scorecard-data-table td.divider-cell {
+        padding: 0;
+        height: 3px;
+        border: none;
+        background: #fff;
+      }
+      .scorecard-data-table tr:not(.divider-row) td.divider-cell {
+        border-top: none;
+      }
+      .scorecard-score--under-par {
+        color: #ff6b6b;
+        border: 1px solid #fff;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 0 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+      }
+    </style>
+
+    {% macro format_value(value) -%}
+      {%- if value is none -%}
+      {%- elif value == value|int -%}
+        {{ value|int }}
+      {%- else -%}
+        {{ value }}
+      {%- endif -%}
+    {%- endmacro %}
+    {% macro format_hcp(value) -%}
+      {%- if value in (None, 0, 0.0) -%}
+      {%- elif value == 1 -%}
+        *
+      {%- elif value == 0.5 -%}
+        ½
+      {%- else -%}
+        {{ value }}
+      {%- endif -%}
+    {%- endmacro %}
+    {% macro format_net(value) -%}
+      {%- if value is none -%}
+      {%- elif value == value|int -%}
+        {{ value|int }}
+      {%- else -%}
+        {{ value }}
+      {%- endif -%}
+    {%- endmacro %}
+    {% macro net_score(value, par) -%}
+      {%- if value is none -%}
+        {{ format_net(value) }}
+      {%- elif par is not none and (value | float) < (par | float) -%}
+        <span class="scorecard-score--under-par">{{ format_net(value) }}</span>
+      {%- else -%}
+        {{ format_net(value) }}
+      {%- endif -%}
+    {%- endmacro %}
+    {% macro format_count(value) -%}
+      {%- if value is none -%}
+      {%- elif value == value|int -%}
+        {{ value|int }}
+      {%- else -%}
+        {{ value }}
+      {%- endif -%}
+    {%- endmacro %}
+    {% macro format_stroke_total(value) -%}
+      {%- if value in (None, 0, 0.0) -%}
+      {%- else -%}
+        {%- set numeric = (value | float) if value is not none else 0 %}
+        {%- set whole = numeric | int %}
+        {%- set remainder = (numeric - whole) %}
+        {%- if remainder == 0 %}
+          {{ whole }}
+        {%- elif remainder == 0.5 %}
+          {{ whole }} ½
+        {%- else -%}
+          {{ numeric }}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endmacro %}
+    {% macro last_name(value) -%}
+      {%- if value -%}
+        {{ value.split()[-1] }}
+      {%- else -%}
+        —
+      {%- endif -%}
+    {%- endmacro %}
+    {% set match_info = scorecard.match or {} %}
+    {% set meta = scorecard.meta or {} %}
+    {% set pair_cards = scorecard.pair_cards or [] %}
+    <div class="scorecard-data">
+      <div class="scorecard-data__header">
+        <h1>Scorecard</h1>
+        <div class="scorecard-data__summary">
+          <span>Match {{ match_info.match_key }}</span>
+          <span>{{ match_info.division }}</span>
+          <span>Status: {{ match_info.status_label or match_info.status or "—" }}</span>
+        </div>
+      </div>
+      {% set player_totals = [] %}
+      {% for card in pair_cards %}
+        {% set player_totals = player_totals + [
+          {"name": card.players[0].name, "points": card.meta.total_points_a},
+          {"name": card.players[1].name, "points": card.meta.total_points_b},
+        ] %}
+      {% endfor %}
+      <div class="scorecard-block">
+        {% for player in player_totals[:4] %}
+          <div class="scorecard-block__item">
+            <div class="scorecard-block__label">{{ player.name }}</div>
+            <div class="scorecard-block__value">{{ format_value(player.points) }}</div>
+          </div>
+        {% endfor %}
+      </div>
+      {% if pair_cards %}
+        <div class="scorecard-cards">
+          {% for card in pair_cards %}
+            <article class="scorecard-card">
+              <header class="scorecard-card__header">
+                <span class="scorecard-card__label">Card {{ loop.index }}</span>
+                <p class="scorecard-card__players">{{ card.players[0].name }} vs {{ card.players[1].name }}</p>
+              </header>
+              <div class="scorecard-data__table-wrapper">
+                <table class="scorecard-data-table">
+                  <thead>
+                    <tr>
+                      <th>Hole</th>
+                      {% set holes = card.rows or [] %}
+                      {% for hole in holes %}
+                        <th>{{ hole.hole_number }}</th>
+                      {% endfor %}
+                      <th class="totals">Totals</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <th>HCP</th>
+                      {% for hole in holes %}
+                        <td>{{ hole.handicap if hole.handicap is not none else "" }}</td>
+                      {% endfor %}
+                      <td class="totals"></td>
+                    </tr>
+                    {% if card.strokes_present[0] %}
+                      <tr>
+                        <th>HCP {{ last_name(card.players[0].name) }}</th>
+                        {% for hole in holes %}
+                          <td>{{ format_hcp(hole.strokes_a) }}</td>
+                        {% endfor %}
+                        <td class="totals">{{ format_stroke_total(card.meta.strokes_a) }}</td>
+                      </tr>
+                    {% endif %}
+                    {% if card.strokes_present[1] %}
+                      <tr>
+                        <th>HCP {{ last_name(card.players[1].name) }}</th>
+                        {% for hole in holes %}
+                          <td>{{ format_hcp(hole.strokes_b) }}</td>
+                        {% endfor %}
+                        <td class="totals">{{ format_stroke_total(card.meta.strokes_b) }}</td>
+                      </tr>
+                    {% endif %}
+                    <tr>
+                      <th>{{ last_name(card.players[0].name) }}</th>
+                      {% for hole in holes %}
+                        <td>{{ net_score(hole.net_a, hole.par) }}</td>
+                      {% endfor %}
+                      <td class="totals">{{ format_net(card.totals.net[0]) }}</td>
+                    </tr>
+                    <tr>
+                      <th>{{ last_name(card.players[1].name) }}</th>
+                      {% for hole in holes %}
+                        <td>{{ net_score(hole.net_b, hole.par) }}</td>
+                      {% endfor %}
+                      <td class="totals">{{ format_net(card.totals.net[1]) }}</td>
+                    </tr>
+                    <tr class="divider-row">
+                      <td class="divider-cell" colspan="{{ (holes|length if holes else 0) + 2 }}"></td>
+                    </tr>
+                    <tr>
+                      <th>{{ last_name(card.players[0].name) }} pts</th>
+                      {% for hole in holes %}
+                        <td>{{ format_value(hole.points_a) }}</td>
+                      {% endfor %}
+                      <td class="totals">{{ format_value(card.meta.total_points_a) }}</td>
+                    </tr>
+                    <tr>
+                      <th>{{ last_name(card.players[1].name) }} pts</th>
+                      {% for hole in holes %}
+                        <td>{{ format_value(hole.points_b) }}</td>
+                      {% endfor %}
+                      <td class="totals">{{ format_value(card.meta.total_points_b) }}</td>
+                    </tr>
+                </tbody>
+              </table>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+    {% else %}
+      <p class="muted-label">No hole data recorded yet.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

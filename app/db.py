@@ -31,39 +31,6 @@ def ensure_schema(database_url: str) -> None:
         );
         """,
         """
-        create table if not exists matches (
-            id serial primary key,
-            tournament_id integer not null references tournaments(id),
-            match_key text not null unique,
-            division text not null default 'Open',
-            player_a_id integer not null references players(id),
-            player_b_id integer not null references players(id),
-            player_c_id integer null references players(id),
-            player_d_id integer null references players(id),
-            course_id integer null references courses(id),
-            course_tee_id integer null references course_tees(id),
-            player_a_handicap integer not null default 0,
-            player_b_handicap integer not null default 0,
-            hole_count integer not null default 18,
-            start_hole integer not null default 1,
-            status text not null default 'not_started',
-            created_at timestamptz not null default now(),
-            updated_at timestamptz not null default now()
-        );
-        """,
-        """
-        alter table matches add column if not exists player_c_id integer null references players(id);
-        """,
-        """
-        alter table matches add column if not exists player_d_id integer null references players(id);
-        """,
-        """
-        alter table matches add column if not exists hole_count integer not null default 18;
-        """,
-        """
-        alter table matches add column if not exists start_hole integer not null default 1;
-        """,
-        """
         create table if not exists courses (
             id integer primary key,
             club_name text not null,
@@ -107,6 +74,27 @@ def ensure_schema(database_url: str) -> None:
             handicap smallint not null,
             yardage integer,
             unique (course_tee_id, hole_number)
+        );
+        """,
+        """
+        create table if not exists matches (
+            id serial primary key,
+            tournament_id integer not null references tournaments(id),
+            match_key text not null unique,
+            division text not null default 'Open',
+            player_a_id integer not null references players(id),
+            player_b_id integer not null references players(id),
+            player_c_id integer null references players(id),
+            player_d_id integer null references players(id),
+            course_id integer null references courses(id),
+            course_tee_id integer null references course_tees(id),
+            player_a_handicap integer not null default 0,
+            player_b_handicap integer not null default 0,
+            hole_count integer not null default 18,
+            start_hole integer not null default 1,
+            status text not null default 'not_started',
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now()
         );
         """,
         """
@@ -222,7 +210,8 @@ def _row_to_result(row: tuple) -> dict:
         "player_a_total": row[8],
         "player_b_total": row[9],
         "winner": row[10],
-        "submitted_at": row[11],
+        "tournament_id": row[11],
+        "submitted_at": row[12],
     }
 
 
@@ -242,6 +231,7 @@ def _fetch_results(database_url: str, limit: int | None = None) -> list[dict]:
                     player_a_total,
                     player_b_total,
                     winner,
+                    tournament_id,
                     submitted_at
                 from match_results
                 order by submitted_at desc

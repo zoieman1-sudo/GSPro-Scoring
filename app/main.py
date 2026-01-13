@@ -467,11 +467,13 @@ def _ensure_match_result_for_pairing(pairing: Match, *, tournament_id: int | Non
     outcome = score_outcome(0, 0)
     team_a_label = _team_label(pairing, "A")
     team_b_label = _team_label(pairing, "B")
+    recorded_player_a = pairing.player_a or team_a_label or "Player A"
+    recorded_player_b = pairing.player_b or team_b_label or "Player B"
     insert_match_result(
         settings.database_url,
         match_name=match_display(pairing),
-        player_a=team_a_label,
-        player_b=team_b_label,
+        player_a=recorded_player_a,
+        player_b=recorded_player_b,
         match_key=pairing.match_id,
         match_code=None,
         player_a_points=outcome["player_a_points"],
@@ -1703,6 +1705,7 @@ async def match_setup_submit(
     player_b_id: int = Form(...),
     division: str = Form(""),
     match_key: str | None = Form(None),
+    match_mode: str = Form("four"),
     player_c_id: int | None = Form(None),
     player_d_id: int | None = Form(None),
     tournament_id: int | None = Form(None),
@@ -1714,11 +1717,19 @@ async def match_setup_submit(
     tournament_id = tournament_id or _get_active_tournament_id()
     if not tournament_id:
         raise HTTPException(status_code=400, detail="Active tournament required")
-    if not player_c_id or not player_d_id:
+    is_two_person = match_mode == "two"
+    if not is_two_person and (not player_c_id or not player_d_id):
         raise HTTPException(status_code=400, detail="Select four players")
-    player_ids = {player_a_id, player_b_id, player_c_id, player_d_id}
-    if len(player_ids) < 4:
-        raise HTTPException(status_code=400, detail="Select four distinct players")
+    player_ids = {player_a_id, player_b_id}
+    if not is_two_person:
+        player_ids.add(player_c_id)
+        player_ids.add(player_d_id)
+    required_players = 2 if is_two_person else 4
+    if len(player_ids) < required_players:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Select {required_players} distinct players",
+        )
     player_a = fetch_player_by_id(settings.database_url, player_a_id)
     player_b = fetch_player_by_id(settings.database_url, player_b_id)
     player_c = fetch_player_by_id(settings.database_url, player_c_id) if player_c_id else None
@@ -2059,6 +2070,16 @@ def _net_adjustment_for_hole(handicap: int, hole_handicap: int | None) -> int:
 def _round_half(value: float) -> float:
     return round(value * 2) / 2
 
+def _numeric_score(value: str | int | float | None) -> float | None:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    return None
+
 
 def _stroke_allocation(total_strokes: float, course_holes: list[dict]) -> dict[int, float]:
     if not course_holes:
@@ -2130,8 +2151,8 @@ def _build_scorecard_rows(
         player_b_score = entry.get("player_b_score")
         player_c_score = entry.get("player_c_score")
         player_d_score = entry.get("player_d_score")
-        gross_a = _team_total(player_a_score, player_c_score)
-        gross_b = _team_total(player_b_score, player_d_score)
+        gross_a = _numeric_score(player_a_score)
+        gross_b = _numeric_score(player_b_score)
         strokes_a = strokes_for_a.get(number, 0.0)
         strokes_b = strokes_for_b.get(number, 0.0)
         net_a = (gross_a - strokes_a) if gross_a is not None else None
@@ -2188,6 +2209,8 @@ def _build_scorecard_rows(
         "match_length": hole_limit,
         "total_points_a": totals["points_a"],
         "total_points_b": totals["points_b"],
+        "strokes_a": totals["strokes_a"],
+        "strokes_b": totals["strokes_b"],
         "start_hole": selected_start_hole,
     }
     return {"rows": rows, "course": active_course, "meta": meta}
@@ -2294,6 +2317,10 @@ def _scorecard_context(match_key: str | None, tournament_id: int | None = None) 
     else:
         player_b_info = fetch_player_by_name(settings.database_url, player_b_name) or {}
         handicap_b = player_b_info.get("handicap", 0)
+    player_c_info = fetch_player_by_name(settings.database_url, player_c_name) if player_c_name else {}
+    player_d_info = fetch_player_by_name(settings.database_url, player_d_name) if player_d_name else {}
+    handicap_c = player_c_info.get("handicap", 0)
+    handicap_d = player_d_info.get("handicap", 0)
     match_length = selected.hole_count or 18
     start_hole = selected.start_hole or 1
     computed = _scorecard_data_for_match(
@@ -2305,6 +2332,70 @@ def _scorecard_context(match_key: str | None, tournament_id: int | None = None) 
         match_length=match_length,
         start_hole=start_hole,
     )
+    player_a_display = selected.player_a or player_a_name or "Player A"
+    player_b_display = selected.player_b or player_b_name or "Player B"
+    player_c_display = selected.player_c or player_c_name or "Player C"
+    player_d_display = selected.player_d or player_d_name or "Player D"
+    holes_for_cd = [
+        {
+            "hole_number": entry.get("hole_number"),
+            "player_a_score": entry.get("player_c_score"),
+            "player_b_score": entry.get("player_d_score"),
+            "player_c_score": entry.get("player_c_score"),
+            "player_d_score": entry.get("player_d_score"),
+        }
+        for entry in hole_records
+    ]
+    computed_cd = _scorecard_data_for_match(
+        match_result if match_result else {},
+        holes_for_cd,
+        handicap_c,
+        handicap_d,
+        tournament_settings,
+        match_length=match_length,
+        start_hole=start_hole,
+    )
+    def _sum_value(rows: list[dict], key: str) -> float | None:
+        total = 0.0
+        seen = False
+        for row in rows:
+            value = row.get(key)
+            if isinstance(value, (int, float)):
+                total += value
+                seen = True
+        return total if seen else None
+
+    def _build_pair_card(name_a: str, name_b: str, handicap_value_a: int, handicap_value_b: int, data: dict) -> dict:
+        rows = data.get("rows", [])
+        meta = data.get("meta", {})
+        strokes_present_a = any(entry.get("strokes_a", 0) for entry in rows)
+        strokes_present_b = any(entry.get("strokes_b", 0) for entry in rows)
+        return {
+            "players": [
+                {"name": name_a, "handicap": handicap_value_a},
+                {"name": name_b, "handicap": handicap_value_b},
+            ],
+            "rows": rows,
+            "meta": meta,
+            "totals": {
+                "net": [
+                    _sum_value(rows, "net_a"),
+                    _sum_value(rows, "net_b"),
+                ],
+                "points": [
+                    meta.get("total_points_a"),
+                    meta.get("total_points_b"),
+                ],
+            },
+            "strokes_present": [strokes_present_a, strokes_present_b],
+        }
+    pair_cards = [
+        _build_pair_card(player_a_display, player_b_display, handicap_a, handicap_b, computed),
+    ]
+    if player_c_display or player_d_display:
+        pair_cards.append(
+            _build_pair_card(player_c_display, player_d_display, handicap_c, handicap_d, computed_cd),
+        )
     course_info = _course_display_info(match_result if match_result else {}, tournament_settings)
     match_name = match_display(selected)
     total_holes = match_length
@@ -2314,19 +2405,21 @@ def _scorecard_context(match_key: str | None, tournament_id: int | None = None) 
             "match_key": selected.match_id,
             "match_code": match_result.get("match_code") if match_result else "",
             "match_name": match_name,
-            "player_a_name": player_a_name,
-            "player_b_name": player_b_name,
-            "player_c_name": player_c_name,
-            "player_d_name": player_d_name,
-            "player_a_individual_name": selected.player_a or "",
-            "player_c_individual_name": selected.player_c or "",
-            "player_b_individual_name": selected.player_b or "",
-            "player_d_individual_name": selected.player_d or "",
+            "player_a_name": player_a_display,
+            "player_b_name": player_b_display,
+            "player_c_name": player_c_display,
+            "player_d_name": player_d_display,
+            "player_a_individual_name": player_a_display,
+            "player_c_individual_name": player_c_display,
+            "player_b_individual_name": player_b_display,
+            "player_d_individual_name": player_d_display,
             "division": selected.division,
             "status": selected_status["status"],
             "status_label": MATCH_STATUS_LABELS.get(selected_status["status"], selected_status["status"]),
             "holes_recorded": selected_status["holes"],
             "total_holes": total_holes,
+            "team_label_a": team_a_label,
+            "team_label_b": team_b_label,
         },
         "holes": computed["rows"],
         "meta": computed["meta"],
@@ -2340,7 +2433,25 @@ def _scorecard_context(match_key: str | None, tournament_id: int | None = None) 
         },
         "player_a_handicap": handicap_a,
         "player_b_handicap": handicap_b,
+        "pair_cards": pair_cards,
+        "players": [
+            {"name": player_a_display},
+            {"name": player_b_display},
+            {"name": player_c_display},
+            {"name": player_d_display},
+        ],
     }
+    final_status_pair1 = "—"
+    final_status_pair2 = "—"
+    for entry in reversed(computed["rows"]):
+        if final_status_pair1 == "—" and entry.get("status_active_pair1"):
+            final_status_pair1 = entry.get("status_label_pair1") or final_status_pair1
+        if final_status_pair2 == "—" and entry.get("status_active_pair2"):
+            final_status_pair2 = entry.get("status_label_pair2") or final_status_pair2
+        if final_status_pair1 != "—" and final_status_pair2 != "—":
+            break
+    scorecard["final_status_pair1"] = final_status_pair1
+    scorecard["final_status_pair2"] = final_status_pair2
     scorecard["match"]["tournament_id"] = resolved_tournament_id
     scorecard["point_chip_a"] = _adjust_display_points(scorecard["meta"]["total_points_a"])
     scorecard["point_chip_b"] = _adjust_display_points(scorecard["meta"]["total_points_b"])
@@ -2407,6 +2518,32 @@ async def scorecard_studio(request: Request):
     )
 
 
+@app.get("/scorecard_data", response_class=HTMLResponse)
+async def scorecard_data(request: Request, match_key: str | None = None):
+    context = _scorecard_context(match_key)
+    scorecard = context.get("scorecard") or {}
+    return templates.TemplateResponse(
+        "scorecard_data.html",
+        {
+            "request": request,
+            "scorecard": scorecard,
+        },
+    )
+
+
+@app.get("/scorecard_data_source", response_class=HTMLResponse)
+async def scorecard_data_source(request: Request, match_key: str | None = None):
+    context = _scorecard_context(match_key)
+    scorecard = context.get("scorecard") or {}
+    return templates.TemplateResponse(
+        "scorecard_data_source.html",
+        {
+            "request": request,
+            "scorecard": scorecard,
+        },
+    )
+
+
 def _format_winner_label(result: str | None, player_names: list[str]) -> str:
     if result == "A":
         return player_names[0]
@@ -2421,8 +2558,8 @@ def _format_winner_label(result: str | None, player_names: list[str]) -> str:
 
 def _serialize_scorecard_for_studio(scorecard: dict) -> dict:
     match_info = scorecard["match"]
-    team_label_a = match_info.get("player_a_name") or "Player A Team"
-    team_label_b = match_info.get("player_b_name") or "Player B Team"
+    team_label_a = match_info.get("team_label_a") or match_info.get("player_a_name") or "Player A Team"
+    team_label_b = match_info.get("team_label_b") or match_info.get("player_b_name") or "Player B Team"
     player_names = [
         match_info.get("player_a_individual_name") or team_label_a,
         match_info.get("player_b_individual_name") or team_label_b,
@@ -2440,16 +2577,6 @@ def _serialize_scorecard_for_studio(scorecard: dict) -> dict:
         if isinstance(value, str):
             return value.isnumeric()
         return False
-
-    def _numeric_score(value: str | int | float | None) -> float | None:
-        if isinstance(value, (int, float)):
-            return float(value)
-        if isinstance(value, str):
-            try:
-                return float(value)
-            except ValueError:
-                return None
-        return None
 
     def _accumulate(team_index: int, gross: str | int | float | None, net: str | int | float | None) -> None:
         if isinstance(gross, (int, float)):
@@ -2476,6 +2603,24 @@ def _serialize_scorecard_for_studio(scorecard: dict) -> dict:
                 "player_d_score",
             )
         )
+
+    def _player_score_for_index(scores: list[dict], index: int) -> float | None:
+        raw = scores[index]
+        value = _numeric_score(raw.get("net"))
+        if value is None:
+            value = _numeric_score(raw.get("gross"))
+        return value
+
+    def _player_match_points(first_idx: int, second_idx: int, scores: list[dict]) -> tuple[float | None, float | None]:
+        first_value = _player_score_for_index(scores, first_idx)
+        second_value = _player_score_for_index(scores, second_idx)
+        if first_value is None or second_value is None:
+            return None, None
+        if first_value < second_value:
+            return 1.0, 0.0
+        if first_value > second_value:
+            return 0.0, 1.0
+        return 0.5, 0.5
 
     pair_indexes = [(0, 1), (2, 3)]
     pair_statuses = [0, 0]
@@ -2534,6 +2679,10 @@ def _serialize_scorecard_for_studio(scorecard: dict) -> dict:
             pair_status_labels.append(_status_label(pair_statuses[idx]))
             pair_status_diffs.append(pair_statuses[idx])
             pair_status_active.append(active)
+        player_match_points: list[float | None] = []
+        for first, second in pair_indexes:
+            first_point, second_point = _player_match_points(first, second, player_scores)
+            player_match_points.extend([first_point, second_point])
 
         strokes_a = _numeric_score(row.get("strokes_a")) or 0.0
         strokes_b = _numeric_score(row.get("strokes_b")) or 0.0
@@ -2548,6 +2697,9 @@ def _serialize_scorecard_for_studio(scorecard: dict) -> dict:
                 "winner": _format_winner_label(row.get("result"), player_names),
                 "stroke_owner": stroke_owner,
                 "stroke_count": stroke_count,
+                "points_a": row.get("points_a"),
+                "points_b": row.get("points_b"),
+                "player_points": player_match_points,
                 "status_label_pair1": pair_status_labels[0],
                 "status_label_pair2": pair_status_labels[1],
                 "status_diff_pair1": pair_status_diffs[0],
@@ -2561,6 +2713,12 @@ def _serialize_scorecard_for_studio(scorecard: dict) -> dict:
         any(_score_value(score.get("gross")) for score in hole.get("player_scores", []))
         for hole in hole_entries
     )
+
+    player_point_totals = [0.0, 0.0, 0.0, 0.0]
+    for hole in hole_entries:
+        for idx, value in enumerate(hole.get("player_points", []) if hole.get("player_points") else []):
+            if isinstance(value, (int, float)):
+                player_point_totals[idx] += value
 
     ordered_players = [
         (player_names[0], 0),
@@ -2597,6 +2755,7 @@ def _serialize_scorecard_for_studio(scorecard: dict) -> dict:
         "players": players_data,
         "holes": hole_entries,
         "meta": scorecard.get("meta", {}),
+        "player_point_totals": player_point_totals,
         "phase": match_info["status"],
         "course": {
             "club_name": match_info.get("division"),  # placeholder if no club

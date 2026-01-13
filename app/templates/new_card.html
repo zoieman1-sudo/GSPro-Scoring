@@ -114,6 +114,30 @@
         font-weight: 600;
         border: 1px solid rgba(0, 0, 0, 0.8);
       }
+      .studio-status-row td.status-cell {
+        padding: 6px 0;
+        text-align: center;
+      }
+      .status-cell__stack {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        align-items: center;
+      }
+      .status-cell__pair {
+        display: block;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        font-size: 0.65rem;
+        line-height: 1.2;
+        white-space: nowrap;
+        width: 100%;
+      }
+      .status-cell__pair + .status-cell__pair {
+        margin-top: 4px;
+        padding-top: 4px;
+        border-top: 2px solid #fff;
+      }
       .studio-scorecard .player-row.team-a,
       .studio-scorecard .player-row.team-b {
         color: #fff;
@@ -223,14 +247,37 @@
       {%- endif -%}
     {%- endmacro %}
 
+    {% macro format_points(value) -%}
+      {%- if value is not none -%}
+        {{ value }} pts
+      {%- else -%}
+        —
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% macro format_status_point(value) -%}
+      {%- if value is none -%}
+        —
+      {%- else -%}
+        {% set numeric = value | float %}
+        {%- if numeric == numeric | int -%}
+          {{ numeric | int }}
+        {%- elif numeric == 0.5 -%}
+          .5
+        {%- else -%}
+          {{ numeric }}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endmacro %}
+
     {% set player_color_classes = ["player-row--navy", "player-row--orange", "player-row--orange", "player-row--navy"] %}
     {% set status_color_map = {
       "player-row--navy": "status-cell--navy",
       "player-row--orange": "status-cell--orange",
     } %}
-    {% set status_color_classes = [
+    {% set player_status_classes = [
       status_color_map[player_color_classes[0]],
-      status_color_map[player_color_classes[2]],
+      status_color_map[player_color_classes[1]],
     ] %}
 
     {% macro player_total(holes, index) -%}
@@ -247,10 +294,11 @@
     {%- endmacro %}
 
     {% set hero_holes = hero.holes or [] %}
-    <article class="studio-hero" style="display:none;">
-      <div class="hero-top">
-        <p class="eyebrow">Scorecard Studio</p>
-        <h1 id="heroTitle">{{ hero.title }}</h1>
+    <div id="studioContent">
+      <article class="studio-hero" style="display:none;">
+        <div class="hero-top">
+          <p class="eyebrow">Scorecard Studio</p>
+          <h1 id="heroTitle">{{ hero.title }}</h1>
         <p class="hero-description" id="heroSummary">{{ hero.subtitle }}</p>
       </div>
       <p class="hero-meta">{{ hero.meta }}</p>
@@ -285,14 +333,15 @@
         {% for studio_match in studio_matches %}
           {% set scorecard = studio_match.scorecard %}
           {% set holes = scorecard.holes[:9] if scorecard.holes else [] %}
+          {% set meta = scorecard.meta or {} %}
           <article class="studio-match">
             <header class="studio-match__header">
               <div>
                 <p class="muted-label">Match {{ loop.index }}</p>
                 <h2>{{ studio_match.display }}</h2>
                 <p>
-                  Start hole {{ scorecard.meta.start_hole or 1 }} •
-                  {{ scorecard.meta.is_nine_hole and "9 holes" or "18 holes" }}
+                  Start hole {{ meta.start_hole or 1 }} •
+                  {{ meta.is_nine_hole and "9 holes" or "18 holes" }}
                 </p>
               </div>
               <div>
@@ -350,20 +399,33 @@
                       <td class="player-total">{{ player_total(holes, idx) }}</td>
                     </tr>
                   {% endfor %}
-                  <tr class="studio-status-row">
-                    <th>Status</th>
-                    {% for hole in holes %}
-                      {% if hole.status_active_pair1 %}
-                        {% set status_class = status_color_classes[0] if hole.status_label_pair1 != "A/S" else "status-cell--as" %}
-                        <td class="status-cell {{ status_class }}">
-                          {{ hole.status_label_pair1 }}
+                  {% set players_count = scorecard.players|length if scorecard.players else 0 %}
+                  {% set visible_players = players_count if players_count <= 2 else 2 %}
+                  {% set player_point_totals = scorecard.player_point_totals if scorecard.player_point_totals else [0, 0, 0, 0] %}
+                  {% for player_idx in range(visible_players) %}
+                    {% set player_label = scorecard.players[player_idx].name %}
+                    <tr class="studio-status-row">
+                      <th>{{ player_label }}</th>
+                      {% for hole in holes %}
+                        {% set hole_points = hole.player_points or [None, None, None, None] %}
+                        {% set player_value = hole_points[player_idx] %}
+                        <td class="status-cell">
+                          <div class="status-cell__stack">
+                            <span class="status-cell__pair {{ player_status_classes[player_idx] }}">
+                              {{ format_status_point(player_value) }}
+                            </span>
+                          </div>
                         </td>
-                      {% else %}
-                        <td class="status-cell">—</td>
-                      {% endif %}
-                    {% endfor %}
-                    <td class="status-cell">—</td>
-                  </tr>
+                      {% endfor %}
+                      <td class="status-cell">
+                        <div class="status-cell__stack">
+                          <span class="status-cell__pair {{ player_status_classes[player_idx] }}">
+                            {{ format_points(player_point_totals[player_idx] if player_point_totals|length > player_idx else None) }}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  {% endfor %}
                   {% for idx in range(2, 4) %}
                     {% set color_class = player_color_classes[idx] %}
                     <tr class="player-row team-b {{ color_class }}">
@@ -378,20 +440,6 @@
                       <td class="player-total">{{ player_total(holes, idx) }}</td>
                     </tr>
                   {% endfor %}
-                  <tr class="studio-status-row">
-                    <th>Status</th>
-                    {% for hole in holes %}
-                      {% if hole.status_active_pair2 %}
-                        {% set status_class = status_color_classes[1] if hole.status_label_pair2 != "A/S" else "status-cell--as" %}
-                        <td class="status-cell {{ status_class }}">
-                          {{ hole.status_label_pair2 }}
-                        </td>
-                      {% else %}
-                        <td class="status-cell">—</td>
-                      {% endif %}
-                    {% endfor %}
-                    <td class="status-cell">—</td>
-                  </tr>
                 </tbody>
               </table>
             {% else %}
@@ -400,17 +448,17 @@
             <div class="studio-summary-grid">
               <div class="studio-summary-block">
                 <span class="muted-label">Points A</span>
-                <strong>{{ scorecard.meta.total_points_a|default(0) }}</strong>
+                <strong>{{ meta.total_points_a|default(0) }}</strong>
               </div>
               <div class="studio-summary-block">
                 <span class="muted-label">Points B</span>
-                <strong>{{ scorecard.meta.total_points_b|default(0) }}</strong>
+                <strong>{{ meta.total_points_b|default(0) }}</strong>
               </div>
               <div class="studio-summary-block">
                 <span class="muted-label">Stroke Allocation</span>
                 <strong>
-                  {{ scorecard.meta.stroke_owner == 'A' and 'A' or scorecard.meta.stroke_owner == 'B' and 'B' or '—' }}
-                  {{ scorecard.meta.stroke_count|default(0) }}
+                  {{ meta.stroke_owner == 'A' and 'A' or meta.stroke_owner == 'B' and 'B' or '—' }}
+                  {{ meta.stroke_count|default(0) }}
                 </strong>
               </div>
               <div class="studio-summary-block">
@@ -424,5 +472,40 @@
     {% else %}
       <p class="muted-label">No Scorecard Studio matches available right now.</p>
     {% endif %}
+    </div>
+    <script>
+      (function () {
+        const studioContainer = document.getElementById("studioContent");
+        if (!studioContainer) {
+          return;
+        }
+        let refreshTimer = null;
+        const refreshInterval = 10000;
+        async function refreshStudio() {
+          try {
+            const url = window.location.href;
+            const response = await fetch(url, { cache: "no-store" });
+            if (!response.ok) {
+              return;
+            }
+            const text = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, "text/html");
+            const updated = doc.getElementById("studioContent");
+            if (updated) {
+              studioContainer.innerHTML = updated.innerHTML;
+            }
+          } catch (error) {
+            console.error("Unable to refresh Scorecard Studio:", error);
+          }
+        }
+        refreshTimer = window.setInterval(refreshStudio, refreshInterval);
+        window.addEventListener("beforeunload", () => {
+          if (refreshTimer) {
+            window.clearInterval(refreshTimer);
+          }
+        });
+      })();
+    </script>
   </section>
 {% endblock %}

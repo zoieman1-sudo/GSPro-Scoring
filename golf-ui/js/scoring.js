@@ -275,8 +275,8 @@ async function saveCurrentHole() {
         {
           hole_number: holeNumber,
           player_a_score: perPlayerScores[0] ?? 0,
-          player_b_score: perPlayerScores[2] ?? 0,
-          player_c_score: perPlayerScores[1] ?? 0,
+          player_b_score: perPlayerScores[1] ?? 0,
+          player_c_score: perPlayerScores[2] ?? 0,
           player_d_score: perPlayerScores[3] ?? 0,
         },
       ],
