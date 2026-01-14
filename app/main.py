@@ -760,7 +760,7 @@ def _matches_by_key(tournament_id: int | None) -> dict[str, dict]:
     return {entry.get("match_key") or "": entry for entry in matches if entry.get("match_key")}
 
 
-def _match_cleanup_cd_stats(result: dict) -> dict | None:
+def _match_cleanup_cd_stats(result: dict) -> list[dict] | None:
     tournament_id = result.get("tournament_id")
     match_key = result.get("match_key")
     if not tournament_id or not match_key:
@@ -810,16 +810,85 @@ def _match_cleanup_cd_stats(result: dict) -> dict | None:
             scorecard_cd.setdefault("meta", {})["total_points_a"] = fallback_c
             scorecard_cd.setdefault("meta", {})["total_points_b"] = fallback_d
     outcome = score_outcome(player_c_total, player_d_total)
-    return {
-        "player_c_name": player_c_name,
-        "player_d_name": player_d_name,
-        "player_c_points": player_c_total,
-        "player_d_points": player_d_total,
-        "player_c_bonus": outcome["player_a_bonus"],
-        "player_d_bonus": outcome["player_b_bonus"],
-        "player_c_total": outcome["player_a_total"],
-        "player_d_total": outcome["player_b_total"],
-    }
+    cd_allow_bonus = _bonus_allowed(len(holes_for_cd), match_length)
+    if not cd_allow_bonus:
+        outcome = {
+            **outcome,
+            "player_a_bonus": 0.0,
+            "player_b_bonus": 0.0,
+            "player_a_total": player_c_total,
+            "player_b_total": player_d_total,
+        }
+    return [
+        {
+            "name": player_c_name,
+            "role": "C",
+            "points": player_c_total,
+            "bonus": outcome["player_a_bonus"],
+            "total": outcome["player_a_total"],
+        },
+        {
+            "name": player_d_name,
+            "role": "D",
+            "points": player_d_total,
+            "bonus": outcome["player_b_bonus"],
+            "total": outcome["player_b_total"],
+        },
+    ]
+
+
+def _match_cleanup_ab_stats(result: dict) -> list[dict] | None:
+    holes = fetch_hole_scores(settings.database_url, result["id"])
+    if not holes:
+        return None
+    tournament_id = result.get("tournament_id")
+    if not tournament_id:
+        return None
+    tournament_settings = _load_tournament_settings(tournament_id)
+    match_length = _safe_int(result.get("hole_count")) or 18
+    start_hole = _safe_int(result.get("start_hole")) or 1
+    scorecard = _scorecard_data_for_match(
+        result,
+        holes,
+        result.get("player_a_handicap") or _player_handicap_by_name(result.get("player_a_name")),
+        result.get("player_b_handicap") or _player_handicap_by_name(result.get("player_b_name")),
+        tournament_settings,
+        match_length=match_length,
+        start_hole=start_hole,
+        use_snapshot=False,
+    )
+    ab_stats = []
+    points_a = scorecard["meta"]["total_points_a"]
+    points_b = scorecard["meta"]["total_points_b"]
+    bonus_a = result.get("player_a_bonus") or 0.0
+    bonus_b = result.get("player_b_bonus") or 0.0
+    total_a = result.get("player_a_total") or points_a + bonus_a
+    total_b = result.get("player_b_total") or points_b + bonus_b
+    allow_bonus = _bonus_allowed(len(holes), match_length)
+    if not allow_bonus:
+        bonus_a = 0.0
+        bonus_b = 0.0
+        total_a = points_a
+        total_b = points_b
+    ab_stats.append(
+        {
+            "name": result.get("player_a_name") or "Player A",
+            "role": "A",
+            "points": points_a,
+            "bonus": bonus_a,
+            "total": total_a,
+        }
+    )
+    ab_stats.append(
+        {
+            "name": result.get("player_b_name") or "Player B",
+            "role": "B",
+            "points": points_b,
+            "bonus": bonus_b,
+            "total": total_b,
+        }
+    )
+    return ab_stats
 
 
 def _aggregate_standings_entries(results: list[dict], tournament_id: int | None) -> list[dict]:
@@ -851,6 +920,47 @@ def _aggregate_standings_entries(results: list[dict], tournament_id: int | None)
         hole_entries = fetch_hole_scores(settings.database_url, result["id"])
         if not hole_entries and not (result.get("player_a_total") or result.get("player_b_total")):
             continue
+        hole_count = len(hole_entries)
+        recorded_groups: list[list[dict]] = []
+        if hole_entries:
+            ab_stats = _match_cleanup_ab_stats(result)
+            if ab_stats:
+                recorded_groups.append(ab_stats)
+            cd_stats = _match_cleanup_cd_stats(result)
+            if cd_stats:
+                recorded_groups.append(cd_stats)
+        if recorded_groups:
+            for group in recorded_groups:
+                if len(group) != 2:
+                    continue
+                first = group[0]
+                second = group[1]
+                first_total = first.get("total") or first.get("points") or 0
+                second_total = second.get("total") or second.get("points") or 0
+                winner = "A" if first_total > second_total else "B" if second_total > first_total else "T"
+                if first["name"] in allowed_players:
+                    _record_player(
+                        stats,
+                        first["name"],
+                        divisions_by_player.get(first["name"], "Open"),
+                        first_total,
+                        second_total,
+                        winner,
+                        "A",
+                        hole_count,
+                    )
+                if second["name"] in allowed_players:
+                    _record_player(
+                        stats,
+                        second["name"],
+                        divisions_by_player.get(second["name"], "Open"),
+                        second_total,
+                        first_total,
+                        winner,
+                        "B",
+                        hole_count,
+                    )
+            continue
         player_a_total = result.get("player_a_total") or 0
         player_b_total = result.get("player_b_total") or 0
         winner = result.get("winner") or "T"
@@ -858,7 +968,6 @@ def _aggregate_standings_entries(results: list[dict], tournament_id: int | None)
             player_a_total, player_b_total, winner = _resolve_result_totals(result)
         if player_a_total == 0 and player_b_total == 0:
             continue
-        hole_count = len(hole_entries)
         if result["player_a_name"] in allowed_players:
             _record_player(
                 stats,
@@ -881,59 +990,6 @@ def _aggregate_standings_entries(results: list[dict], tournament_id: int | None)
                 "B",
                 hole_count,
             )
-        match_entry = matches_by_key.get(result.get("match_key") or "")
-        player_c_name = (match_entry.get("player_c_name") or "").strip() if match_entry else ""
-        player_d_name = (match_entry.get("player_d_name") or "").strip() if match_entry else ""
-        if player_c_name and player_d_name and hole_entries:
-            match_length = _safe_int(result.get("hole_count")) or 18
-            match_start_hole = _safe_int(result.get("start_hole")) or 1
-            holes_for_cd = [
-                {
-                    "hole_number": entry.get("hole_number"),
-                    "player_a_score": entry.get("player_c_score") or 0,
-                    "player_b_score": entry.get("player_d_score") or 0,
-                    "player_c_score": entry.get("player_c_score") or 0,
-                    "player_d_score": entry.get("player_d_score") or 0,
-                }
-                for entry in hole_entries
-            ]
-            handicap_c = _player_handicap_by_name(player_c_name)
-            handicap_d = _player_handicap_by_name(player_d_name)
-            computed_cd = _scorecard_data_for_match(
-                result,
-                holes_for_cd,
-                handicap_c,
-                handicap_d,
-                tournament_settings,
-                match_length=match_length,
-                start_hole=match_start_hole,
-                use_snapshot=False,
-            )
-            player_c_total = computed_cd["meta"].get("total_points_a") or 0
-            player_d_total = computed_cd["meta"].get("total_points_b") or 0
-            outcome_cd = score_outcome(player_c_total, player_d_total)
-            if player_c_name in allowed_players:
-                _record_player(
-                    stats,
-                    player_c_name,
-                    divisions_by_player.get(player_c_name, "Open"),
-                    player_c_total,
-                    player_d_total,
-                    outcome_cd["winner"],
-                    "A",
-                    hole_count,
-                )
-            if player_d_name in allowed_players:
-                _record_player(
-                    stats,
-                    player_d_name,
-                    divisions_by_player.get(player_d_name, "Open"),
-                    player_d_total,
-                    player_c_total,
-                    outcome_cd["winner"],
-                    "B",
-                    hole_count,
-                )
 
     entries: list[dict] = []
     for entry in stats.values():
@@ -998,6 +1054,10 @@ def _resolve_result_totals(result: dict) -> tuple[float, float, str]:
             else:
                 winner = "T"
     return player_a_total, player_b_total, winner
+
+
+def _bonus_allowed(recorded_count: int, expected_length: int) -> bool:
+    return recorded_count >= expected_length
 
 
 def build_standings(results: list[dict], tournament_id: int | None = None) -> list[dict]:
@@ -1977,9 +2037,22 @@ async def scheduled_matches_page(request: Request):
 
 @app.get("/admin/match_results", response_class=HTMLResponse)
 async def match_results_page(request: Request):
-    results = fetch_all_match_results(settings.database_url)
+    raw_results = fetch_all_match_results(settings.database_url)
+    seen_keys: dict[str, dict] = {}
+    for entry in reversed(raw_results):
+        key = entry.get("match_key") or f"match-{entry['id']}"
+        if key not in seen_keys:
+            seen_keys[key] = entry
+    results = list(seen_keys.values())
     for result in results:
-        result["cd_pair_stats"] = _match_cleanup_cd_stats(result)
+        stats = []
+        ab_stats = _match_cleanup_ab_stats(result)
+        if ab_stats:
+            stats.extend(ab_stats)
+        cd_stats = _match_cleanup_cd_stats(result)
+        if cd_stats:
+            stats.extend(cd_stats)
+        result["pair_stats"] = stats
     return templates.TemplateResponse(
         "admin_match_results.html",
         {
@@ -3195,9 +3268,6 @@ async def finalize_match(match_id: int, redirect: str | None = Form(None)):
     scorecard_source_id: int | None = None
     scorecard_source_result: dict | None = None
     scorecard_source_holes: list[dict] | None = None
-    def _bonus_allowed(recorded_count: int, expected_length: int) -> bool:
-        return recorded_count >= expected_length
-
     for target_id in sorted(target_ids):
         target = fetch_match_result(settings.database_url, target_id)
         if not target:

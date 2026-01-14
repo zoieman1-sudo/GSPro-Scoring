@@ -25,18 +25,19 @@
         </thead>
         <tbody>
           {% for result in results %}
+            {% set stats = result.pair_stats or [] %}
             <tr class="match-row">
-              <td colspan="4">
+              <td colspan="5">
                 <strong>{{ result.match_name }}</strong>
                 <p class="muted-label">
                   {{ result.match_key or "—" }}
                   · {{ result.player_a_name }} · {{ result.player_b_name }}
                 </p>
               </td>
-              <td>
+              <td rowspan="{{ stats|length + 1 }}">
                 {{ result.submitted_at.strftime("%Y-%m-%d %H:%M:%S") if result.submitted_at else "—" }}
               </td>
-              <td colspan="2" class="actions">
+              <td rowspan="{{ stats|length + 1 }}" class="actions">
                 <form
                   method="post"
                   action="/admin/match_results/delete"
@@ -47,55 +48,22 @@
                 </form>
               </td>
             </tr>
-            <tr>
-              <td>
-                {{ result.player_a_name }}
-                <span class="muted-label">Player A</span>
-              </td>
-              <td>A</td>
-              <td>{{ result.player_a_points | default(0) }}</td>
-              <td>{{ result.player_a_bonus | default(0) }}</td>
-              <td>{{ result.player_a_total | default(0) }}</td>
-              <td rowspan="4">
-                {{ result.submitted_at.strftime("%Y-%m-%d %H:%M:%S") if result.submitted_at else "—" }}
-              </td>
-              <td rowspan="4"></td>
-            </tr>
-            <tr>
-              <td>
-                {{ result.player_b_name }}
-                <span class="muted-label">Player B</span>
-              </td>
-              <td>B</td>
-              <td>{{ result.player_b_points | default(0) }}</td>
-              <td>{{ result.player_b_bonus | default(0) }}</td>
-              <td>{{ result.player_b_total | default(0) }}</td>
-            </tr>
-            {% set cd = result.cd_pair_stats %}
-            {% if cd %}
-              <tr>
-                <td>
-                  {{ cd.player_c_name }}
-                  <span class="muted-label">Player C</span>
-                </td>
-                <td>C</td>
-                <td>{{ cd.player_c_points }}</td>
-                <td>{{ cd.player_c_bonus }}</td>
-                <td>{{ cd.player_c_total }}</td>
-              </tr>
-              <tr>
-                <td>
-                  {{ cd.player_d_name }}
-                  <span class="muted-label">Player D</span>
-                </td>
-                <td>D</td>
-                <td>{{ cd.player_d_points }}</td>
-                <td>{{ cd.player_d_bonus }}</td>
-                <td>{{ cd.player_d_total }}</td>
-              </tr>
+            {% if stats %}
+              {% for stat in stats %}
+                <tr>
+                  <td>
+                    {{ stat.name }}
+                    <span class="muted-label">Player {{ stat.role }}</span>
+                  </td>
+                  <td>{{ stat.role }}</td>
+                  <td>{{ stat.points }}</td>
+                  <td>{{ stat.bonus }}</td>
+                  <td>{{ stat.total }}</td>
+                </tr>
+              {% endfor %}
             {% else %}
               <tr class="muted-row">
-                <td colspan="5" class="muted-label">C/D stats unavailable (no hole data)</td>
+                <td colspan="5" class="muted-label">No scoring data available for this match.</td>
               </tr>
             {% endif %}
           {% else %}
