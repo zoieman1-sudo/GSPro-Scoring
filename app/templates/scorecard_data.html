@@ -424,5 +424,63 @@
       <p class="muted-label">No hole data recorded yet.</p>
     {% endif %}
   </div>
+  </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (function () {
+      const containerSelector = ".scorecard-data";
+      const refreshInterval = 7000;
+      const container = document.querySelector(containerSelector);
+      if (!container) {
+        return;
+      }
+
+      let timerId = null;
+      let fetching = false;
+
+      const scheduleRefresh = () => {
+        timerId = window.setTimeout(refreshScorecard, refreshInterval);
+      };
+
+      async function refreshScorecard() {
+        if (fetching) {
+          scheduleRefresh();
+          return;
+        }
+        fetching = true;
+        try {
+          const response = await fetch(window.location.href, {
+            cache: "no-store",
+            headers: { "X-Scorecard-Refresh": "1" },
+          });
+          if (!response.ok) {
+            throw new Error("Unable to reload scorecard");
+          }
+          const html = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, "text/html");
+          const replacement = doc.querySelector(containerSelector);
+          if (replacement) {
+            container.innerHTML = replacement.innerHTML;
+          }
+        } catch (error) {
+          console.warn("Scorecard refresh failed", error);
+        } finally {
+          fetching = false;
+          scheduleRefresh();
+        }
+      }
+
+      window.addEventListener("beforeunload", () => {
+        if (timerId) {
+          window.clearTimeout(timerId);
+        }
+      });
+
+      scheduleRefresh();
+    })();
+  </script>
 {% endblock %}

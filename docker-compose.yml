@@ -41,10 +41,10 @@ services:
     depends_on:
       - db
     environment:
-      PGADMIN_DEFAULT_EMAIL: pgadmin@gspro.local
-      PGADMIN_DEFAULT_PASSWORD: change_me
+      PGADMIN_DEFAULT_EMAIL: pgadmin@gspro.com
+      PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - "${PGADMIN_HOST_PORT:-5050}:80"
+      - "${PGADMIN_HOST_PORT:-5051}:80"
     volumes:
       - pgadmin-data:/var/lib/pgadmin
     networks:

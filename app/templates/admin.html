@@ -6,10 +6,30 @@
       <h1 class="match-title">Recent Match Submissions</h1>
       <p class="match-sub">Use `?pin=` to access this page.</p>
     </div>
+    <style>
+      .admin-actions {
+        margin-bottom: 16px;
+      }
+      .admin-actions form {
+        margin: 0;
+      }
+    </style>
 
-    {% if not authorized %}
-      <div class="status">Invalid or missing PIN.</div>
-    {% else %}
+    {% if status %}
+      <div class="status">{{ status }}</div>
+    {% endif %}
+    {% if authorized %}
+      <div class="admin-actions">
+        <form method="post" action="/admin/cleanup-standings">
+          <input type="hidden" name="pin" value="{{ pin }}" />
+          <button class="pill-link pill-link--ghost" type="submit">
+            Reset tournament standings
+          </button>
+        </form>
+      </div>
+    {% endif %}
+
+    {% if authorized %}
       <div class="admin-table">
         <div class="admin-row admin-head">
           <span>Match</span>

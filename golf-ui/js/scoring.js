@@ -215,6 +215,44 @@ function buildKeypad() {
   });
 }
 
+function shouldHandleKeyboardInput(event) {
+  if (overlay && !overlay.classList.contains("hidden")) {
+    return false;
+  }
+  const target = event.target;
+  if (target instanceof HTMLElement) {
+    const tagName = target.tagName.toUpperCase();
+    if (tagName === "INPUT" || tagName === "TEXTAREA" || target.isContentEditable) {
+      return false;
+    }
+  }
+  if (event.altKey || event.ctrlKey || event.metaKey) {
+    return false;
+  }
+  return true;
+}
+
+function handleGlobalKeydown(event) {
+  if (!shouldHandleKeyboardInput(event)) {
+    return;
+  }
+  const key = event.key;
+  if (/^\d$/.test(key)) {
+    appendDigit(key);
+    event.preventDefault();
+    return;
+  }
+  if (key === "Backspace" || key === "Delete") {
+    clearSelected();
+    event.preventDefault();
+    return;
+  }
+  if (key === "x" || key === "X") {
+    setScoreForSelected("X");
+    event.preventDefault();
+  }
+}
+
 function loadScoresForHole(index) {
   if (!state.players.length) return;
   state.players.forEach((player) => {
@@ -307,10 +345,34 @@ async function saveCurrentHole() {
   }
   state.originalScores = { ...state.scores };
   alert("Scores saved.");
-  state.selectedPlayerId = state.players[0]?.id || null;
+  refreshStandingsCache();
+  proceedToNextHoleAfterSave();
+}
+
+function focusPlayerA() {
+  const firstPlayerId = state.players[0]?.id;
+  if (!firstPlayerId) {
+    return;
+  }
+  state.selectedPlayerId = firstPlayerId;
   renderScores();
-  const focusTarget = scoreboardList?.querySelector(`[data-player-id="${state.selectedPlayerId}"]`);
+  const focusTarget = scoreboardList?.querySelector(`[data-player-id="${firstPlayerId}"]`);
   focusTarget?.focus();
+}
+
+function proceedToNextHoleAfterSave() {
+  if (state.holes.length) {
+    navigateHole(1);
+  }
+  focusPlayerA();
+}
+
+async function refreshStandingsCache() {
+  try {
+    await fetch("/api/refresh-standings", { method: "POST" });
+  } catch (error) {
+    console.warn("Unable to refresh standings cache", error);
+  }
 }
 
 async function fetchScorecard(params) {
@@ -482,6 +544,7 @@ function init() {
   document.getElementById("saveBtn")?.addEventListener("click", saveCurrentHole);
   prevHole?.addEventListener("click", () => navigateHole(-1));
   nextHole?.addEventListener("click", () => navigateHole(1));
+  document.addEventListener("keydown", handleGlobalKeydown);
   codeForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     handleCodeSubmit();

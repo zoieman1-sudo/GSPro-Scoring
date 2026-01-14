@@ -100,6 +100,17 @@
                 <span class="top-nav__admin-item-subtitle">match_results</span>
               </div>
             </a>
+            <button
+              class="top-nav__admin-item"
+              type="button"
+              id="adminResetStandingsButton"
+            >
+              <span class="top-nav__admin-item-icon" aria-hidden="true">🔄</span>
+              <div>
+                <span class="top-nav__admin-item-title">Reset standings</span>
+                <span class="top-nav__admin-item-subtitle">cleanup/standings</span>
+              </div>
+            </button>
           </div>
         </details>
         </div>
@@ -266,6 +277,33 @@
           showOverlay();
           adminMenu?.removeAttribute("open");
         };
+
+        const resetStandingsButton = document.getElementById("adminResetStandingsButton");
+        const promptForPin = () => window.prompt("Enter admin PIN to reset standings:");
+        resetStandingsButton?.addEventListener("click", async (event) => {
+          event.preventDefault();
+          const pin = promptForPin();
+          if (!pin) {
+            return;
+          }
+          try {
+            const body = new URLSearchParams();
+            body.set("pin", pin);
+            const response = await fetch("/admin/cleanup-standings", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: body.toString(),
+            });
+            if (!response.ok) {
+              throw new Error("Unable to reset standings");
+            }
+            window.location.href = `/admin?pin=${encodeURIComponent(pin)}`;
+          } catch (error) {
+            alert(error?.message || "Standings reset failed");
+          }
+        });
 
         hideOverlay();
 

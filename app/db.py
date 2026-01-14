@@ -1034,6 +1034,91 @@ def fetch_match_result(database_url: str, match_id: int) -> dict | None:
             }
 
 
+def fetch_match_result_by_key_and_players(
+    database_url: str,
+    match_key: str,
+    player_a: str,
+    player_b: str,
+) -> dict | None:
+    if not match_key:
+        return None
+    normalized_a = (player_a or "").strip()
+    normalized_b = (player_b or "").strip()
+    if not normalized_a or not normalized_b:
+        return None
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select
+                    id,
+                    match_name,
+                    match_key,
+                    match_code,
+                    player_a_id,
+                    player_b_id,
+                    player_a_name,
+                    player_b_name,
+                    player_a_points,
+                    player_b_points,
+                    player_a_bonus,
+                    player_b_bonus,
+                    player_a_total,
+                    player_b_total,
+                    winner,
+                    course_id,
+                    course_tee_id,
+                    tournament_id,
+                    player_a_handicap,
+                    player_b_handicap,
+                    hole_count,
+                    start_hole,
+                    finalized,
+                    course_snapshot,
+                    scorecard_snapshot,
+                    submitted_at
+                from match_results
+                where match_key = %s
+                  and player_a_name = %s
+                  and player_b_name = %s
+                order by id desc
+                limit 1;
+                """,
+                (match_key, normalized_a, normalized_b),
+            )
+            row = cur.fetchone()
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "match_name": row[1],
+        "match_key": row[2],
+        "match_code": row[3],
+        "player_a_id": row[4],
+        "player_b_id": row[5],
+        "player_a_name": row[6],
+        "player_b_name": row[7],
+        "player_a_points": row[8],
+        "player_b_points": row[9],
+        "player_a_bonus": row[10],
+        "player_b_bonus": row[11],
+        "player_a_total": row[12],
+        "player_b_total": row[13],
+        "winner": row[14],
+        "course_id": row[15],
+        "course_tee_id": row[16],
+        "tournament_id": row[17],
+        "player_a_handicap": row[18],
+        "player_b_handicap": row[19],
+        "hole_count": row[20],
+        "start_hole": row[21],
+        "finalized": row[22],
+        "course_snapshot": row[23],
+        "scorecard_snapshot": row[24],
+        "submitted_at": row[25],
+    }
+
+
 def insert_match_result(
     database_url: str,
     match_name: str,
@@ -1284,8 +1369,8 @@ def fetch_match_result_by_key(database_url: str, match_key: str) -> dict | None:
             row = cur.fetchone()
             if not row:
                 return None
-            return {
-                "id": row[0],
+    return {
+        "id": row[0],
                 "match_name": row[1],
                 "match_key": row[2],
                 "match_code": row[3],
