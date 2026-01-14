@@ -3,33 +3,38 @@
   {% set sections = [
     ("parameters", "Tournament Sheet"),
     ("players", "Players & Handicaps"),
-    ("course", "Course Selection"),
+    ("course", "Course Import"),
     ("holes", "Holes"),
     ("tees", "Tees"),
     ("pairings", "Pairings"),
   ] %}
+  {% set section_labels = dict(sections) %}
+  {% set active_label = section_labels.get(active_section, "Tournament Setup") %}
   <section class="card admin-card setup-shell">
-    <aside class="setup-sidebar">
-      <p class="eyebrow">Admin | Tournament Setup</p>
-      <h1 class="match-title">Tournament Setup</h1>
-      <nav class="setup-nav">
-        {% for key, label in sections %}
-          {% set href = "/admin/setup" if key == "parameters" else "/admin/setup/" ~ key %}
-          <a class="pill-link setup-nav-link{% if active_section == key %} active{% endif %}" href="{{ href }}{% if pin %}?pin={{ pin }}{% endif %}">
-            {{ loop.index }}. {{ label }}
-          </a>
-        {% endfor %}
-      </nav>
-    </aside>
-      <div class="setup-content">
+    <div class="setup-hero">
+      <div class="setup-hero__intro">
+        <p class="eyebrow">Admin · Tournament Setup</p>
+        <h1 class="match-title">{{ active_label }}</h1>
+        {% if active_tournament %}
+
+        {% elif active_tournament_id %}
+          <p class="setup-hero__sub">Command center ready. Active tournament {{ active_tournament_id }} cannot be located.</p>
+        {% else %}
+          <p class="setup-hero__sub">Define the tournament flow, import courses, and build matchups from here.</p>
+        {% endif %}
+      </div>
+      <div class="setup-hero__status">
         {% if setup_status %}
-          <div class="status">{{ setup_status }}</div>
+          <span class="status-pill">{{ setup_status }}</span>
+        {% else %}
+          <span class="status-pill status-pill--muted">All systems Normal</span>
         {% endif %}
         {% if active_tournament %}
-          <div class="status">Editing settings for {{ active_tournament.name }}.</div>
-        {% elif active_tournament_id %}
-          <div class="status">Active tournament not found.</div>
+          <span class="status-pill status-pill--accent">Active: {{ active_tournament.name }}</span>
         {% endif %}
+      </div>
+    </div>
+    <div class="setup-content">
       {% if active_section == "players" %}
         <div class="match-meta">
           <h2 class="match-title">Players &amp; Handicaps</h2>
@@ -79,68 +84,37 @@
           </div>
         </template>
       {% elif active_section == "course" %}
-        <div class="match-meta">
-          <h2 class="match-title">Course Selection</h2>
-          <p class="match-sub">Import a course via the Golf Course API, then pick the course and tee to use.</p>
+      <div class="match-meta">
+
+      </div>
+      <div class="course-import-grid">
+        <div class="course-import-panel">
+          <div class="course-import__header">
+            <h3>Live import</h3>
+            <p class="match-sub">Search for course data, preview the male tees, and push it to the catalog in one go.</p>
+          </div>
+          <div class="course-search-row">
+            <label class="settings-field">
+              <span>Search course (API)</span>
+              <input type="text" id="course-search-query" placeholder="Search by course or club name" />
+            </label>
+            <button type="button" class="submit-btn" id="course-search-btn">Fetch</button>
+          </div>
+          <div id="course-search-results" class="course-results"></div>
         </div>
-        <form class="settings-form" method="post" action="/admin/setup/course">
-          <div class="course-select-row">
-            <label class="settings-field">
-              <span>Course</span>
-              <select id="course-select" name="course_id">
-                <option value="">-- Select course --</option>
-                {% for course in course_catalog %}
-                  <option value="{{ course.id }}" {% if course.id|string == selected_course_id %}selected{% endif %}>
-                    {{ course.club_name }} — {{ course.course_name }}
-                  </option>
-                {% endfor %}
-              </select>
-            </label>
-            <label class="settings-field">
-              <span>Tee</span>
-              <select id="tee-select" name="course_tee_id" data-selected-tee="{{ selected_course_tee_id }}">
-                <option value="">-- Select tee --</option>
-                {% if course_catalog %}
-                  {% for course in course_catalog %}
-                    {% for tee in course.tees %}
-                      {% if tee.gender == "male" %}
-                        <option
-                          value="{{ tee.id }}"
-                          data-course="{{ course.id }}"
-                          {% if tee.id|string == selected_course_tee_id %}selected{% endif %}
-                        >
-                          {{ tee.gender|capitalize }} — {{ tee.tee_name }}{% if tee.total_yards %} ({{ tee.total_yards }} yds){% endif %}
-                        </option>
-                      {% endif %}
-                    {% endfor %}
-                  {% endfor %}
-                {% endif %}
-              </select>
-            </label>
-          </div>
-          <div class="setup-actions">
-            <button type="submit" class="submit-btn">Save course</button>
-          </div>
-        </form>
-          <div class="course-search">
-            <div class="setup-head">
-              <h3>Search &amp; Import</h3>
-              <p class="match-sub">Pull courses directly from GolfCourseAPI, then import the male tees.</p>
-            </div>
-            <div class="course-search-row">
-              <label class="settings-field">
-                <span>Search course (API)</span>
-                <input type="text" id="course-search-query" placeholder="Search by course or club name" />
-              </label>
-              <button type="button" class="submit-btn" id="course-search-btn">Search</button>
-            </div>
-            <div id="course-search-results" class="course-results"></div>
+        <div class="course-manual-panel">
+          <div class="course-illustration" aria-hidden="true"></div>
+          <div class="course-manual__body">
+            <h3>Manual add</h3>
+            <p class="match-sub">Need a course that is not yet in the API? Build it manually with tee data and hole layouts.</p>
             <div class="setup-actions">
-              <a class="pill-link" href="/admin/courses/new{% if pin %}?pin={{ pin }}{% endif %}">
+              <a class="pill-link pill-link--ghost" href="/admin/courses/new{% if pin %}?pin={{ pin }}{% endif %}">
                 Add course manually
               </a>
             </div>
           </div>
+        </div>
+      </div>
       {% elif active_section == "holes" %}
         <div class="match-meta">
           <h2 class="match-title">Holes</h2>

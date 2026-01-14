@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-  {% set front_holes = scorecard.holes[:9] %}
-  {% set back_holes = scorecard.holes[9:] %}
+    {% set front_holes = scorecard.holes[:9] %}
+    {% set back_holes = scorecard.holes[9:] %}
+    {% macro team_display(primary, partner) -%}
+      {{ primary }}{% if partner %}&nbsp;&amp;&nbsp;{{ partner }}{% endif %}
+    {%- endmacro %}
     {% macro format_score(value) -%}
       {%- if value is none -%}
         —  
@@ -95,8 +98,10 @@
                   <span>Select match</span>
                   <select id="match-select" name="match_key" onchange="this.form.submit()">
                     {% for match_option in matches %}
+                      {% set team_a = team_display(match_option.player_a, match_option.player_c) %}
+                      {% set team_b = team_display(match_option.player_b, match_option.player_d) %}
                       <option value="{{ match_option.match_id }}" {% if match_option.match_id == active_match_key %}selected{% endif %}>
-                        Division {{ match_option.division }}: {{ match_option.player_a }} vs {{ match_option.player_b }}
+                        Division {{ match_option.division }}: {{ team_a }} vs {{ team_b }}
                       </option>
                     {% endfor %}
                   </select>
@@ -133,7 +138,7 @@
             {% if scorecard.match.id %}
               <a class="pill-link" href="/matches/{{ scorecard.match.id }}">Edit hole inputs</a>
             {% else %}
-                      <a class="pill-link" href="/golf-ui/scoring">Enter scores</a>
+              <a class="pill-link" href="/golf-ui/scoring.html">Enter scores</a>
             {% endif %}
           </div>
         </div>

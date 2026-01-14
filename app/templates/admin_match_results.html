@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <section class="card match-results-card">
+      <header class="match-meta">
+        <p class="eyebrow">Maintenance</p>
+        <h1 class="match-title">Match cleanup</h1>
+        <p class="match-sub">
+          Inspect finalized match rows and delete any entries with corrupt totals.
+        </p>
+    </header>
+
+    <div class="match-results-table-wrapper">
+      <table class="match-results-table">
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Role</th>
+            <th>Points</th>
+            <th>Bonus</th>
+            <th>Total</th>
+            <th>Submitted</th>
+            <th class="actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for result in results %}
+            <tr class="match-row">
+              <td colspan="4">
+                <strong>{{ result.match_name }}</strong>
+                <p class="muted-label">
+                  {{ result.match_key or "—" }}
+                  · {{ result.player_a_name }} · {{ result.player_b_name }}
+                </p>
+              </td>
+              <td>
+                {{ result.submitted_at.strftime("%Y-%m-%d %H:%M:%S") if result.submitted_at else "—" }}
+              </td>
+              <td colspan="2" class="actions">
+                <form
+                  method="post"
+                  action="/admin/match_results/delete"
+                  onsubmit="return confirm('Delete match result #{{ result.id }}? This cannot be undone.');"
+                >
+                  <input type="hidden" name="match_result_id" value="{{ result.id }}" />
+                  <button class="pill-link pill-link--remove" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                {{ result.player_a_name }}
+                <span class="muted-label">Player A</span>
+              </td>
+              <td>A</td>
+              <td>{{ result.player_a_points | default(0) }}</td>
+              <td>{{ result.player_a_bonus | default(0) }}</td>
+              <td>{{ result.player_a_total | default(0) }}</td>
+              <td rowspan="4">
+                {{ result.submitted_at.strftime("%Y-%m-%d %H:%M:%S") if result.submitted_at else "—" }}
+              </td>
+              <td rowspan="4"></td>
+            </tr>
+            <tr>
+              <td>
+                {{ result.player_b_name }}
+                <span class="muted-label">Player B</span>
+              </td>
+              <td>B</td>
+              <td>{{ result.player_b_points | default(0) }}</td>
+              <td>{{ result.player_b_bonus | default(0) }}</td>
+              <td>{{ result.player_b_total | default(0) }}</td>
+            </tr>
+            {% set cd = result.cd_pair_stats %}
+            {% if cd %}
+              <tr>
+                <td>
+                  {{ cd.player_c_name }}
+                  <span class="muted-label">Player C</span>
+                </td>
+                <td>C</td>
+                <td>{{ cd.player_c_points }}</td>
+                <td>{{ cd.player_c_bonus }}</td>
+                <td>{{ cd.player_c_total }}</td>
+              </tr>
+              <tr>
+                <td>
+                  {{ cd.player_d_name }}
+                  <span class="muted-label">Player D</span>
+                </td>
+                <td>D</td>
+                <td>{{ cd.player_d_points }}</td>
+                <td>{{ cd.player_d_bonus }}</td>
+                <td>{{ cd.player_d_total }}</td>
+              </tr>
+            {% else %}
+              <tr class="muted-row">
+                <td colspan="5" class="muted-label">C/D stats unavailable (no hole data)</td>
+              </tr>
+            {% endif %}
+          {% else %}
+            <tr>
+              <td colspan="7" class="status">No match results available yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <style>
+    .match-results-table-wrapper {
+      overflow-x: auto;
+    }
+    .match-results-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1.5rem;
+    }
+    .match-results-table th,
+    .match-results-table td {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 12px 10px;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+    .match-results-table th.actions,
+    .match-results-table td.actions {
+      text-align: right;
+    }
+    .match-results-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .match-results-table .muted-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.65);
+    }
+    .match-results-card .pill-link--remove {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      border-radius: 999px;
+      padding: 0.35rem 0.75rem;
+      min-width: 84px;
+      font-size: 0.8rem;
+    }
+    .match-results-card .pill-link--remove:hover {
+      border-color: rgba(255, 59, 83, 0.8);
+      color: #ff9ebc;
+    }
+    .match-row {
+      background: rgba(0, 0, 0, 0.3);
+    }
+    .match-results-table tbody tr.muted-row td {
+      border: none;
+      color: rgba(255, 255, 255, 0.6);
+    }
+  </style>
+{% endblock %}

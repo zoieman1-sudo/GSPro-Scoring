@@ -32,6 +32,7 @@ from app.db import (
     fetch_match_result,
     fetch_match_result_by_code,
     fetch_match_result_by_key,
+    fetch_match_by_id,
     fetch_matches_by_tournament,
     fetch_match_result_ids_by_key,
     fetch_player_by_id,
@@ -58,9 +59,11 @@ from app.db import (
     upsert_setting,
     update_match_result_fields,
     update_match_result_scores,
+    set_match_finalized,
     insert_match,
     delete_match,
     delete_match_results_by_key,
+    delete_match_result,
     finalize_match_result,
 )
 from app.course_sync import ensure_georgia_course, ensure_pebble_beach_course, import_course_to_db
@@ -168,6 +171,13 @@ def _player_name_by_id(player_id: int | None) -> str:
     if player:
         return player.get("name") or f"Player {player_id}"
     return f"Player {player_id}"
+
+
+def _player_id_by_name(name: str | None) -> int | None:
+    if not name:
+        return None
+    player = fetch_player_by_name(settings.database_url, name)
+    return player.get("id") if player else None
 
 
 def _adjust_display_points(value: float | int) -> float:
@@ -397,6 +407,24 @@ def _scorecard_data_for_match(
     )
 
 
+def _estimate_points_from_raw_scores(holes: list[dict]) -> tuple[float, float]:
+    points_a = 0.0
+    points_b = 0.0
+    for entry in holes:
+        a = _numeric_score(entry.get("player_a_score"))
+        b = _numeric_score(entry.get("player_b_score"))
+        if a is None or b is None:
+            continue
+        if a < b:
+            points_a += 1.0
+        elif b < a:
+            points_b += 1.0
+        else:
+            points_a += 0.5
+            points_b += 0.5
+    return points_a, points_b
+
+
 def _seed_default_players() -> list[dict]:
     ensure_demo_fixture(settings.database_url)
     return fetch_players(settings.database_url)
@@ -466,6 +494,10 @@ def _ensure_match_result_for_pairing(pairing: Match, *, tournament_id: int | Non
     player_b_info = fetch_player_by_name(settings.database_url, pairing.player_b) or {}
     handicap_a = player_a_info.get("handicap", 0)
     handicap_b = player_b_info.get("handicap", 0)
+    player_a_id = player_a_info.get("id")
+    player_b_id = player_b_info.get("id")
+    player_c_id = _player_id_by_name(pairing.player_c)
+    player_d_id = _player_id_by_name(pairing.player_d)
     outcome = score_outcome(0, 0)
     team_a_label = _team_label(pairing, "A")
     team_b_label = _team_label(pairing, "B")
@@ -480,6 +512,10 @@ def _ensure_match_result_for_pairing(pairing: Match, *, tournament_id: int | Non
         match_code=None,
         player_a_points=outcome["player_a_points"],
         player_b_points=outcome["player_b_points"],
+        player_a_id=player_a_id,
+        player_b_id=player_b_id,
+        player_c_id=player_c_id,
+        player_d_id=player_d_id,
         player_a_bonus=outcome["player_a_bonus"],
         player_b_bonus=outcome["player_b_bonus"],
         player_a_total=outcome["player_a_total"],
@@ -494,6 +530,56 @@ def _ensure_match_result_for_pairing(pairing: Match, *, tournament_id: int | Non
         start_hole=pairing.start_hole or 1,
     )
     return fetch_match_result_by_key(settings.database_url, pairing.match_id)
+
+
+def _match_record_player_name(record: dict | None, name_key: str, id_key: str) -> str:
+    if not record:
+        return ""
+    name = record.get(name_key)
+    if name:
+        return name
+    player_id = record.get(id_key)
+    if player_id:
+        return _player_name_by_id(player_id)
+    return ""
+
+
+def _match_record_to_pairing(record: dict | None) -> Match | None:
+    if not record:
+        return None
+    return Match(
+        match_id=record.get("match_key") or "",
+        division=record.get("division") or "Open",
+        player_a=_match_record_player_name(record, "player_a_name", "player_a_id"),
+        player_b=_match_record_player_name(record, "player_b_name", "player_b_id"),
+        player_c=_match_record_player_name(record, "player_c_name", "player_c_id") or None,
+        player_d=_match_record_player_name(record, "player_d_name", "player_d_id") or None,
+        course_id=record.get("course_id"),
+        course_tee_id=record.get("course_tee_id"),
+        hole_count=record.get("hole_count") or 18,
+        start_hole=record.get("start_hole") or 1,
+    )
+
+
+def _resolve_match_result_context(match_id: int) -> tuple[dict | None, dict | None]:
+    result = fetch_match_result(settings.database_url, match_id)
+    if result:
+        return result, None
+    match_record = fetch_match_by_id(settings.database_url, match_id)
+    if not match_record:
+        return None, None
+    match_key = match_record.get("match_key")
+    if not match_key:
+        return None, match_record
+    result = fetch_match_result_by_key(settings.database_url, match_key)
+    if not result:
+        pairing = _match_record_to_pairing(match_record)
+        if pairing:
+            result = _ensure_match_result_for_pairing(
+                pairing,
+                tournament_id=match_record.get("tournament_id"),
+            )
+    return result, match_record
 
 
 def _load_tournament_settings(tournament_id: int | None = None) -> dict[str, str]:
@@ -563,6 +649,10 @@ def _ensure_match_results_for_pairings() -> None:
             if existing:
                 continue
             outcome = score_outcome(0, 0)
+            player_a_id = _player_id_by_name(pairing.player_a)
+            player_b_id = _player_id_by_name(pairing.player_b)
+            player_c_id = _player_id_by_name(pairing.player_c)
+            player_d_id = _player_id_by_name(pairing.player_d)
             insert_match_result(
                 settings.database_url,
                 match_name=match_display(pairing),
@@ -570,6 +660,10 @@ def _ensure_match_results_for_pairings() -> None:
                 player_b=pairing.player_b,
                 match_key=pairing.match_id,
                 match_code=None,
+                player_a_id=player_a_id,
+                player_b_id=player_b_id,
+                player_c_id=player_c_id,
+                player_d_id=player_d_id,
                 player_a_points=0,
                 player_b_points=0,
                 tournament_id=tournament_id,
@@ -666,6 +760,68 @@ def _matches_by_key(tournament_id: int | None) -> dict[str, dict]:
     return {entry.get("match_key") or "": entry for entry in matches if entry.get("match_key")}
 
 
+def _match_cleanup_cd_stats(result: dict) -> dict | None:
+    tournament_id = result.get("tournament_id")
+    match_key = result.get("match_key")
+    if not tournament_id or not match_key:
+        return None
+    match_entry = _matches_by_key(tournament_id).get(match_key)
+    if not match_entry:
+        return None
+    player_c_name = (match_entry.get("player_c_name") or "").strip()
+    player_d_name = (match_entry.get("player_d_name") or "").strip()
+    if not player_c_name or not player_d_name:
+        return None
+    holes = fetch_hole_scores(settings.database_url, result["id"])
+    if not holes:
+        return None
+    match_length = _safe_int(result.get("hole_count")) or 18
+    start_hole = _safe_int(result.get("start_hole")) or 1
+    tournament_settings = _load_tournament_settings(tournament_id)
+    holes_for_cd = [
+        {
+            "hole_number": entry.get("hole_number"),
+            "player_a_score": entry.get("player_c_score") or 0,
+            "player_b_score": entry.get("player_d_score") or 0,
+            "player_c_score": entry.get("player_c_score") or 0,
+            "player_d_score": entry.get("player_d_score") or 0,
+        }
+        for entry in holes
+    ]
+    handicap_c = _player_handicap_by_name(player_c_name)
+    handicap_d = _player_handicap_by_name(player_d_name)
+    scorecard_cd = _scorecard_data_for_match(
+        result,
+        holes_for_cd,
+        handicap_c,
+        handicap_d,
+        tournament_settings,
+        match_length=match_length,
+        start_hole=start_hole,
+        use_snapshot=False,
+    )
+    player_c_total = scorecard_cd["meta"]["total_points_a"]
+    player_d_total = scorecard_cd["meta"]["total_points_b"]
+    if player_c_total == 0 and player_d_total == 0:
+        fallback_c, fallback_d = _estimate_points_from_raw_scores(holes_for_cd)
+        if fallback_c or fallback_d:
+            player_c_total = fallback_c
+            player_d_total = fallback_d
+            scorecard_cd.setdefault("meta", {})["total_points_a"] = fallback_c
+            scorecard_cd.setdefault("meta", {})["total_points_b"] = fallback_d
+    outcome = score_outcome(player_c_total, player_d_total)
+    return {
+        "player_c_name": player_c_name,
+        "player_d_name": player_d_name,
+        "player_c_points": player_c_total,
+        "player_d_points": player_d_total,
+        "player_c_bonus": outcome["player_a_bonus"],
+        "player_d_bonus": outcome["player_b_bonus"],
+        "player_c_total": outcome["player_a_total"],
+        "player_d_total": outcome["player_b_total"],
+    }
+
+
 def _aggregate_standings_entries(results: list[dict], tournament_id: int | None) -> list[dict]:
     if not tournament_id:
         return []
@@ -675,6 +831,10 @@ def _aggregate_standings_entries(results: list[dict], tournament_id: int | None)
     if not tournament_players:
         return []
     divisions_by_player = {player["name"]: player["division"] for player in tournament_players}
+    player_ids_by_name = {
+        player["name"]: player["id"] for player in tournament_players if player.get("name") and player.get("id")
+    }
+    players_by_id = {player["id"]: player for player in tournament_players if player.get("id")}
     seeds = {player["name"]: player.get("seed", 0) for player in tournament_players}
     stats: dict[str, dict] = {
         name: _empty_stat(name, division)
@@ -1197,6 +1357,8 @@ async def submit(
     outcome = score_outcome(player_a_points, player_b_points)
     match_length = resolved_match.hole_count if resolved_match else 18
     match_start_hole = resolved_match.start_hole if resolved_match else 1
+    player_a_id = _player_id_by_name(player_a)
+    player_b_id = _player_id_by_name(player_b)
     insert_match_result(
         settings.database_url,
         match_name=match_name,
@@ -1206,6 +1368,8 @@ async def submit(
         match_code=None,
         player_a_points=player_a_points,
         player_b_points=player_b_points,
+        player_a_id=player_a_id,
+        player_b_id=player_b_id,
         player_a_handicap=_player_handicap_by_name(player_a),
         player_b_handicap=_player_handicap_by_name(player_b),
         course_id=_safe_int(tournament_settings.get("course_id")),
@@ -1261,6 +1425,8 @@ async def api_scores(request: Request):
     outcome = score_outcome(payload.player_a_points, payload.player_b_points)
     match_length = resolved_match.hole_count if resolved_match else 18
     match_start_hole = resolved_match.start_hole if resolved_match else 1
+    player_a_id = _player_id_by_name(player_a)
+    player_b_id = _player_id_by_name(player_b)
     record_id = insert_match_result(
         settings.database_url,
         match_name=match_name,
@@ -1270,6 +1436,8 @@ async def api_scores(request: Request):
         match_code=None,
         player_a_points=payload.player_a_points,
         player_b_points=payload.player_b_points,
+        player_a_id=player_a_id,
+        player_b_id=player_b_id,
         player_a_handicap=_player_handicap_by_name(player_a),
         player_b_handicap=_player_handicap_by_name(player_b),
         course_id=_safe_int(tournament_settings.get("course_id")),
@@ -1795,12 +1963,40 @@ async def scheduled_matches_page(request: Request):
     matches = (
         fetch_matches_by_tournament(settings.database_url, active_id) if active_id else []
     )
+    active_matches = [match for match in matches if not match.get("finalized")]
+    finalized_matches = [match for match in matches if match.get("finalized")]
     context = {
         "request": request,
         "active_tournament": active_tournament,
         "matches": matches,
+        "active_matches": active_matches,
+        "finalized_matches": finalized_matches,
     }
     return templates.TemplateResponse("scheduled_matches.html", context)
+
+
+@app.get("/admin/match_results", response_class=HTMLResponse)
+async def match_results_page(request: Request):
+    results = fetch_all_match_results(settings.database_url)
+    for result in results:
+        result["cd_pair_stats"] = _match_cleanup_cd_stats(result)
+    return templates.TemplateResponse(
+        "admin_match_results.html",
+        {
+            "request": request,
+            "results": results,
+        },
+    )
+
+
+@app.post("/admin/match_results/delete")
+async def delete_match_result_row(match_result_id: int = Form(...)):
+    match_result = fetch_match_result(settings.database_url, match_result_id)
+    if not match_result:
+        raise HTTPException(status_code=404, detail="Match result not found")
+    delete_match_result(settings.database_url, match_result_id)
+    _refresh_standings_cache(match_result.get("tournament_id"))
+    return RedirectResponse(url="/admin/match_results", status_code=303)
 
 
 @app.post("/admin/match_setup")
@@ -2544,12 +2740,12 @@ def _scorecard_context(match_key: str | None, tournament_id: int | None = None) 
         "player_b_handicap": handicap_b,
         "pair_cards": pair_cards,
         "players": [
-            {"name": player_a_display, "role": "A", "team_index": 0},
-            {"name": player_b_display, "role": "B", "team_index": 1},
+            {"name": player_a_display, "role": "A", "team_index": 0, "handicap": handicap_a},
+            {"name": player_b_display, "role": "B", "team_index": 1, "handicap": handicap_b},
             *(
                 [
-                    {"name": player_c_display, "role": "A", "team_index": 0},
-                    {"name": player_d_display, "role": "B", "team_index": 1},
+                    {"name": player_c_display, "role": "A", "team_index": 0, "handicap": handicap_c},
+                    {"name": player_d_display, "role": "B", "team_index": 1, "handicap": handicap_d},
                 ]
                 if player_c_display and player_d_display
                 else []
@@ -2574,10 +2770,12 @@ def _scorecard_context(match_key: str | None, tournament_id: int | None = None) 
         key=lambda entry: (STATUS_PRIORITY.get(entry["status"], 3), entry["display"])
     )
     active_matches = [entry for entry in match_statuses if entry["status"] != "completed"]
+    finalized_matches = [entry for entry in match_statuses if entry["status"] == "completed"]
     return {
         "matches": matches,
         "match_statuses": match_statuses,
         "active_matches": active_matches,
+        "finalized_matches": finalized_matches,
         "scorecard": scorecard,
     }
 
@@ -2649,6 +2847,10 @@ async def scorecard_data(request: Request, match_key: str | None = None):
             "match_statuses": match_statuses,
             "match_status_map": match_status_map,
             "selected_match_key": match_key,
+            "active_match_tiles": context.get("active_matches", []),
+            "finalized_match_tiles": context.get("finalized_matches", []),
+            "active_match_count": len(context.get("active_matches", [])),
+            "finalized_match_count": len(context.get("finalized_matches", [])),
         },
     )
 
@@ -2959,11 +3161,13 @@ async def match_detail(request: Request, match_id: int):
 
 @app.post("/matches/{match_id}/finalize")
 async def finalize_match(match_id: int, redirect: str | None = Form(None)):
-    result = fetch_match_result(settings.database_url, match_id)
+    result, match_record = _resolve_match_result_context(match_id)
     if not result:
         raise HTTPException(status_code=404, detail="Match not found")
-    match_key = result.get("match_key")
-    target_ids = {match_id}
+    match_key = result.get("match_key") or (match_record and match_record.get("match_key"))
+    if not match_key:
+        raise HTTPException(status_code=400, detail="Match key is required to finalize.")
+    target_ids = {result["id"]}
     if match_key:
         target_ids.update(fetch_match_result_ids_by_key(settings.database_url, match_key))
 
@@ -2979,10 +3183,20 @@ async def finalize_match(match_id: int, redirect: str | None = Form(None)):
     match_entry = _matches_by_key(tournament_id).get(match_key or "")
     player_c_name = (match_entry.get("player_c_name") or "").strip() if match_entry else ""
     player_d_name = (match_entry.get("player_d_name") or "").strip() if match_entry else ""
+    player_a_id = match_entry.get("player_a_id") if match_entry else None
+    player_b_id = match_entry.get("player_b_id") if match_entry else None
+    player_c_id = match_entry.get("player_c_id") if match_entry else None
+    player_d_id = match_entry.get("player_d_id") if match_entry else None
+    if not player_a_id:
+        player_a_id = _player_id_by_name(result.get("player_a_name"))
+    if not player_b_id:
+        player_b_id = _player_id_by_name(result.get("player_b_name"))
     target_records: list[dict] = []
     scorecard_source_id: int | None = None
     scorecard_source_result: dict | None = None
     scorecard_source_holes: list[dict] | None = None
+    def _bonus_allowed(recorded_count: int, expected_length: int) -> bool:
+        return recorded_count >= expected_length
 
     for target_id in sorted(target_ids):
         target = fetch_match_result(settings.database_url, target_id)
@@ -2998,6 +3212,8 @@ async def finalize_match(match_id: int, redirect: str | None = Form(None)):
             scorecard_source_result = target
         handicap_a = target.get("player_a_handicap") or 0
         handicap_b = target.get("player_b_handicap") or 0
+        expected_length = _safe_int(target.get("hole_count")) or match_length
+        allow_bonus = _bonus_allowed(len(holes), expected_length) if holes else False
         if holes:
             scorecard_data = _scorecard_data_for_match(
                 target,
@@ -3011,11 +3227,26 @@ async def finalize_match(match_id: int, redirect: str | None = Form(None)):
             )
             total_points_a = scorecard_data["meta"]["total_points_a"]
             total_points_b = scorecard_data["meta"]["total_points_b"]
+            if holes and total_points_a == 0 and total_points_b == 0:
+                fallback_a, fallback_b = _estimate_points_from_raw_scores(holes)
+                if fallback_a > 0 or fallback_b > 0:
+                    total_points_a = fallback_a
+                    total_points_b = fallback_b
+                    scorecard_data.setdefault("meta", {})["total_points_a"] = fallback_a
+                    scorecard_data.setdefault("meta", {})["total_points_b"] = fallback_b
         else:
             scorecard_data = target.get("scorecard_snapshot") or {}
             total_points_a = target.get("player_a_total") or target.get("player_a_points") or 0
             total_points_b = target.get("player_b_total") or target.get("player_b_points") or 0
         outcome = score_outcome(total_points_a, total_points_b)
+        if not allow_bonus:
+            outcome = {
+                **outcome,
+                "player_a_bonus": 0.0,
+                "player_b_bonus": 0.0,
+                "player_a_total": total_points_a,
+                "player_b_total": total_points_b,
+            }
         update_match_result_scores(
             settings.database_url,
             target_id,
@@ -3025,6 +3256,10 @@ async def finalize_match(match_id: int, redirect: str | None = Form(None)):
             player_b_bonus=outcome["player_b_bonus"],
             player_a_total=outcome["player_a_total"],
             player_b_total=outcome["player_b_total"],
+            player_a_id=player_a_id or target.get("player_a_id"),
+            player_b_id=player_b_id or target.get("player_b_id"),
+            player_c_id=player_c_id,
+            player_d_id=player_d_id,
             winner=outcome["winner"],
         )
         finalize_match_result(
@@ -3048,10 +3283,10 @@ async def finalize_match(match_id: int, redirect: str | None = Form(None)):
         holes_for_cd = [
             {
                 "hole_number": entry.get("hole_number"),
-                "player_a_score": entry.get("player_c_score") or 0,
-                "player_b_score": entry.get("player_d_score") or 0,
-                "player_c_score": entry.get("player_c_score") or 0,
-                "player_d_score": entry.get("player_d_score") or 0,
+                "player_a_score": entry.get("player_c_score"),
+                "player_b_score": entry.get("player_d_score"),
+                "player_c_score": entry.get("player_c_score"),
+                "player_d_score": entry.get("player_d_score"),
             }
             for entry in scorecard_source_holes
         ]
@@ -3074,7 +3309,23 @@ async def finalize_match(match_id: int, redirect: str | None = Form(None)):
             )
             player_c_total = scorecard_cd["meta"]["total_points_a"]
             player_d_total = scorecard_cd["meta"]["total_points_b"]
+            if player_c_total == 0 and player_d_total == 0:
+                fallback_c, fallback_d = _estimate_points_from_raw_scores(holes_for_cd)
+                if fallback_c or fallback_d:
+                    player_c_total = fallback_c
+                    player_d_total = fallback_d
+                    scorecard_cd.setdefault("meta", {})["total_points_a"] = fallback_c
+                    scorecard_cd.setdefault("meta", {})["total_points_b"] = fallback_d
             outcome_cd = score_outcome(player_c_total, player_d_total)
+            cd_allow_bonus = _bonus_allowed(len(holes_for_cd), match_length)
+            if not cd_allow_bonus:
+                outcome_cd = {
+                    **outcome_cd,
+                    "player_a_bonus": 0.0,
+                    "player_b_bonus": 0.0,
+                    "player_a_total": player_c_total,
+                    "player_b_total": player_d_total,
+                }
             pair_record = _find_result_by_players(
                 target_records,
                 player_c_name,
@@ -3092,6 +3343,8 @@ async def finalize_match(match_id: int, redirect: str | None = Form(None)):
                     player_b_bonus=outcome_cd["player_b_bonus"],
                     player_a_total=outcome_cd["player_a_total"],
                     player_b_total=outcome_cd["player_b_total"],
+                    player_a_id=player_c_id,
+                    player_b_id=player_d_id,
                     winner=outcome_cd["winner"],
                 )
                 finalize_match_result(
@@ -3100,6 +3353,10 @@ async def finalize_match(match_id: int, redirect: str | None = Form(None)):
                     course_snapshot=course_snapshot,
                     scorecard_snapshot=scorecard_cd,
                 )
+                # duplicate hole scores for the C/D result if they are missing
+                existing_cd_holes = fetch_hole_scores(settings.database_url, pair_result_id)
+                if not existing_cd_holes and holes_for_cd:
+                    insert_hole_scores(settings.database_url, pair_result_id, holes_for_cd)
                 finalized_any = True
             else:
                 inserted_id = insert_match_result(
@@ -3123,8 +3380,13 @@ async def finalize_match(match_id: int, redirect: str | None = Form(None)):
                     player_b_handicap=handicap_d,
                     hole_count=match_length,
                     start_hole=match_start_hole,
+                    player_a_id=player_c_id,
+                    player_b_id=player_d_id,
+                    player_c_id=None,
+                    player_d_id=None,
                 )
                 if inserted_id:
+                    insert_hole_scores(settings.database_url, inserted_id, holes_for_cd)
                     finalize_match_result(
                         settings.database_url,
                         inserted_id,
@@ -3134,18 +3396,25 @@ async def finalize_match(match_id: int, redirect: str | None = Form(None)):
                     finalized_any = True
 
     _refresh_standings_cache(tournament_id)
+    if match_key:
+        set_match_finalized(settings.database_url, match_key, True)
     if redirect:
         return RedirectResponse(url=redirect, status_code=303)
     return JSONResponse({"finalized": True})
 
 
 @app.post("/matches/{match_id}/reset")
-async def reset_match_scores(match_id: int):
-    result = fetch_match_result(settings.database_url, match_id)
+async def reset_match_scores(
+    match_id: int,
+    redirect: str | None = Form("/admin/scheduled_matches"),
+):
+    result, match_record = _resolve_match_result_context(match_id)
     if not result:
         raise HTTPException(status_code=404, detail="Match not found")
-    match_key = result.get("match_key")
-    target_ids: set[int] = {match_id}
+    match_key = result.get("match_key") or (match_record and match_record.get("match_key"))
+    if not match_key:
+        raise HTTPException(status_code=400, detail="Match key is required to reset.")
+    target_ids: set[int] = {result["id"]}
     if match_key:
         target_ids.update(fetch_match_result_ids_by_key(settings.database_url, match_key))
     outcome = score_outcome(0, 0)
@@ -3161,7 +3430,9 @@ async def reset_match_scores(match_id: int):
         winner=outcome["winner"],
     )
     _refresh_standings_cache(result.get("tournament_id"))
-    return JSONResponse({"reset": True})
+    if match_key:
+        set_match_finalized(settings.database_url, match_key, False)
+    return RedirectResponse(url=redirect or "/admin/scheduled_matches", status_code=303)
 
 
 @app.get("/matches/{match_id}/scorecard", response_class=HTMLResponse)
@@ -3221,6 +3492,10 @@ async def match_detail_submit_by_key(match_key: str, request: Request):
         course_id = _safe_int(tournament_settings.get("course_id"))
         course_tee_id = _safe_int(tournament_settings.get("course_tee_id"))
         match_length = pairing.hole_count if pairing else 18
+        player_a_id = _player_id_by_name(pairing.player_a)
+        player_b_id = _player_id_by_name(pairing.player_b)
+        player_c_id = _player_id_by_name(pairing.player_c)
+        player_d_id = _player_id_by_name(pairing.player_d)
         match_id = insert_match_result(
             settings.database_url,
             match_name=match_display(pairing),
@@ -3228,6 +3503,10 @@ async def match_detail_submit_by_key(match_key: str, request: Request):
             player_b=pairing.player_b,
             match_key=pairing.match_id,
             match_code=None,
+            player_a_id=player_a_id,
+            player_b_id=player_b_id,
+            player_c_id=player_c_id,
+            player_d_id=player_d_id,
             player_a_handicap=_player_handicap_by_name(pairing.player_a),
             player_b_handicap=_player_handicap_by_name(pairing.player_b),
             course_id=course_id,

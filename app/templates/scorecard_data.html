@@ -118,6 +118,64 @@
         justify-content: center;
         min-width: 22px;
       }
+      .scorecard-data__status-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+        margin: 16px 0 6px;
+      }
+      .scorecard-data__status-card {
+        padding: 16px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(3, 6, 18, 0.75);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+      }
+      .scorecard-data__status-card strong {
+        font-size: 1.8rem;
+        letter-spacing: 0.2em;
+      }
+      .scorecard-data__status-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 6px;
+        gap: 6px;
+      }
+      .scorecard-data__status-card-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 0.75rem;
+      }
+      .scorecard-data__status-card-list li {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .scorecard-data__status-card-list li span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 120px;
+      }
+      .scorecard-data__status-chip {
+        padding: 2px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        font-size: 0.65rem;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+      }
+      .scorecard-data__status-card--active .scorecard-data__status-chip {
+        border-color: rgba(67, 225, 255, 0.4);
+      }
+      .scorecard-data__status-card--finalized .scorecard-data__status-chip {
+        border-color: rgba(139, 142, 255, 0.45);
+      }
     </style>
 
     {% macro format_value(value) -%}
@@ -185,6 +243,10 @@
         —
       {%- endif -%}
     {%- endmacro %}
+      {% set active_match_tiles = active_match_tiles or [] %}
+      {% set finalized_match_tiles = finalized_match_tiles or [] %}
+      {% set active_match_count = active_match_count or 0 %}
+      {% set finalized_match_count = finalized_match_count or 0 %}
       {% set match_info = scorecard.match or {} %}
       {% set meta = scorecard.meta or {} %}
       {% set pair_cards = scorecard.pair_cards or [] %}
@@ -197,6 +259,42 @@
             <span>Match {{ match_info.match_key }}</span>
             <span>{{ match_info.division }}</span>
             <span>Status: {{ match_info.status_label or match_info.status or "—" }}</span>
+          </div>
+          <div class="scorecard-data__status-row">
+            <article class="scorecard-data__status-card scorecard-data__status-card--active">
+              <div class="scorecard-data__status-card-header">
+                <p class="eyebrow">Active</p>
+                <strong>{{ active_match_count or 0 }}</strong>
+              </div>
+              <p class="match-sub">Matches currently in play.</p>
+              <ul class="scorecard-data__status-card-list">
+                {% for match in active_match_tiles[:3] %}
+                  <li>
+                    <span>{{ match.division }} {{ match.match_key }}</span>
+                    <span class="scorecard-data__status-chip">{{ match.status_label }}</span>
+                  </li>
+                {% else %}
+                  <li class="muted-label">No active matches tracked yet.</li>
+                {% endfor %}
+              </ul>
+            </article>
+            <article class="scorecard-data__status-card scorecard-data__status-card--finalized">
+              <div class="scorecard-data__status-card-header">
+                <p class="eyebrow">Finalized</p>
+                <strong>{{ finalized_match_count or 0 }}</strong>
+              </div>
+              <p class="match-sub">Matches that already landed in the result cache.</p>
+              <ul class="scorecard-data__status-card-list">
+                {% for match in finalized_match_tiles[:3] %}
+                  <li>
+                    <span>{{ match.division }} {{ match.match_key }}</span>
+                    <span class="scorecard-data__status-chip">{{ match.status_label }}</span>
+                  </li>
+                {% else %}
+                  <li class="muted-label">Nothing finalized yet.</li>
+                {% endfor %}
+              </ul>
+            </article>
           </div>
         </div>
         {% if matches %}
