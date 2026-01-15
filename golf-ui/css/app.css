@@ -329,6 +329,23 @@ input,button,select,textarea{font-size:16px;}
   width:60px;
   text-align:right;
 }
+.player-card__meta{
+  margin-top:6px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  font-size:0.78rem;
+  color:#4b5563;
+}
+.player-card__meta-row{
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+.player-card__meta-label{
+  font-weight:600;
+  color:#0f172a;
+}
 .score-list{
   margin:0 -14px;
   border-top:1px solid var(--line);

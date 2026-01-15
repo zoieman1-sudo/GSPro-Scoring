@@ -155,6 +155,12 @@ def ensure_schema(database_url: str) -> None:
             hole_number smallint not null,
             player_a_score smallint not null,
             player_b_score smallint not null,
+            player_c_score smallint not null default 0,
+            player_d_score smallint not null default 0,
+            player_a_net double precision,
+            player_b_net double precision,
+            player_c_net double precision,
+            player_d_net double precision,
             recorded_at timestamptz not null default now()
         );
         """,
@@ -165,6 +171,49 @@ def ensure_schema(database_url: str) -> None:
         """
         alter table hole_scores
         add column if not exists player_d_score smallint not null default 0;
+        """,
+
+        """
+        alter table hole_scores
+        add column if not exists player_a_net double precision;
+        """,
+        """
+        alter table hole_scores
+        add column if not exists player_b_net double precision;
+        """,
+        """
+        alter table hole_scores
+        add column if not exists player_c_net double precision;
+        """,
+        """
+        alter table hole_scores
+        add column if not exists player_d_net double precision;
+        """,
+
+        """
+        create table if not exists player_hole_scores (
+            id serial primary key,
+            match_result_id integer not null references match_results(id) on delete cascade,
+            match_key text not null,
+            player_index smallint not null,
+            player_side text not null,
+            team_index smallint not null,
+            player_name text,
+            opponent_name text,
+            hole_number smallint not null,
+            gross_score smallint not null,
+            stroke_adjustment real not null default 0,
+            course_id integer,
+            course_tee_id integer,
+            player_handicap integer,
+            net_score double precision,
+            created_at timestamptz not null default now(),
+            unique (match_result_id, player_index, hole_number)
+        );
+        """,
+        """
+        alter table player_hole_scores
+        add column if not exists net_score double precision;
         """,
         """
         create table if not exists tournament_settings (
@@ -934,18 +983,158 @@ def insert_hole_scores(
             )
 
 
-def delete_hole_scores(database_url: str, match_id: int) -> None:
+def insert_player_hole_scores(
+    database_url: str,
+    match_id: int,
+    match_key: str,
+    entries: list[dict],
+) -> None:
+    if not entries:
+        return
+    values = [
+        (
+            match_id,
+            match_key,
+            entry["player_index"],
+            entry["player_side"],
+            entry["team_index"],
+            entry.get("player_name"),
+            entry.get("opponent_name"),
+            entry["hole_number"],
+            entry["gross_score"],
+            entry.get("stroke_adjustment", 0),
+            entry.get("course_id"),
+            entry.get("course_tee_id"),
+            entry.get("player_handicap"),
+            entry.get("net_score"),
+        )
+        for entry in entries
+    ]
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
-            cur.execute("delete from hole_scores where match_result_id = %s;", (match_id,))
+            hole_numbers = sorted({entry["hole_number"] for entry in entries})
+            if hole_numbers:
+                cur.execute(
+                    "delete from player_hole_scores where match_result_id = %s and hole_number = any(%s);",
+                    (match_id, hole_numbers),
+                )
+            cur.executemany(
+                """
+                insert into player_hole_scores (
+                    match_result_id,
+                    match_key,
+                    player_index,
+                    player_side,
+                    team_index,
+                    player_name,
+                    opponent_name,
+                    hole_number,
+                    gross_score,
+                    stroke_adjustment,
+                    course_id,
+                    course_tee_id,
+                    player_handicap,
+                    net_score
+                )
+                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                on conflict (match_result_id, player_index, hole_number) do update set
+                    player_name = excluded.player_name,
+                    opponent_name = excluded.opponent_name,
+                    gross_score = excluded.gross_score,
+                    stroke_adjustment = excluded.stroke_adjustment,
+                    course_id = excluded.course_id,
+                    course_tee_id = excluded.course_tee_id,
+                    player_handicap = excluded.player_handicap,
+                    net_score = excluded.net_score
+                """,
+                values,
+            )
+            if hole_numbers:
+                cur.execute(
+                    """
+                    select hole_number, player_index, net_score
+                    from player_hole_scores
+                    where match_result_id = %s and hole_number = any(%s);
+                    """,
+                    (match_id, hole_numbers),
+                )
+                net_rows = cur.fetchall()
+                net_map: dict[int, dict[int, float | None]] = {}
+                for hole_number, player_index, net_score in net_rows:
+                    hole_map = net_map.setdefault(hole_number, {})
+                    hole_map[player_index] = net_score
+                for hole_number in hole_numbers:
+                    nets = net_map.get(hole_number) or {}
+                    cur.execute(
+                        """
+                        update hole_scores
+                        set
+                            player_a_net = %s,
+                            player_b_net = %s,
+                            player_c_net = %s,
+                            player_d_net = %s
+                        where match_result_id = %s
+                          and hole_number = %s;
+                        """,
+                        (
+                            nets.get(0),
+                            nets.get(1),
+                            nets.get(2),
+                            nets.get(3),
+                            match_id,
+                            hole_number,
+                        ),
+                    )
 
 
-def fetch_hole_scores(database_url: str, match_id: int) -> list[dict]:
+def delete_player_hole_scores(database_url: str, match_id: int) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute("delete from player_hole_scores where match_result_id = %s;", (match_id,))
+
+
+def fetch_player_hole_scores(database_url: str, match_id: int) -> list[dict]:
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                select hole_number, player_a_score, player_b_score, player_c_score, player_d_score
+                select player_index, player_side, team_index, player_name, opponent_name, hole_number, gross_score, stroke_adjustment, net_score
+                from player_hole_scores
+                where match_result_id = %s
+                order by hole_number, player_index;
+                """,
+                (match_id,),
+            )
+            return [
+                {
+                    "player_index": row[0],
+                    "player_side": row[1],
+                    "team_index": row[2],
+                    "player_name": row[3],
+                    "opponent_name": row[4],
+                    "hole_number": row[5],
+                    "gross_score": row[6],
+                    "stroke_adjustment": row[7],
+                    "net_score": row[8],
+                }
+                for row in cur.fetchall()
+            ]
+
+
+def delete_hole_scores(database_url: str, match_id: int) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute("delete from hole_scores where match_result_id = %s;", (match_id,))
+    delete_player_hole_scores(database_url, match_id)
+
+
+def fetch_legacy_hole_scores(database_url: str, match_id: int) -> list[dict]:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select hole_number, player_a_score, player_b_score, player_c_score, player_d_score,
+                       player_a_net, player_b_net, player_c_net, player_d_net
                 from hole_scores
                 where match_result_id = %s
                 order by hole_number;
@@ -959,6 +1148,58 @@ def fetch_hole_scores(database_url: str, match_id: int) -> list[dict]:
                     "player_b_score": row[2],
                     "player_c_score": row[3],
                     "player_d_score": row[4],
+                    "player_a_net": row[5],
+                    "player_b_net": row[6],
+                    "player_c_net": row[7],
+                    "player_d_net": row[8],
+                }
+                for row in cur.fetchall()
+            ]
+
+
+def fetch_hole_scores(database_url: str, match_id: int) -> list[dict]:
+    player_rows = fetch_player_hole_scores(database_url, match_id)
+    if player_rows:
+        hole_map: dict[int, dict[str, float | None]] = {}
+        score_keys = ["player_a_score", "player_b_score", "player_c_score", "player_d_score"]
+        net_keys = ["player_a_net", "player_b_net", "player_c_net", "player_d_net"]
+        for row in player_rows:
+            hole_number = row["hole_number"]
+            entry = hole_map.setdefault(
+                hole_number,
+                {key: None for key in score_keys + net_keys},
+            )
+            index = row["player_index"]
+            if 0 <= index < len(score_keys):
+                entry[score_keys[index]] = row["gross_score"]
+                entry[net_keys[index]] = row.get("net_score")
+        return [
+            {"hole_number": number, **hole_map[number]}
+            for number in sorted(hole_map)
+        ]
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select hole_number, player_a_score, player_b_score, player_c_score, player_d_score,
+                       player_a_net, player_b_net, player_c_net, player_d_net
+                from hole_scores
+                where match_result_id = %s
+                order by hole_number;
+                """,
+                (match_id,),
+            )
+            return [
+                {
+                    "hole_number": row[0],
+                    "player_a_score": row[1],
+                    "player_b_score": row[2],
+                    "player_c_score": row[3],
+                    "player_d_score": row[4],
+                    "player_a_net": row[5],
+                    "player_b_net": row[6],
+                    "player_c_net": row[7],
+                    "player_d_net": row[8],
                 }
                 for row in cur.fetchall()
             ]

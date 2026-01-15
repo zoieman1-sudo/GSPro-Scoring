@@ -464,7 +464,7 @@
         entry.error = false;
         renderUI();
         try {
-          const response = await fetch(`/api/match-summary/${matchKey}`);
+          const response = await fetch(`/api/match-summary/${matchKey}`, { cache: 'no-cache' });
           if (!response.ok) {
             throw new Error("summary fetch failed");
           }

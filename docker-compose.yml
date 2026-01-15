@@ -4,7 +4,7 @@ services:
     ports:
       - "${APP_HOST_PORT:-18000}:8000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:change_me@db:5432/gspro_scoring}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:SecretPass1234@db:5432/gspro_scoring}
       SCORING_PIN: ${SCORING_PIN:-1234}
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: change_me
+      POSTGRES_PASSWORD: SecretPass1234
       POSTGRES_DB: gspro_scoring
     volumes:
       - gspro-scoring-db:/var/lib/postgresql/data
@@ -42,7 +42,7 @@ services:
       - db
     environment:
       PGADMIN_DEFAULT_EMAIL: pgadmin@gspro.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_PASSWORD: SecretPass1234
     ports:
       - "${PGADMIN_HOST_PORT:-5051}:80"
     volumes:

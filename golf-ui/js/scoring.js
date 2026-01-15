@@ -12,6 +12,7 @@ const state = {
   matches: [],
   matchHoleEntries: {},
   courseName: "Scoring",
+  playerCards: {},
 };
 
 const overlay = document.getElementById("codeOverlay");
@@ -108,6 +109,17 @@ function renderHole() {
   updateHoleNavLabels();
 }
 
+function formatScoreDisplay(value) {
+  if (value === undefined || value === null || value === "") {
+    return "—";
+  }
+  const number = Number(value);
+  if (Number.isNaN(number)) {
+    return String(value);
+  }
+  return Number.isInteger(number) ? String(number) : number.toFixed(1);
+}
+
 function configureHoleNavButton(button, numberElement, entry, label) {
   if (!button) return;
   const hasEntry = Boolean(entry);
@@ -148,10 +160,26 @@ function renderScores() {
     button.className = "player-card";
     button.dataset.playerId = player.id;
     const value = state.scores[player.id] ?? "";
+    const cardMeta = state.playerCards[player.id];
+    const opponentLabel = cardMeta ? cardMeta.opponent_name || "—" : "—";
+    const grossValue = cardMeta ? formatScoreDisplay(cardMeta.total_gross) : "—";
+    const netValue = cardMeta ? formatScoreDisplay(cardMeta.total_net) : "—";
+    const strokesValue = cardMeta ? formatScoreDisplay(cardMeta.total_strokes) : "—";
+    const metaSection = cardMeta
+      ? `<div class="player-card__meta">
+           <span class="player-card__meta-row"><span class="player-card__meta-label">Opp</span>${opponentLabel}</span>
+           <span class="player-card__meta-row"><span class="player-card__meta-label">Gross</span>${grossValue}</span>
+           <span class="player-card__meta-row"><span class="player-card__meta-label">Net</span>${netValue}</span>
+           <span class="player-card__meta-row"><span class="player-card__meta-label">Adj</span>${strokesValue}</span>
+         </div>`
+      : "";
     button.innerHTML = `
-      <div class="player-card__info">
-        <span class="player-card__name">${player.name}</span>
-        <span class="player-card__hcp">(${player.handicap})</span>
+      <div>
+        <div class="player-card__info">
+          <span class="player-card__name">${player.name}</span>
+          <span class="player-card__hcp">(${player.handicap})</span>
+        </div>
+        ${metaSection}
       </div>
       <div class="player-card__score">${value || ""}</div>
     `;
@@ -449,6 +477,15 @@ function initializeMatchFromScorecard(scorecard, fallbackValue) {
   state.scores = {};
   state.originalScores = {};
   state.courseName = scorecard.course?.course_name || "Scoring";
+  state.playerCards = {};
+  (scorecard.player_cards || []).forEach((card) => {
+    if (typeof card.player_index === "number") {
+      const target = state.players[card.player_index];
+      if (target) {
+        state.playerCards[target.id] = card;
+      }
+    }
+  });
   hideCodeOverlay();
   updateCourseTitle(state.courseName);
   goToHoleIndex(0);
