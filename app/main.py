@@ -30,6 +30,7 @@ from app.db import (
     fetch_event_settings,
     fetch_hole_scores,
     fetch_legacy_hole_scores,
+    fetch_match_bonus,
     fetch_match_result,
     fetch_match_result_by_code,
     fetch_match_result_by_key,
@@ -63,6 +64,7 @@ from app.db import (
     upsert_setting,
     update_match_result_fields,
     update_match_result_scores,
+    upsert_match_bonus,
     set_match_finalized,
     insert_match,
     delete_match,
@@ -80,7 +82,7 @@ from app.seed import (
 from app.seed_db import ensure_base_tournament
 from app.demo_seed import ensure_demo_fixture, ensure_demo_players, ensure_demo_tournament
 from app.demo_state import ACTIVE_TOURNAMENT_ID_KEY, DEFAULT_DIVISION_COUNT
-from app.settings import load_settings, score_outcome
+from app.settings import load_settings, score_outcome, compute_bonus_points
 from app.migrations import apply_migrations
 
 app = FastAPI()
@@ -1019,29 +1021,31 @@ def _aggregate_standings_entries(results: list[dict], tournament_id: int | None)
                 second_total = second.get("total") or second.get("points") or 0
                 first_points = first.get("points") or first_total
                 second_points = second.get("points") or second_total
+                first_recorded = first_total or first_points
+                second_recorded = second_total or second_points
                 winner = "A" if first_total > second_total else "B" if second_total > first_total else "T"
                 if first["name"] in allowed_players:
-                    _record_player(
-                        stats,
-                        first["name"],
-                        divisions_by_player.get(first["name"], "Open"),
-                        first_points,
-                        second_points,
-                        winner,
-                        "A",
-                        hole_count,
-                    )
+                  _record_player(
+                    stats,
+                    first["name"],
+                    divisions_by_player.get(first["name"], "Open"),
+                    first_recorded,
+                    second_points,
+                    winner,
+                    "A",
+                    hole_count,
+                  )
                 if second["name"] in allowed_players:
-                    _record_player(
-                        stats,
-                        second["name"],
-                        divisions_by_player.get(second["name"], "Open"),
-                        second_points,
-                        first_points,
-                        winner,
-                        "B",
-                        hole_count,
-                    )
+                  _record_player(
+                    stats,
+                    second["name"],
+                    divisions_by_player.get(second["name"], "Open"),
+                    second_recorded,
+                    first_points,
+                    winner,
+                    "B",
+                    hole_count,
+                  )
             continue
         player_a_total = result.get("player_a_total") or 0
         player_b_total = result.get("player_b_total") or 0
@@ -1145,7 +1149,9 @@ def _resolve_result_totals(result: dict) -> tuple[float, float, str]:
 
 
 def _bonus_allowed(recorded_count: int, expected_length: int) -> bool:
-    return recorded_count >= expected_length
+    if recorded_count >= expected_length:
+        return True
+    return recorded_count in {9, 18}
 
 
 def build_standings(results: list[dict], tournament_id: int | None = None) -> list[dict]:
@@ -3039,6 +3045,14 @@ def _scorecard_context(match_key: str | None, tournament_id: int | None = None) 
         match_length=match_length,
         start_hole=start_hole,
     )
+    computed_meta = computed.setdefault("meta", {})
+    if match_result and match_result.get("finalized"):
+        player_a_total = match_result.get("player_a_total")
+        player_b_total = match_result.get("player_b_total")
+        if player_a_total is not None:
+            computed_meta["total_points_a"] = player_a_total
+        if player_b_total is not None:
+            computed_meta["total_points_b"] = player_b_total
     player_a_display = (selected.player_a or player_a_name or "Player A").strip()
     player_b_display = (selected.player_b or player_b_name or "Player B").strip()
     player_c_display = (selected.player_c or player_c_name or "").strip()
@@ -3154,6 +3168,32 @@ def _scorecard_context(match_key: str | None, tournament_id: int | None = None) 
                 else []
             ),
         ],
+    }
+    computed_meta = scorecard.setdefault("meta", {})
+    base_total_a = computed_meta.get("total_points_a") or 0.0
+    base_total_b = computed_meta.get("total_points_b") or 0.0
+    allow_bonus = _bonus_allowed(len(hole_records), match_length)
+    computed_bonus_a, computed_bonus_b = compute_bonus_points(
+        base_total_a, base_total_b, allow_bonus=allow_bonus
+    )
+    bonus_record = None
+    if match_result:
+        bonus_record = fetch_match_bonus(settings.database_url, match_result["id"])
+    bonus_a = bonus_record["player_a_bonus"] if bonus_record else computed_bonus_a
+    bonus_b = bonus_record["player_b_bonus"] if bonus_record else computed_bonus_b
+    computed_meta["bonus_points_a"] = bonus_a
+    computed_meta["bonus_points_b"] = bonus_b
+    computed_meta["total_points_base_a"] = base_total_a
+    computed_meta["total_points_base_b"] = base_total_b
+    computed_meta["total_points_with_bonus_a"] = base_total_a + bonus_a
+    computed_meta["total_points_with_bonus_b"] = base_total_b + bonus_b
+    per_player_bonus = [bonus_a, bonus_b]
+    while len(per_player_bonus) < len(scorecard.get("players", [])):
+        per_player_bonus.append(0.0)
+    scorecard["bonus_points"] = {
+        "player_a": bonus_a,
+        "player_b": bonus_b,
+        "per_player": per_player_bonus,
     }
     final_status_pair1 = "—"
     final_status_pair2 = "—"
@@ -3483,6 +3523,11 @@ def _serialize_scorecard_for_studio(scorecard: dict) -> dict:
         "players": players_data,
         "holes": hole_entries,
         "meta": scorecard.get("meta", {}),
+        "bonus_points": {
+            "player_a": scorecard.get("bonus_points", {}).get("player_a", 0),
+            "player_b": scorecard.get("bonus_points", {}).get("player_b", 0),
+            "per_player": scorecard.get("bonus_points", {}).get("per_player", []),
+        },
         "player_point_totals": player_point_totals,
         "phase": match_info["status"],
         "course": {
@@ -3532,9 +3577,18 @@ async def match_detail(request: Request, match_id: int):
     )
     total_points_a = scorecard["meta"]["total_points_a"]
     total_points_b = scorecard["meta"]["total_points_b"]
-    if total_points_a > total_points_b:
+    player_a_total = total_points_a
+    player_b_total = total_points_b
+    if result.get("finalized"):
+        stored_a = result.get("player_a_total")
+        stored_b = result.get("player_b_total")
+        if stored_a is not None:
+            player_a_total = stored_a
+        if stored_b is not None:
+            player_b_total = stored_b
+    if player_a_total > player_b_total:
         points_winner_label = result["player_a_name"]
-    elif total_points_b > total_points_a:
+    elif player_b_total > player_a_total:
         points_winner_label = result["player_b_name"]
     else:
         points_winner_label = "Draw"
@@ -3555,8 +3609,8 @@ async def match_detail(request: Request, match_id: int):
             "player_a_handicap": handicap_a,
             "player_b_handicap": handicap_b,
             "match_points": {
-                "a": total_points_a,
-                "b": total_points_b,
+                "a": player_a_total,
+                "b": player_b_total,
                 "winner_label": points_winner_label,
             },
         },
@@ -3569,6 +3623,7 @@ async def finalize_match(
     redirect: str | None = Form(None),
     bonus_mode: str = Form("auto"),
 ):
+    del bonus_mode
     result, match_record = _resolve_match_result_context(match_id)
     if not result:
         raise HTTPException(status_code=404, detail="Match not found")
@@ -3582,10 +3637,6 @@ async def finalize_match(
     tournament_id = _tournament_id_for_result(result)
     if not tournament_id:
         raise HTTPException(status_code=400, detail="Tournament ID is required to finalize.")
-    normalized_bonus_mode = (bonus_mode or "auto").strip().lower()
-    if normalized_bonus_mode not in {"auto", "full", "half", "none"}:
-        normalized_bonus_mode = "auto"
-
     finalized_any = False
     tournament_settings = _load_tournament_settings(tournament_id)
     match_length = _safe_int(result.get("hole_count")) or 18
@@ -3628,13 +3679,14 @@ async def finalize_match(
             player_b_handicap=target.get("player_b_handicap") or 0,
         )
         outcome = score_outcome(total_points_a, total_points_b)
+        bonus_override = fetch_match_bonus(settings.database_url, target_id)
         adjusted = _apply_bonus_constraints(
             outcome,
             total_points_a,
             total_points_b,
             match_length,
             match_length,
-            bonus_mode=normalized_bonus_mode,
+            bonus_override=bonus_override,
         )
         update_match_result_scores(
             settings.database_url,
@@ -3650,6 +3702,12 @@ async def finalize_match(
             player_c_id=player_c_id,
             player_d_id=player_d_id,
             winner=outcome["winner"],
+        )
+        upsert_match_bonus(
+            settings.database_url,
+            target_id,
+            player_a_bonus=adjusted["player_a_bonus"],
+            player_b_bonus=adjusted["player_b_bonus"],
         )
         finalize_match_result(
             settings.database_url,
@@ -3696,14 +3754,6 @@ async def finalize_match(
                 player_b_handicap=handicap_d,
             )
             outcome_cd = score_outcome(player_c_total, player_d_total)
-            adjusted_cd = _apply_bonus_constraints(
-                outcome_cd,
-                player_c_total,
-                player_d_total,
-                match_length,
-                match_length,
-                bonus_mode=normalized_bonus_mode,
-            )
             cd_key = f"{match_key}-cd" if match_key else ""
             pair_record = _find_result_by_players(
                 target_records,
@@ -3712,6 +3762,19 @@ async def finalize_match(
             )
             pair_result_id: int | None = pair_record["id"] if pair_record else None
             course_snapshot = course_info or {}
+            bonus_override_cd = (
+                fetch_match_bonus(settings.database_url, pair_result_id)
+                if pair_result_id
+                else {"player_a_bonus": 0.0, "player_b_bonus": 0.0}
+            )
+            adjusted_cd = _apply_bonus_constraints(
+                outcome_cd,
+                player_c_total,
+                player_d_total,
+                match_length,
+                match_length,
+                bonus_override=bonus_override_cd,
+            )
             if pair_result_id:
                 update_match_result_scores(
                     settings.database_url,
@@ -3725,6 +3788,12 @@ async def finalize_match(
                     player_a_id=player_c_id,
                     player_b_id=player_d_id,
                     winner=adjusted_cd["winner"],
+                )
+                upsert_match_bonus(
+                    settings.database_url,
+                    pair_result_id,
+                    player_a_bonus=adjusted_cd["player_a_bonus"],
+                    player_b_bonus=adjusted_cd["player_b_bonus"],
                 )
                 finalize_match_result(
                     settings.database_url,
@@ -3773,6 +3842,12 @@ async def finalize_match(
                     player_d_id=None,
                 )
                 if inserted_id:
+                    upsert_match_bonus(
+                        settings.database_url,
+                        inserted_id,
+                        player_a_bonus=adjusted_cd["player_a_bonus"],
+                        player_b_bonus=adjusted_cd["player_b_bonus"],
+                    )
                     insert_hole_scores(settings.database_url, inserted_id, holes_for_cd)
                     cd_result = fetch_match_result(settings.database_url, inserted_id)
                     if cd_result:
@@ -3884,9 +3959,46 @@ async def match_detail_submit(match_id: int, request: Request):
                     cd_entries,
                 )
         tournament_id = match_result.get("tournament_id") or _get_active_tournament_id()
-        _recompute_match_result_from_holes(match_id)
-        _refresh_standings_cache(tournament_id)
+    _recompute_match_result_from_holes(match_id)
+    _refresh_standings_cache(tournament_id)
     return JSONResponse({"added": len(cleaned)})
+
+
+@app.post("/matches/{match_id}/bonus")
+async def set_match_bonus(match_id: int, request: Request):
+    payload = await request.json()
+    bonus_data = payload.get("bonus") or {}
+
+    def _parse_bonus(value: float | str | None) -> float:
+        if value is None:
+            return 0.0
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            return 0.0
+        return parsed
+
+    player_a_bonus = _parse_bonus(bonus_data.get("player_a") or bonus_data.get("a"))
+    player_b_bonus = _parse_bonus(bonus_data.get("player_b") or bonus_data.get("b"))
+    match_result = fetch_match_result(settings.database_url, match_id)
+    if not match_result:
+        raise HTTPException(status_code=404, detail="Match not found")
+    upsert_match_bonus(
+        settings.database_url,
+        match_id,
+        player_a_bonus=player_a_bonus,
+        player_b_bonus=player_b_bonus,
+    )
+    tournament_id = _tournament_id_for_result(match_result)
+    if tournament_id:
+        _refresh_standings_cache(tournament_id)
+    return JSONResponse(
+        {
+            "match_id": match_id,
+            "player_a_bonus": player_a_bonus,
+            "player_b_bonus": player_b_bonus,
+        }
+    )
 
 
 @app.post("/matches/key/{match_key}/holes")
@@ -3983,11 +4095,9 @@ def _apply_bonus_constraints(
     total_b: float,
     recorded_holes: int,
     match_length: int,
-    bonus_mode: str | None = "auto",
+    bonus_override: dict[str, float] | None = None,
 ) -> dict:
-    mode = (bonus_mode or "auto").strip().lower()
-
-    def _no_bonus() -> dict:
+    if not _bonus_allowed(recorded_holes, match_length):
         return {
             **outcome,
             "player_a_bonus": 0.0,
@@ -3995,25 +4105,18 @@ def _apply_bonus_constraints(
             "player_a_total": total_a,
             "player_b_total": total_b,
         }
-
-    if mode == "auto":
-        if _bonus_allowed(recorded_holes, match_length):
-            return outcome
-        mode = "none"
-
-    if mode == "full":
-        return outcome
-    if mode == "half":
-        return {
-            **outcome,
-            "player_a_bonus": 0.5,
-            "player_b_bonus": 0.5,
-            "player_a_total": total_a + 0.5,
-            "player_b_total": total_b + 0.5,
-        }
-    if mode == "none":
-        return _no_bonus()
-    return _no_bonus()
+    player_a_bonus = outcome["player_a_bonus"]
+    player_b_bonus = outcome["player_b_bonus"]
+    if bonus_override:
+        player_a_bonus = float(bonus_override.get("player_a_bonus") or 0.0)
+        player_b_bonus = float(bonus_override.get("player_b_bonus") or 0.0)
+    return {
+        **outcome,
+        "player_a_bonus": player_a_bonus,
+        "player_b_bonus": player_b_bonus,
+        "player_a_total": total_a + player_a_bonus,
+        "player_b_total": total_b + player_b_bonus,
+    }
 
 
 def _match_scorecard_summary(
@@ -4069,7 +4172,8 @@ def _recompute_match_result_from_holes(match_result_id: int) -> None:
         return
     computed, total_a, total_b = _match_scorecard_summary(match_result, holes, tournament_settings, match_length, start_hole)
     outcome = score_outcome(total_a, total_b)
-    adjusted = _apply_bonus_constraints(outcome, total_a, total_b, len(holes), match_length)
+    bonus_override = fetch_match_bonus(settings.database_url, match_result_id)
+    adjusted = _apply_bonus_constraints(outcome, total_a, total_b, len(holes), match_length, bonus_override=bonus_override)
     update_match_result_scores(
         settings.database_url,
         match_result_id,
@@ -4080,6 +4184,12 @@ def _recompute_match_result_from_holes(match_result_id: int) -> None:
         player_a_total=adjusted["player_a_total"],
         player_b_total=adjusted["player_b_total"],
         winner=adjusted["winner"],
+    )
+    upsert_match_bonus(
+        settings.database_url,
+        match_result_id,
+        player_a_bonus=adjusted["player_a_bonus"],
+        player_b_bonus=adjusted["player_b_bonus"],
     )
     _recompute_cd_match_result(match_result, tournament_settings, holes, match_length, start_hole)
     if tournament_id:
@@ -4128,10 +4238,18 @@ def _recompute_cd_match_result(
     total_c = computed_cd["meta"]["total_points_a"]
     total_d = computed_cd["meta"]["total_points_b"]
     outcome_cd = score_outcome(total_c, total_d)
-    adjusted_cd = _apply_bonus_constraints(outcome_cd, total_c, total_d, len(holes_for_cd), match_length)
     cd_result = fetch_match_result_by_key(settings.database_url, cd_key)
     if not cd_result:
         return
+    bonus_override_cd = fetch_match_bonus(settings.database_url, cd_result["id"])
+    adjusted_cd = _apply_bonus_constraints(
+        outcome_cd,
+        total_c,
+        total_d,
+        len(holes_for_cd),
+        match_length,
+        bonus_override=bonus_override_cd,
+    )
     update_match_result_scores(
         settings.database_url,
         cd_result["id"],
@@ -4142,6 +4260,12 @@ def _recompute_cd_match_result(
         player_a_total=adjusted_cd["player_a_total"],
         player_b_total=adjusted_cd["player_b_total"],
         winner=adjusted_cd["winner"],
+    )
+    upsert_match_bonus(
+        settings.database_url,
+        cd_result["id"],
+        player_a_bonus=adjusted_cd["player_a_bonus"],
+        player_b_bonus=adjusted_cd["player_b_bonus"],
     )
 
 

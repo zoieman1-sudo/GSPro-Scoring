@@ -71,9 +71,8 @@
                   action="/matches/{{ match.id }}/finalize"
                 >
                   <input type="hidden" name="redirect" value="/standings" />
-                  <input type="hidden" name="bonus_mode" value="full" />
                   <button
-                    type="button"
+                    type="submit"
                     class="pill-link pill-link--finalize"
                     data-finalize-match="{{ match.id }}"
                     data-finalize-match-key="{{ match.match_key }}"
@@ -143,92 +142,20 @@
         <p class="status">No matches have been finalized yet.</p>
       {% endif %}
     </div>
-    <div id="finalizeConfirmOverlay" class="finalize-confirm-overlay" role="dialog" aria-modal="true" data-open="false">
-      <div class="finalize-confirm-card">
-        <h3>Finalize match</h3>
-        <p id="finalizeConfirmText">Are you sure you want to finalize this match? This will lock the scores and update the standings.</p>
-        <div class="finalize-bonus-options">
-          <p class="muted-label">Bonus allocation</p>
-          <label class="finalize-bonus-option">
-            <input type="radio" name="finalizeBonusOption" value="full" checked />
-            <span>Full (winner bonus)</span>
-            <small class="muted-label">Award bonus exactly as the scorecard suggests.</small>
-          </label>
-          <label class="finalize-bonus-option">
-            <input type="radio" name="finalizeBonusOption" value="half" />
-            <span>Half (shared bonus)</span>
-            <small class="muted-label">Split the bonus point ½/½ regardless of winner.</small>
-          </label>
-          <label class="finalize-bonus-option">
-            <input type="radio" name="finalizeBonusOption" value="none" />
-            <span>None (no bonus)</span>
-            <small class="muted-label">Skip the bonus point entirely.</small>
-          </label>
-        </div>
-        <div class="confirm-actions">
-          <button type="button" class="confirm" id="finalizeConfirmYes">Yes</button>
-          <button type="button" id="finalizeConfirmCancel">Cancel</button>
-        </div>
-      </div>
-    </div>
-    <script>
-      (function () {
-        const overlay = document.getElementById("finalizeConfirmOverlay");
-        const finalizeButtons = document.querySelectorAll("[data-finalize-match]");
-        const confirmBtn = document.getElementById("finalizeConfirmYes");
-        const cancelBtn = document.getElementById("finalizeConfirmCancel");
-        const confirmText = document.getElementById("finalizeConfirmText");
-        let pendingMatchId = null;
-
-        const showOverlay = (matchId, matchKey) => {
-          if (!overlay) return;
-          pendingMatchId = matchId;
-          if (confirmText) {
-            confirmText.textContent = `Finalize ${matchKey}? This will lock the scores and refresh standings.`;
-          }
-          overlay.dataset.open = "true";
-          overlay.removeAttribute("aria-hidden");
-        };
-
-        const hideOverlay = () => {
-          if (!overlay) return;
-          overlay.dataset.open = "false";
-          overlay.setAttribute("aria-hidden", "true");
-          pendingMatchId = null;
-        };
-
-        finalizeButtons.forEach((button) => {
-          button.addEventListener("click", (event) => {
-            event.preventDefault();
-            const matchId = button.getAttribute("data-finalize-match");
-            const matchKey = button.getAttribute("data-finalize-match-key") || "match";
-            if (matchId) {
-              showOverlay(matchId, matchKey);
-            }
-          });
-        });
-
-        confirmBtn?.addEventListener("click", () => {
-          if (!pendingMatchId) return;
-          const form = document.querySelector(`[data-finalize-match-form="${pendingMatchId}"]`);
-          if (form) {
-            const selectedBonus = (() => {
-              const active = overlay?.querySelector('[name="finalizeBonusOption"]:checked');
-              return active ? active.value : "full";
-            })();
-            let bonusInput = form.querySelector('input[name="bonus_mode"]');
-            if (!bonusInput) {
-              bonusInput = document.createElement("input");
-              bonusInput.type = "hidden";
-              bonusInput.name = "bonus_mode";
-              form.appendChild(bonusInput);
-            }
-            bonusInput.value = selectedBonus;
-            form.submit();
-          }
-        });
-        cancelBtn?.addEventListener("click", hideOverlay);
-      })();
-    </script>
   </section>
+  <script>
+    (function () {
+      const forms = document.querySelectorAll("[data-finalize-match-form]");
+      forms.forEach((form) => {
+        form.addEventListener("submit", (event) => {
+          const confirmed = confirm(
+            "Finalizing locks the course, hole data, and points so they cannot change. Continue?"
+          );
+          if (!confirmed) {
+            event.preventDefault();
+          }
+        });
+      });
+    })();
+  </script>
 {% endblock %}

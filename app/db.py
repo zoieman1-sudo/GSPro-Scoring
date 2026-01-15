@@ -127,6 +127,14 @@ def ensure_schema(database_url: str) -> None:
         );
         """,
         """
+        create table if not exists match_bonus (
+            match_result_id integer primary key references match_results(id) on delete cascade,
+            player_a_bonus double precision not null default 0,
+            player_b_bonus double precision not null default 0,
+            updated_at timestamptz not null default now()
+        );
+        """,
+        """
         alter table match_results add column if not exists hole_count integer not null default 18;
         """,
         """
@@ -1479,6 +1487,47 @@ def finalize_match_result(
                     Json(scorecard_snapshot) if scorecard_snapshot is not None else None,
                     match_id,
                 ),
+            )
+
+
+def fetch_match_bonus(database_url: str, match_result_id: int) -> dict[str, float] | None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select player_a_bonus, player_b_bonus
+                from match_bonus
+                where match_result_id = %s
+                limit 1;
+                """,
+                (match_result_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            return {"player_a_bonus": row[0] or 0.0, "player_b_bonus": row[1] or 0.0}
+
+
+def upsert_match_bonus(
+    database_url: str,
+    match_result_id: int,
+    *,
+    player_a_bonus: float,
+    player_b_bonus: float,
+) -> None:
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                insert into match_bonus (match_result_id, player_a_bonus, player_b_bonus)
+                values (%s, %s, %s)
+                on conflict (match_result_id) do update
+                set
+                    player_a_bonus = excluded.player_a_bonus,
+                    player_b_bonus = excluded.player_b_bonus,
+                    updated_at = now();
+                """,
+                (match_result_id, player_a_bonus, player_b_bonus),
             )
 
 

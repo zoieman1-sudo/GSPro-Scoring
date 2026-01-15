@@ -14,8 +14,10 @@ def test_score_outcome_win():
 
 def test_score_outcome_tie_high():
     outcome = main.score_outcome(5, 5)
-    assert outcome["player_a_bonus"] == 1
-    assert outcome["player_b_bonus"] == 1
+    assert outcome["player_a_bonus"] == 0.5
+    assert outcome["player_b_bonus"] == 0.5
+    assert outcome["player_a_total"] == 5.5
+    assert outcome["player_b_total"] == 5.5
     assert outcome["winner"] == "T"
 
 

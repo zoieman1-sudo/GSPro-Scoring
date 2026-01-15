@@ -20,19 +20,44 @@ def load_settings() -> Settings:
     )
 
 
-def score_outcome(player_a_points: float, player_b_points: float) -> dict:
+def bonus_for_points(points: float, opponent_points: float) -> float:
+    if points > opponent_points and points >= 5:
+        return 1.0
+    if points == opponent_points and points >= 4.5:
+        return 0.5
+    return 0.0
+
+
+def compute_bonus_points(
+    player_a_points: float,
+    player_b_points: float,
+    *,
+    allow_bonus: bool = True,
+) -> tuple[float, float]:
+    if not allow_bonus:
+        return 0.0, 0.0
+    return (
+        bonus_for_points(player_a_points, player_b_points),
+        bonus_for_points(player_b_points, player_a_points),
+    )
+
+
+def score_outcome(
+    player_a_points: float,
+    player_b_points: float,
+    *,
+    allow_bonus: bool = True,
+) -> dict:
     if player_a_points > player_b_points:
         winner = "A"
-        player_a_bonus = 1.0
-        player_b_bonus = 0.0
     elif player_a_points < player_b_points:
         winner = "B"
-        player_b_bonus = 1.0
-        player_a_bonus = 0.0
     else:
         winner = "T"
-        player_a_bonus = player_b_bonus = 0.5
 
+    player_a_bonus, player_b_bonus = compute_bonus_points(
+        player_a_points, player_b_points, allow_bonus=allow_bonus
+    )
     player_a_total = player_a_points + player_a_bonus
     player_b_total = player_b_points + player_b_bonus
     return {

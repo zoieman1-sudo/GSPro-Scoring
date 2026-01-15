@@ -2543,8 +2543,8 @@ body.popup-open {
   padding: 26px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
-  width: min(360px, 90%);
-  text-align: center;
+  width: min(440px, 92%);
+  text-align: left;
   color: #fff;
   letter-spacing: 0.15em;
 }
@@ -2583,6 +2583,98 @@ body.popup-open {
   background: rgba(255, 255, 255, 0.2);
 }
 
+.finalize-card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.finalize-scorecard {
+  margin-bottom: 18px;
+}
+.finalize-scorecard__table-wrapper {
+  width: 100%;
+}
+.finalize-scorecard__table-title {
+  text-transform: uppercase;
+  letter-spacing: 0.4em;
+  font-size: 0.65rem;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.finalize-scorecard__table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.finalize-scorecard__table th,
+.finalize-scorecard__table td {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 10px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
+}
+.finalize-scorecard__table th {
+  font-size: 0.75rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+.finalize-scorecard__player-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.finalize-scorecard__player-checkbox {
+  accent-color: #00ffa3;
+  width: 18px;
+  height: 18px;
+}
+.finalize-scorecard__points-col {
+  font-weight: 600;
+}
+.finalize-scorecard__bonus-col {
+  width: 42%;
+  vertical-align: top;
+}
+.finalize-scorecard__bonus-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.finalize-scorecard__bonus-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+.finalize-scorecard__bonus-option input {
+  margin-top: 3px;
+  accent-color: #00ffa3;
+}
+.finalize-scorecard__bonus-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.85rem;
+}
+.finalize-scorecard__bonus-text small {
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+}
+.finalize-scorecard__progress {
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  margin-top: -4px;
+}
 .cleanup-actions {
   justify-content: flex-start;
 }

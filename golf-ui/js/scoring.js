@@ -13,6 +13,7 @@ const state = {
   matchHoleEntries: {},
   courseName: "Scoring",
   playerCards: {},
+  saving: false,
 };
 
 const overlay = document.getElementById("codeOverlay");
@@ -191,7 +192,7 @@ function renderScores() {
       state.selectedPlayerId = player.id;
       renderScores();
     });
-    scoreboardList.appendChild(button);
+  scoreboardList.appendChild(button);
   });
 }
 
@@ -303,78 +304,93 @@ function parseHoleScore(value) {
   return Number.isInteger(parsed) ? parsed : null;
 }
 
+function isHoleReadyForSubmit() {
+  if (!state.players.length || !state.matches.length) {
+    return false;
+  }
+  return state.players.every((player) => parseHoleScore(state.scores[player.id]) !== null);
+}
+
 async function saveCurrentHole() {
-  if (!state.matches.length) {
-    alert("Load a match code first.");
+  if (state.saving) {
     return;
   }
-  if (!state.hole) {
-    alert("Select a hole to save.");
-    return;
-  }
-  const holeNumber = state.hole.number;
-  for (const match of state.matches) {
-    const matchPlayers = state.players.filter((player) => player.matchKey === match.match_key);
-    if (!matchPlayers.length) {
-      alert("Each match requires players before scoring.");
+  state.saving = true;
+  try {
+    if (!state.matches.length) {
+      alert("Load a match code first.");
       return;
     }
-    const teamTotals = new Map();
-    const perPlayerScores = {};
-    for (const player of matchPlayers) {
-      const scoreValue = parseHoleScore(state.scores[player.id]);
-      if (scoreValue === null) {
-        alert("Enter valid scores for all players before saving.");
+    if (!state.hole) {
+      alert("Select a hole to save.");
+      return;
+    }
+    const holeNumber = state.hole.number;
+    for (const match of state.matches) {
+      const matchPlayers = state.players.filter((player) => player.matchKey === match.match_key);
+      if (!matchPlayers.length) {
+        alert("Each match requires players before scoring.");
         return;
       }
-      perPlayerScores[player.playerIndex] = scoreValue;
-      const teamIndex =
-        typeof player.teamIndex === "number" ? player.teamIndex : player.playerIndex < 2 ? 0 : 1;
-      teamTotals.set(teamIndex, (teamTotals.get(teamIndex) ?? 0) + scoreValue);
+      const teamTotals = new Map();
+      const perPlayerScores = {};
+      for (const player of matchPlayers) {
+        const scoreValue = parseHoleScore(state.scores[player.id]);
+        if (scoreValue === null) {
+          alert("Enter valid scores for all players before saving.");
+          return;
+        }
+        perPlayerScores[player.playerIndex] = scoreValue;
+        const teamIndex =
+          typeof player.teamIndex === "number" ? player.teamIndex : player.playerIndex < 2 ? 0 : 1;
+        teamTotals.set(teamIndex, (teamTotals.get(teamIndex) ?? 0) + scoreValue);
+      }
+      const aScore = teamTotals.get(0);
+      const bScore = teamTotals.get(1);
+      if (aScore === undefined || bScore === undefined) {
+        alert("Each match needs two teams to submit scores.");
+        return;
+      }
+      const payload = {
+        holes: [
+          {
+            hole_number: holeNumber,
+            player_a_score: perPlayerScores[0] ?? 0,
+            player_b_score: perPlayerScores[1] ?? 0,
+            player_c_score: perPlayerScores[2] ?? 0,
+            player_d_score: perPlayerScores[3] ?? 0,
+          },
+        ],
+      };
+      const response = await fetch(`/matches/${match.match_id}/holes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        const detail = result?.detail || `Unable to save scores for ${match.match_key}.`;
+        alert(detail);
+        return;
+      }
+      state.matchHoleEntries[match.match_key] = state.matchHoleEntries[match.match_key] || [];
+      const chapter = state.matchHoleEntries[match.match_key][state.holeIndex] || {};
+      const existingScores = chapter.player_scores || [];
+      const updatedPlayerScores = [0, 1, 2, 3].map((index) => ({
+        ...(existingScores[index] || {}),
+        gross: perPlayerScores[index] ?? 0,
+        net: perPlayerScores[index] ?? 0,
+      }));
+      chapter.player_scores = updatedPlayerScores;
+      state.matchHoleEntries[match.match_key][state.holeIndex] = chapter;
     }
-    const aScore = teamTotals.get(0);
-    const bScore = teamTotals.get(1);
-    if (aScore === undefined || bScore === undefined) {
-      alert("Each match needs two teams to submit scores.");
-      return;
-    }
-    const payload = {
-      holes: [
-        {
-          hole_number: holeNumber,
-          player_a_score: perPlayerScores[0] ?? 0,
-          player_b_score: perPlayerScores[1] ?? 0,
-          player_c_score: perPlayerScores[2] ?? 0,
-          player_d_score: perPlayerScores[3] ?? 0,
-        },
-      ],
-    };
-    const response = await fetch(`/matches/${match.match_id}/holes`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const result = await response.json().catch(() => null);
-    if (!response.ok) {
-      const detail = result?.detail || `Unable to save scores for ${match.match_key}.`;
-      alert(detail);
-      return;
-    }
-    state.matchHoleEntries[match.match_key] = state.matchHoleEntries[match.match_key] || [];
-    const chapter = state.matchHoleEntries[match.match_key][state.holeIndex] || {};
-    const existingScores = chapter.player_scores || [];
-    const updatedPlayerScores = [0, 1, 2, 3].map((index) => ({
-      ...(existingScores[index] || {}),
-      gross: perPlayerScores[index] ?? 0,
-      net: perPlayerScores[index] ?? 0,
-    }));
-    chapter.player_scores = updatedPlayerScores;
-    state.matchHoleEntries[match.match_key][state.holeIndex] = chapter;
+    state.originalScores = { ...state.scores };
+    alert("Scores saved.");
+    refreshStandingsCache();
+    proceedToNextHoleAfterSave();
+  } finally {
+    state.saving = false;
   }
-  state.originalScores = { ...state.scores };
-  alert("Scores saved.");
-  refreshStandingsCache();
-  proceedToNextHoleAfterSave();
 }
 
 function focusPlayerA() {
