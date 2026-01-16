@@ -64,22 +64,14 @@
             </a>
             <div class="scheduled-match-card__quick-actions">
               {% if show_finalize %}
-                <form
-                  data-finalize-match-form="{{ match.id }}"
-                  class="match-actions__form"
-                  method="post"
-                  action="/matches/{{ match.id }}/finalize"
+                <button
+                  type="button"
+                  class="pill-link pill-link--finalize"
+                  data-finalize-match-id="{{ match.id }}"
+                  data-finalize-match-key="{{ match.match_key }}"
                 >
-                  <input type="hidden" name="redirect" value="/admin/scheduled_matches" />
-                  <button
-                    type="submit"
-                    class="pill-link pill-link--finalize"
-                    data-finalize-match="{{ match.id }}"
-                    data-finalize-match-key="{{ match.match_key }}"
-                  >
-                    Finalize
-                  </button>
-                </form>
+                  Finalize
+                </button>
               {% endif %}
               {% if show_reset %}
                 <form
@@ -145,14 +137,33 @@
   </section>
   <script>
     (function () {
-      const forms = document.querySelectorAll("[data-finalize-match-form]");
-      forms.forEach((form) => {
-        form.addEventListener("submit", (event) => {
-          const confirmed = confirm(
-            "Finalizing locks the course, hole data, and points so they cannot change. Continue?"
-          );
-          if (!confirmed) {
-            event.preventDefault();
+      const finalizeButtons = document.querySelectorAll("[data-finalize-match-id]");
+      finalizeButtons.forEach((button) => {
+        button.addEventListener("click", async () => {
+          if (
+            !confirm(
+              "Finalizing locks the course, hole data, and points so they cannot change. Continue?"
+            )
+          ) {
+            return;
+          }
+          button.disabled = true;
+          try {
+            const response = await fetch(`/matches/${button.dataset.finalizeMatchId}/finalize`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: new URLSearchParams({ redirect: "/admin/scheduled_matches" }).toString(),
+            });
+            if (!response.ok) {
+              const error = await response.json().catch(() => ({}));
+              throw new Error(error.detail || "Unable to finalize the match.");
+            }
+            window.location.reload();
+          } catch (error) {
+            alert(error.message || "Unable to finalize the match.");
+            button.disabled = false;
           }
         });
       });
