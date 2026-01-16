@@ -201,12 +201,14 @@ body.popup-open {
 }
 
 .top-nav__admin-menu,
-.top-nav__scoring-menu {
+.top-nav__scoring-menu,
+.top-nav__tournament-menu {
   position: relative;
 }
 
 .top-nav__admin-toggle,
-.top-nav__scoring-toggle {
+.top-nav__scoring-toggle,
+.top-nav__tournament-toggle {
   all: unset;
   cursor: pointer;
   display: inline-flex;
@@ -225,14 +227,18 @@ body.popup-open {
 .top-nav__admin-toggle:hover,
 .top-nav__admin-toggle:focus-visible,
 .top-nav__scoring-toggle:hover,
-.top-nav__scoring-toggle:focus-visible {
+.top-nav__scoring-toggle:focus-visible,
+.top-nav__tournament-toggle:hover,
+.top-nav__tournament-toggle:focus-visible {
   border-color: rgba(0, 255, 163, 0.35);
 }
 
 .top-nav__admin-toggle::-webkit-details-marker,
 .top-nav__admin-toggle::marker,
 .top-nav__scoring-toggle::-webkit-details-marker,
-.top-nav__scoring-toggle::marker {
+.top-nav__scoring-toggle::marker,
+.top-nav__tournament-toggle::-webkit-details-marker,
+.top-nav__tournament-toggle::marker {
   display: none;
 }
 
@@ -307,7 +313,8 @@ body.popup-open {
 }
 
 .top-nav__admin-items,
-.top-nav__scoring-items {
+.top-nav__scoring-items,
+.top-nav__tournament-items {
   position: absolute;
   right: 0;
   top: calc(100% + 10px);
@@ -324,7 +331,8 @@ body.popup-open {
 }
 
 .top-nav__admin-item,
-.top-nav__scoring-item {
+.top-nav__scoring-item,
+.top-nav__tournament-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -340,24 +348,29 @@ body.popup-open {
 .top-nav__admin-item:hover,
 .top-nav__admin-item:focus-visible,
 .top-nav__scoring-item:hover,
-.top-nav__scoring-item:focus-visible {
+.top-nav__scoring-item:focus-visible,
+.top-nav__tournament-item:hover,
+.top-nav__tournament-item:focus-visible {
   border-color: rgba(0, 255, 163, 0.35);
   background: rgba(0, 255, 163, 0.05);
 }
 
 .top-nav__admin-item-icon,
-.top-nav__scoring-item-icon {
+.top-nav__scoring-item-icon,
+.top-nav__tournament-item-icon {
   font-size: 1.1rem;
 }
 
 .top-nav__admin-item-title,
-.top-nav__scoring-item-title {
+.top-nav__scoring-item-title,
+.top-nav__tournament-item-title {
   display: block;
   font-weight: 600;
 }
 
 .top-nav__admin-item-subtitle,
-.top-nav__scoring-item-subtitle {
+.top-nav__scoring-item-subtitle,
+.top-nav__tournament-item-subtitle {
   font-size: 0.65rem;
   letter-spacing: 0.35em;
   text-transform: uppercase;

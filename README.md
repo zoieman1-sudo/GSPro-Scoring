@@ -7,7 +7,7 @@ Starter scaffold for the GSPro Tournament Scoring App (FastAPI + Jinja2).
 - Set `DATABASE_URL` and `SCORING_PIN` (see `.env.example`); only the admin/admin setup pages still require the PIN, while scoring submissions are open for now.
 - Run `python -m app.seed_db` once before starting the server to create the schema and a baseline tournament so matches can be activated without hitting missing-table errors.
 - Run `python -m app.demo_seed` if you want the demo tournament and players seeded before you open the UI; the FastAPI startup already executes this, but rerunning the script refreshes the demo fixtures.
-- Run FastAPI app locally with uvicorn.
+- Run FastAPI app locally with `python -m app.server`, the launcher that wraps `uvicorn` and toggles HTTPS when `SSL_CERT_FILE`/`SSL_KEY_FILE` point at valid PEM files.
 - Submit a few match scores via the primary scoring experience (`/` or `/scoring`); the `/matches/{id}` view lets you inspect hole-by-hole entries stored in `hole_scores`.
 - Visit `/standings` to see the updated division leaderboard rendered as the familiar tabular format used in the `dashboard` sheet from `10-man_sim_golf_tournament_scoring_sheet_v2_single_round_robin_playoffs.xlsx`.
 
@@ -16,6 +16,7 @@ Starter scaffold for the GSPro Tournament Scoring App (FastAPI + Jinja2).
 - `docker compose up --build` (this now starts a `postgres:15` service with the configured password so the app can connect immediately).  
 - The app automatically runs `app.demo_seed` on startup (ensuring the demo event with player pairings and the `DEMOGROUP` definition exists), but you can still exec into the container and rerun `python -m app.demo_seed` if you need to refresh that sample data.
 - The app now publishes on port `18000` (`http://localhost:18000`) and Postgres is exposed as `localhost:15433`; if you connect from an external tool (pgAdmin, psql, etc.) use those host ports when specifying the service.
+- To enable HTTPS in Docker, bind-mount or copy your certificate/key into the container and set `SSL_CERT_FILE`/`SSL_KEY_FILE` in `.env` (for example `SSL_CERT_FILE=/certs/server.crt` and `SSL_KEY_FILE=/certs/server.key`). The launcher honors the same env vars and will publish HTTPS on whichever host port you expose (e.g., `https://localhost:18000` once you swap the URL scheme).
 
 ## Running prod and dev simultaneously
 
@@ -48,5 +49,18 @@ Each stack is tied to its Compose project name, so container identifiers keep th
 - Our Compose stack now includes a Postgres service configured with `postgres/change_me` and `gspro_scoring`; update `DATABASE_URL` if you want to point at some other database.
 - The app creates the `match_results` table on startup if it does not exist.
 - pgAdmin is now attached to the `pgadmin` profile, so start it via `docker compose --profile pgadmin up -d` and browse `http://localhost:5050` (login `pgadmin@gspro.local`/`change_me`). Connect to `host=db`, port `5432`, database `gspro_scoring` and you’ll have GUI access to `hole_scores`, `match_results`, etc.
+
+## HTTPS support
+
+Set `SSL_CERT_FILE` and `SSL_KEY_FILE` to PEM files you control and the `python -m app.server` entry point hands those files to `uvicorn` as the TLS certificate and key. You can also expose an intermediate CA bundle via `SSL_CA_FILE` or unlock encrypted keys with `SSL_KEY_PASSWORD`.
+
+For a quick self-signed cert:
+
+```bash
+openssl req -x509 -nodes -newkey rsa:4096 -keyout server.key -out server.crt -days 365 -subj "/CN=localhost"
+SSL_CERT_FILE=server.crt SSL_KEY_FILE=server.key python -m app.server
+```
+
+If you prefer the previous `uvicorn` CLI, pass `--ssl-certfile`/`--ssl-keyfile` manually (`uvicorn app.main:app ... --ssl-certfile server.crt --ssl-keyfile server.key`). The new module simply wraps the same arguments so other tooling keeps working.
 
 This repo is initialized by Codex and follows the canonical context provided by the user.

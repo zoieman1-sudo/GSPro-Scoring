@@ -223,3 +223,57 @@ if (courseSearchForm && courseSearchInput) {
     }
   });
 }
+
+const backupButton = document.getElementById("backupCreateButton");
+const backupLocationInput = document.getElementById("backupLocationInput");
+const backupStatus = document.getElementById("backupStatus");
+
+const setBackupStatus = (message, isError = false) => {
+  if (!backupStatus) return;
+  backupStatus.textContent = message;
+  backupStatus.classList.toggle("backup-card__status--error", isError);
+  backupStatus.classList.toggle("backup-card__status--success", !isError && !!message);
+};
+
+if (backupButton && backupLocationInput) {
+  backupButton.addEventListener("click", async () => {
+    const baseText = backupButton.textContent;
+    const payload = {
+      save_location: backupLocationInput.value.trim(),
+    };
+    backupButton.disabled = true;
+    backupButton.textContent = "Backing up…";
+    setBackupStatus("Creating backup…");
+    try {
+      const response = await fetch("/api/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || data.error || "Unable to create backup.");
+      }
+      setBackupStatus(`Saved: ${data.path}`, false);
+    } catch (error) {
+      setBackupStatus(
+        error instanceof Error ? error.message : "Backup failed.",
+        true
+      );
+    } finally {
+      backupButton.disabled = false;
+      backupButton.textContent = baseText;
+    }
+  });
+}
+
+const navDetails = document.querySelectorAll(
+  ".top-nav__scoring-menu, .top-nav__tournament-menu, .top-nav__admin-menu"
+);
+document.addEventListener("click", (event) => {
+  navDetails.forEach((detail) => {
+    if (!detail.contains(event.target)) {
+      detail.removeAttribute("open");
+    }
+  });
+});

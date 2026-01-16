@@ -18,11 +18,11 @@
           <span class="top-nav__subline">Tournament operations</span>
         </div>
         <div class="top-nav__actions">
-          <details class="top-nav__scoring-menu">
-            <summary class="top-nav__scoring-toggle">
-              <span class="top-nav__scoring-icon" aria-hidden="true">⛳️</span>
-              Scoring
-            </summary>
+        <details class="top-nav__scoring-menu">
+          <summary class="top-nav__scoring-toggle">
+            <span class="top-nav__scoring-icon" aria-hidden="true">⛳️</span>
+            Scoring
+          </summary>
             <div class="top-nav__scoring-items">
               <a class="top-nav__scoring-item" href="/admin/match_setup">
                 <span class="top-nav__scoring-item-icon" aria-hidden="true">🧩</span>
@@ -52,9 +52,38 @@
                   <span class="top-nav__scoring-item-subtitle">standings</span>
                 </div>
               </a>
-            </div>
-          </details>
-          <details class="top-nav__admin-menu">
+          </div>
+        </details>
+        <details class="top-nav__tournament-menu">
+          <summary class="top-nav__tournament-toggle">
+            <span class="top-nav__admin-icon" aria-hidden="true">🏟️</span>
+            Tournament
+          </summary>
+          <div class="top-nav__tournament-items">
+            <a class="top-nav__tournament-item" href="/admin/tournament_setup2">
+              <span class="top-nav__tournament-item-icon" aria-hidden="true">🏆</span>
+              <div>
+                <span class="top-nav__tournament-item-title">Tournament setup</span>
+                <span class="top-nav__tournament-item-subtitle">tournament_setup2</span>
+              </div>
+            </a>
+            <a class="top-nav__tournament-item" href="/admin/player_entry">
+              <span class="top-nav__tournament-item-icon" aria-hidden="true">👤</span>
+              <div>
+                <span class="top-nav__tournament-item-title">Player entry</span>
+                <span class="top-nav__tournament-item-subtitle">player_entry</span>
+              </div>
+            </a>
+            <a class="top-nav__tournament-item" href="/admin/setup/course">
+              <span class="top-nav__tournament-item-icon" aria-hidden="true">🗺️</span>
+              <div>
+                <span class="top-nav__tournament-item-title">Courses</span>
+                <span class="top-nav__tournament-item-subtitle">setup/course</span>
+              </div>
+            </a>
+          </div>
+        </details>
+        <details class="top-nav__admin-menu">
             <summary class="top-nav__admin-toggle">
               <span class="top-nav__admin-icon" aria-hidden="true">⚙️</span>
               Admin
@@ -72,34 +101,20 @@
                   <span class="top-nav__admin-item-subtitle">active_tournament</span>
                 </div>
               </a>
-              <a class="top-nav__admin-item" href="/admin/tournament_setup2">
-                <span class="top-nav__admin-item-icon" aria-hidden="true">🏆</span>
+              <a class="top-nav__admin-item" href="/admin/match_results">
+                <span class="top-nav__admin-item-icon" aria-hidden="true">🧹</span>
                 <div>
-                  <span class="top-nav__admin-item-title">Tournament setup</span>
-                  <span class="top-nav__admin-item-subtitle">tournament_setup2</span>
+                  <span class="top-nav__admin-item-title">Match cleanup</span>
+                  <span class="top-nav__admin-item-subtitle">match_results</span>
                 </div>
               </a>
-              <a class="top-nav__admin-item" href="/admin/player_entry">
-                <span class="top-nav__admin-item-icon" aria-hidden="true">👤</span>
+              <a class="top-nav__admin-item" href="/admin">
+                <span class="top-nav__admin-item-icon" aria-hidden="true">🗄️</span>
                 <div>
-                  <span class="top-nav__admin-item-title">Player entry</span>
-                  <span class="top-nav__admin-item-subtitle">player_entry</span>
+                  <span class="top-nav__admin-item-title">Backups</span>
+                  <span class="top-nav__admin-item-subtitle">admin</span>
                 </div>
               </a>
-            <a class="top-nav__admin-item" href="/admin/setup/course">
-              <span class="top-nav__admin-item-icon" aria-hidden="true">🗺️</span>
-              <div>
-                <span class="top-nav__admin-item-title">Courses</span>
-                <span class="top-nav__admin-item-subtitle">setup/course</span>
-              </div>
-            </a>
-            <a class="top-nav__admin-item" href="/admin/match_results">
-              <span class="top-nav__admin-item-icon" aria-hidden="true">🧹</span>
-              <div>
-                <span class="top-nav__admin-item-title">Match cleanup</span>
-                <span class="top-nav__admin-item-subtitle">match_results</span>
-              </div>
-            </a>
             <button
               class="top-nav__admin-item"
               type="button"

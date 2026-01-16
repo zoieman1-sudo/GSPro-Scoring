@@ -1,13 +1,16 @@
 import json
+import os
 import re
+import subprocess
+import time
 import zipfile
 import random
 import string
 from collections import defaultdict
+from datetime import datetime
 from itertools import zip_longest
 from pathlib import Path
 from xml.etree import ElementTree as ET
-from datetime import datetime
 
 from fastapi import FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -87,12 +90,20 @@ from app.migrations import apply_migrations
 
 app = FastAPI()
 
+BACKUP_ROOT = Path("backups")
+BACKUP_ROOT.mkdir(parents=True, exist_ok=True)
+DEFAULT_BACKUP_LOCATION = "gspro"
+
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.mount("/golf-ui", StaticFiles(directory="golf-ui"), name="golf-ui")
 templates = Jinja2Templates(directory="app/templates")
 settings = load_settings()
 class ActiveTournamentPayload(BaseModel):
     tournament_id: int | None = None
+
+
+class BackupPayload(BaseModel):
+    save_location: str | None = None
 
 
 DEFAULT_TOURNAMENT_SETTINGS = {
@@ -1580,6 +1591,18 @@ class ScorePayload(BaseModel):
     player_b_points: int
 
 
+@app.post("/api/backup")
+async def api_create_backup(payload: BackupPayload):
+    backup_path = _run_backup(payload.save_location)
+    relative_path = backup_path.relative_to(BACKUP_ROOT).as_posix()
+    sanitized_location = _sanitize_backup_location(payload.save_location)
+    return {
+        "path": relative_path,
+        "location": sanitized_location,
+        "message": "Backup successfully created.",
+    }
+
+
 @app.post("/api/scores")
 async def api_scores(request: Request):
     try:
@@ -1682,13 +1705,87 @@ def _admin_context(
         "pin": pin,
         "results": [],
         "status": status_message,
+        "backups": [],
+        "default_backup_location": DEFAULT_BACKUP_LOCATION,
     }
     if not authorized:
         context["status"] = context["status"] or "Invalid or missing PIN."
         return context
 
     context["results"] = fetch_recent_results(settings.database_url, limit=20)
+    context["backups"] = _list_backup_entries(limit=10)
     return context
+
+
+def _sanitize_backup_location(value: str | None) -> str:
+    if not value:
+        return DEFAULT_BACKUP_LOCATION
+    normalized = value.strip()
+    if not normalized:
+        return DEFAULT_BACKUP_LOCATION
+    segments = []
+    for part in re.split(r"[\\/]+", normalized):
+        clean = re.sub(r"[^A-Za-z0-9._-]+", "_", part)
+        if clean and clean not in (".", ".."):
+            segments.append(clean)
+    if not segments:
+        return DEFAULT_BACKUP_LOCATION
+    return "/".join(segments)
+
+
+def _list_backup_entries(limit: int = 10) -> list[dict]:
+    entries: list[tuple[Path, float]] = []
+    if not BACKUP_ROOT.exists():
+        return []
+    for path in BACKUP_ROOT.rglob("*.sql"):
+        try:
+            stat = path.stat()
+        except (OSError, FileNotFoundError):
+            continue
+        entries.append((path, stat.st_mtime))
+    entries.sort(key=lambda item: item[1], reverse=True)
+    results: list[dict] = []
+    for path, _ in entries[:limit]:
+        try:
+            stat = path.stat()
+        except (OSError, FileNotFoundError):
+            continue
+        relative = path.relative_to(BACKUP_ROOT).as_posix()
+        size_kb = stat.st_size / 1024
+        results.append(
+            {
+                "relative_path": relative,
+                "size": f"{size_kb:.1f} KB",
+                "modified_at": datetime.utcfromtimestamp(stat.st_mtime).strftime(
+                    "%Y-%m-%d %H:%M:%S UTC"
+                ),
+            }
+        )
+    return results
+
+
+def _run_backup(save_location: str | None) -> Path:
+    target_folder = BACKUP_ROOT / _sanitize_backup_location(save_location)
+    target_folder.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    backup_file = target_folder / f"backup-{timestamp}.sql"
+    try:
+        with backup_file.open("wb") as fp:
+            subprocess.run(
+                ["pg_dump", settings.database_url],
+                stdout=fp,
+                stderr=subprocess.PIPE,
+                check=True,
+            )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail="pg_dump is unavailable on the server.") from exc
+    except subprocess.CalledProcessError as exc:
+        error_text = (exc.stderr or b"").decode("utf-8", errors="ignore").strip()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Backup failed: {error_text or 'pg_dump reported an error.'}",
+        ) from exc
+    return backup_file
 
 
 def _setup_context(
