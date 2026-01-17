@@ -46,6 +46,220 @@ def _json_value(value: dict | None) -> Optional[str]:
     return json.dumps(value) if value is not None else None
 
 
+SCHEMA_STATEMENTS: Sequence[str] = [
+    """
+    CREATE TABLE IF NOT EXISTS tournaments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT,
+        status TEXT NOT NULL DEFAULT 'upcoming',
+        settings TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS players (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        division TEXT NOT NULL,
+        handicap INTEGER NOT NULL DEFAULT 0,
+        seed INTEGER NOT NULL DEFAULT 0,
+        tournament_id INTEGER REFERENCES tournaments(id)
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS courses (
+        id INTEGER PRIMARY KEY,
+        club_name TEXT NOT NULL,
+        course_name TEXT NOT NULL,
+        city TEXT,
+        state TEXT,
+        country TEXT,
+        latitude REAL,
+        longitude REAL,
+        raw TEXT
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS course_tees (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+        gender TEXT NOT NULL,
+        tee_name TEXT NOT NULL,
+        course_rating REAL,
+        slope_rating INTEGER,
+        bogey_rating REAL,
+        total_yards INTEGER,
+        total_meters INTEGER,
+        number_of_holes INTEGER,
+        par_total INTEGER,
+        front_course_rating REAL,
+        back_course_rating REAL,
+        front_slope_rating INTEGER,
+        back_slope_rating INTEGER,
+        front_bogey_rating REAL,
+        back_bogey_rating REAL,
+        UNIQUE (course_id, gender, tee_name)
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS course_tee_holes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        course_tee_id INTEGER NOT NULL REFERENCES course_tees(id) ON DELETE CASCADE,
+        hole_number INTEGER NOT NULL,
+        par INTEGER NOT NULL,
+        handicap INTEGER NOT NULL,
+        yardage INTEGER,
+        UNIQUE (course_tee_id, hole_number)
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS matches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tournament_id INTEGER NOT NULL REFERENCES tournaments(id),
+        match_key TEXT NOT NULL,
+        division TEXT NOT NULL DEFAULT 'Open',
+        player_a_id INTEGER NOT NULL REFERENCES players(id),
+        player_b_id INTEGER NOT NULL REFERENCES players(id),
+        player_c_id INTEGER REFERENCES players(id),
+        player_d_id INTEGER REFERENCES players(id),
+        course_id INTEGER REFERENCES courses(id),
+        course_tee_id INTEGER REFERENCES course_tees(id),
+        player_a_handicap INTEGER NOT NULL DEFAULT 0,
+        player_b_handicap INTEGER NOT NULL DEFAULT 0,
+        hole_count INTEGER NOT NULL DEFAULT 18,
+        start_hole INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'not_started',
+        finalized INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (tournament_id, match_key)
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS match_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        match_name TEXT NOT NULL,
+        player_a_name TEXT NOT NULL,
+        player_b_name TEXT NOT NULL,
+        match_key TEXT NOT NULL,
+        match_code TEXT NOT NULL,
+        player_a_points REAL NOT NULL,
+        player_b_points REAL NOT NULL,
+        player_a_bonus REAL NOT NULL,
+        player_b_bonus REAL NOT NULL,
+        player_a_total REAL NOT NULL,
+        player_b_total REAL NOT NULL,
+        winner TEXT NOT NULL,
+        course_id INTEGER,
+        course_tee_id INTEGER,
+        tournament_id INTEGER,
+        player_a_handicap INTEGER NOT NULL DEFAULT 0,
+        player_b_handicap INTEGER NOT NULL DEFAULT 0,
+        hole_count INTEGER NOT NULL DEFAULT 18,
+        start_hole INTEGER NOT NULL DEFAULT 1,
+        finalized INTEGER NOT NULL DEFAULT 0,
+        player_a_id INTEGER,
+        player_b_id INTEGER,
+        player_c_id INTEGER,
+        player_d_id INTEGER,
+        course_snapshot TEXT,
+        scorecard_snapshot TEXT,
+        submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS match_bonus (
+        match_result_id INTEGER PRIMARY KEY REFERENCES match_results(id) ON DELETE CASCADE,
+        player_a_bonus REAL NOT NULL DEFAULT 0,
+        player_b_bonus REAL NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS hole_scores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        match_result_id INTEGER NOT NULL REFERENCES match_results(id) ON DELETE CASCADE,
+        hole_number INTEGER NOT NULL,
+        player_a_score INTEGER NOT NULL,
+        player_b_score INTEGER NOT NULL,
+        player_c_score INTEGER NOT NULL DEFAULT 0,
+        player_d_score INTEGER NOT NULL DEFAULT 0,
+        player_a_net REAL,
+        player_b_net REAL,
+        player_c_net REAL,
+        player_d_net REAL,
+        recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS player_hole_scores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        match_result_id INTEGER NOT NULL REFERENCES match_results(id) ON DELETE CASCADE,
+        match_key TEXT NOT NULL,
+        player_index INTEGER NOT NULL,
+        player_side TEXT NOT NULL,
+        team_index INTEGER NOT NULL,
+        player_name TEXT,
+        opponent_name TEXT,
+        hole_number INTEGER NOT NULL,
+        gross_score INTEGER NOT NULL,
+        stroke_adjustment REAL NOT NULL DEFAULT 0,
+        course_id INTEGER,
+        course_tee_id INTEGER,
+        player_handicap INTEGER,
+        net_score REAL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (match_result_id, player_index, hole_number)
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS tournament_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS course_holes (
+        hole_number INTEGER PRIMARY KEY,
+        par INTEGER NOT NULL,
+        handicap INTEGER NOT NULL
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS tournament_event_settings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        UNIQUE(tournament_id, key)
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS standings_cache (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+        player_name TEXT NOT NULL,
+        division TEXT NOT NULL,
+        seed INTEGER NOT NULL DEFAULT 0,
+        matches INTEGER NOT NULL DEFAULT 0,
+        wins INTEGER NOT NULL DEFAULT 0,
+        ties INTEGER NOT NULL DEFAULT 0,
+        losses INTEGER NOT NULL DEFAULT 0,
+        points_for REAL NOT NULL DEFAULT 0,
+        points_against REAL NOT NULL DEFAULT 0,
+        point_diff REAL NOT NULL DEFAULT 0,
+        holes_played INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (tournament_id, player_name)
+    );
+    """,
+]
+
+
 @contextmanager
 def _write_conn(database_url: str):
     conn = _connect(database_url)
@@ -69,221 +283,8 @@ def _ensure_submitted_at_column(conn: sqlite3.Connection) -> None:
 
 
 def ensure_schema(database_url: str) -> None:
-    statements = [
-        """
-        CREATE TABLE IF NOT EXISTS tournaments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            description TEXT,
-            status TEXT NOT NULL DEFAULT 'upcoming',
-            settings TEXT NOT NULL DEFAULT '{}',
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS players (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            division TEXT NOT NULL,
-            handicap INTEGER NOT NULL DEFAULT 0,
-            seed INTEGER NOT NULL DEFAULT 0,
-            tournament_id INTEGER REFERENCES tournaments(id)
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS courses (
-            id INTEGER PRIMARY KEY,
-            club_name TEXT NOT NULL,
-            course_name TEXT NOT NULL,
-            city TEXT,
-            state TEXT,
-            country TEXT,
-            latitude REAL,
-            longitude REAL,
-            raw TEXT
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS course_tees (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-            gender TEXT NOT NULL,
-            tee_name TEXT NOT NULL,
-            course_rating REAL,
-            slope_rating INTEGER,
-            bogey_rating REAL,
-            total_yards INTEGER,
-            total_meters INTEGER,
-            number_of_holes INTEGER,
-            par_total INTEGER,
-            front_course_rating REAL,
-            back_course_rating REAL,
-            front_slope_rating INTEGER,
-            back_slope_rating INTEGER,
-            front_bogey_rating REAL,
-            back_bogey_rating REAL,
-            UNIQUE (course_id, gender, tee_name)
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS course_tee_holes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            course_tee_id INTEGER NOT NULL REFERENCES course_tees(id) ON DELETE CASCADE,
-            hole_number INTEGER NOT NULL,
-            par INTEGER NOT NULL,
-            handicap INTEGER NOT NULL,
-            yardage INTEGER,
-            UNIQUE (course_tee_id, hole_number)
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS matches (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tournament_id INTEGER NOT NULL REFERENCES tournaments(id),
-            match_key TEXT NOT NULL,
-            division TEXT NOT NULL DEFAULT 'Open',
-            player_a_id INTEGER NOT NULL REFERENCES players(id),
-            player_b_id INTEGER NOT NULL REFERENCES players(id),
-            player_c_id INTEGER REFERENCES players(id),
-            player_d_id INTEGER REFERENCES players(id),
-            course_id INTEGER REFERENCES courses(id),
-            course_tee_id INTEGER REFERENCES course_tees(id),
-            player_a_handicap INTEGER NOT NULL DEFAULT 0,
-            player_b_handicap INTEGER NOT NULL DEFAULT 0,
-            hole_count INTEGER NOT NULL DEFAULT 18,
-            start_hole INTEGER NOT NULL DEFAULT 1,
-            status TEXT NOT NULL DEFAULT 'not_started',
-            finalized INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-            UNIQUE (tournament_id, match_key)
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS match_results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            match_name TEXT NOT NULL,
-            player_a_name TEXT NOT NULL,
-            player_b_name TEXT NOT NULL,
-            match_key TEXT NOT NULL,
-            match_code TEXT NOT NULL,
-            player_a_points REAL NOT NULL,
-            player_b_points REAL NOT NULL,
-            player_a_bonus REAL NOT NULL,
-            player_b_bonus REAL NOT NULL,
-            player_a_total REAL NOT NULL,
-            player_b_total REAL NOT NULL,
-            winner TEXT NOT NULL,
-            course_id INTEGER,
-            course_tee_id INTEGER,
-            tournament_id INTEGER,
-            player_a_handicap INTEGER NOT NULL DEFAULT 0,
-            player_b_handicap INTEGER NOT NULL DEFAULT 0,
-            hole_count INTEGER NOT NULL DEFAULT 18,
-            start_hole INTEGER NOT NULL DEFAULT 1,
-            finalized INTEGER NOT NULL DEFAULT 0,
-            player_a_id INTEGER,
-            player_b_id INTEGER,
-            player_c_id INTEGER,
-            player_d_id INTEGER,
-            course_snapshot TEXT,
-            scorecard_snapshot TEXT,
-            submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS match_bonus (
-            match_result_id INTEGER PRIMARY KEY REFERENCES match_results(id) ON DELETE CASCADE,
-            player_a_bonus REAL NOT NULL DEFAULT 0,
-            player_b_bonus REAL NOT NULL DEFAULT 0,
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS hole_scores (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            match_result_id INTEGER NOT NULL REFERENCES match_results(id) ON DELETE CASCADE,
-            hole_number INTEGER NOT NULL,
-            player_a_score INTEGER NOT NULL,
-            player_b_score INTEGER NOT NULL,
-            player_c_score INTEGER NOT NULL DEFAULT 0,
-            player_d_score INTEGER NOT NULL DEFAULT 0,
-            player_a_net REAL,
-            player_b_net REAL,
-            player_c_net REAL,
-            player_d_net REAL,
-            recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        """,
-
-        """
-        CREATE TABLE IF NOT EXISTS player_hole_scores (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            match_result_id INTEGER NOT NULL REFERENCES match_results(id) ON DELETE CASCADE,
-            match_key TEXT NOT NULL,
-            player_index INTEGER NOT NULL,
-            player_side TEXT NOT NULL,
-            team_index INTEGER NOT NULL,
-            player_name TEXT,
-            opponent_name TEXT,
-            hole_number INTEGER NOT NULL,
-            gross_score INTEGER NOT NULL,
-            stroke_adjustment REAL NOT NULL DEFAULT 0,
-            course_id INTEGER,
-            course_tee_id INTEGER,
-            player_handicap INTEGER,
-            net_score REAL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            UNIQUE (match_result_id, player_index, hole_number)
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS tournament_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS course_holes (
-            hole_number INTEGER PRIMARY KEY,
-            par INTEGER NOT NULL,
-            handicap INTEGER NOT NULL
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS tournament_event_settings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
-            key TEXT NOT NULL,
-            value TEXT NOT NULL,
-            UNIQUE(tournament_id, key)
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS standings_cache (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
-            player_name TEXT NOT NULL,
-            division TEXT NOT NULL,
-            seed INTEGER NOT NULL DEFAULT 0,
-            matches INTEGER NOT NULL DEFAULT 0,
-            wins INTEGER NOT NULL DEFAULT 0,
-            ties INTEGER NOT NULL DEFAULT 0,
-            losses INTEGER NOT NULL DEFAULT 0,
-            points_for REAL NOT NULL DEFAULT 0,
-            points_against REAL NOT NULL DEFAULT 0,
-            point_diff REAL NOT NULL DEFAULT 0,
-            holes_played INTEGER NOT NULL DEFAULT 0,
-            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-            UNIQUE (tournament_id, player_name)
-        );
-        """,
-    ]
     with _write_conn(database_url) as conn:
-        for statement in statements:
+        for statement in SCHEMA_STATEMENTS:
             conn.execute(statement)
         conn.execute(
             """

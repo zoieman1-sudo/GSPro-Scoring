@@ -2438,12 +2438,13 @@ body.popup-open {
 
 .scheduled-matches-panel {
   padding: 28px;
-  background: rgba(7, 12, 28, 0.75);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(235, 239, 255, 0.9));
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   display: flex;
   flex-direction: column;
   gap: 32px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 30px 60px rgba(15, 23, 42, 0.15);
 }
 .scheduled-matches-section {
   display: flex;
@@ -2461,7 +2462,7 @@ body.popup-open {
 }
 .scheduled-matches-section__description {
   margin: 0;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(15, 23, 42, 0.7);
 }
 .scheduled-matches-grid {
   margin-top: 8px;
@@ -2471,10 +2472,12 @@ body.popup-open {
 }
 .scheduled-match-card {
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.02);
-  box-shadow: 0 20px 30px rgba(2, 6, 18, 0.7);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  padding: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(244, 248, 255, 0.9));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 25px 40px rgba(15, 23, 42, 0.15);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -2491,7 +2494,8 @@ body.popup-open {
   text-transform: uppercase;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  color: rgba(15, 23, 42, 0.75);
 }
 .scheduled-match-card__teams {
   display: grid;
@@ -2502,7 +2506,7 @@ body.popup-open {
   margin-bottom: 4px;
   letter-spacing: 0.4em;
   font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(15, 23, 42, 0.6);
   text-transform: uppercase;
 }
 .scheduled-match-card__team-names {
@@ -2511,9 +2515,10 @@ body.popup-open {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  color: rgba(15, 23, 42, 0.9);
 }
 .scheduled-match-card__bullet {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(15, 23, 42, 0.4);
 }
 .scheduled-match-card__footer {
   display: flex;
@@ -2533,16 +2538,16 @@ body.popup-open {
   gap: 6px;
 }
 .scheduled-match-card--finalized {
-  border-color: rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(15, 23, 42, 0.18);
+  background: rgba(248, 249, 255, 0.8);
 }
 .match-actions__form {
   margin: 0;
   display: inline-flex;
 }
-.pill-link--finalize,
-.pill-link--remove {
-  background: rgba(255, 255, 255, 0.15);
+ .pill-link--finalize,
+ .pill-link--remove {
+  background: rgba(15, 23, 42, 0.08);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.35);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);

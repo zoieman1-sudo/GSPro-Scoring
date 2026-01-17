@@ -4,7 +4,7 @@ services:
     ports:
       - "${APP_HOST_PORT:-18000}:8000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-sqlite:///app/DATA/gspro_scoring.db}
+      DATABASE_URL: "sqlite:///app/DATA/gspro_scoring.db"
       SCORING_PIN: ${SCORING_PIN:-1234}
     extra_hosts:
       - "host.docker.internal:host-gateway"

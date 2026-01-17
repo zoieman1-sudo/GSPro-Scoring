@@ -9,7 +9,7 @@ import zipfile
 import random
 import string
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import zip_longest
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -107,6 +107,13 @@ class ActiveTournamentPayload(BaseModel):
 
 class BackupPayload(BaseModel):
     save_location: str | None = None
+
+
+UTC_MINUS_FIVE = timedelta(hours=-5)
+
+
+def _format_utc_minus_five(dt: datetime, fmt: str) -> str:
+    return (dt + UTC_MINUS_FIVE).strftime(fmt)
 
 
 DEFAULT_TOURNAMENT_SETTINGS = {
@@ -1797,9 +1804,29 @@ def _seed_players_from_rows(rows: list[dict], tournament_id: int) -> int:
     return inserted
 
 
+def _player_code(name: str) -> str:
+    clean = re.sub(r"[^A-Za-z0-9]+", " ", name.strip())
+    parts = [p for p in clean.split() if p]
+    if not parts:
+        return "UNKNOWN"
+    initial = parts[0][0].upper()
+    last = parts[-1].capitalize()
+    return f"{initial}{last}"
+
+
+def _generate_match_code(player_a: str, player_b: str, counters: dict[tuple[str, str], int]) -> str:
+    code_a = _player_code(player_a)
+    code_b = _player_code(player_b)
+    ordered = tuple(sorted((code_a, code_b)))
+    count = counters.get(ordered, 0) + 1
+    counters[ordered] = count
+    return f"{code_a}-{code_b}-{count:03d}"
+
+
 def _seed_matches_from_rows(rows: list[dict], tournament_id: int) -> tuple[int, list[str]]:
     inserted = 0
     errors: list[str] = []
+    counters: dict[tuple[str, str], int] = {}
     for idx, row in enumerate(rows, start=1):
         try:
             match_name = _first_value(row, ["match_name", "match", "title"]) or f"Match {idx}"
@@ -1827,6 +1854,8 @@ def _seed_matches_from_rows(rows: list[dict], tournament_id: int) -> tuple[int, 
             hole_count = _safe_int(row.get("hole_count")) or 18
             start_hole = _safe_int(row.get("start_hole")) or 1
             match_code = _first_value(row, ["match_code"])
+            if not match_code:
+                match_code = _generate_match_code(player_a, player_b, counters)
 
             insert_match_result(
                 settings.database_url,
@@ -1899,8 +1928,8 @@ def _list_backup_entries(limit: int = 10) -> list[dict]:
             {
                 "relative_path": relative,
                 "size": f"{size_kb:.1f} KB",
-                "modified_at": datetime.utcfromtimestamp(stat.st_mtime).strftime(
-                    "%Y-%m-%d %H:%M:%S UTC"
+                "modified_at": _format_utc_minus_five(
+                    datetime.utcfromtimestamp(stat.st_mtime), "%Y-%m-%d %H:%M:%S UTC-5"
                 ),
             }
         )
@@ -1910,7 +1939,7 @@ def _list_backup_entries(limit: int = 10) -> list[dict]:
 def _run_backup(save_location: str | None) -> Path:
     target_folder = BACKUP_ROOT / _sanitize_backup_location(save_location)
     target_folder.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    timestamp = _format_utc_minus_five(datetime.utcnow(), "%Y%m%dT%H%M%S-0500")
     backup_file = target_folder / f"backup-{timestamp}.sql"
     try:
         with backup_file.open("wb") as fp:
@@ -4648,7 +4677,7 @@ async def standings_kiosk(request: Request):
         {
             "request": request,
             "divisions": divisions,
-            "last_updated": datetime.utcnow().strftime("%I:%M %p UTC"),
+            "last_updated": _format_utc_minus_five(datetime.utcnow(), "%I:%M %p UTC-5"),
         },
     )
 

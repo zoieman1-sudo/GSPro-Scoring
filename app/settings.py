@@ -12,12 +12,16 @@ class Settings:
 
 
 def _normalize_database_url(value: Optional[str]) -> str:
+    default_url = "sqlite:///app/DATA/gspro_scoring.db"
     if not value:
-        return "sqlite:///app/DATA/gspro_scoring.db"
+        return default_url
     normalized = value.strip()
+    normalized_lower = normalized.lower()
+    if normalized_lower.startswith(("postgresql://", "postgres://", "mysql://", "mariadb://")):
+        return default_url
     if normalized.startswith("sqlite://"):
         return normalized
-    if Path(normalized).suffix:  # treat as direct path
+    if Path(normalized).suffix:
         return f"sqlite:///{normalized}"
     return normalized
 
