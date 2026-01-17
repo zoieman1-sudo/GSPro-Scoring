@@ -1,17 +1,19 @@
 :root {
-  --bg: radial-gradient(circle at 20% -10%, #0b1832, #040915 55%, #010208 100%);
-  --panel: #0d1c34;
-  --panel-soft: rgba(255, 255, 255, 0.04);
-  --panel-bright: rgba(255, 255, 255, 0.08);
-  --text: #f3f4ff;
-  --muted: rgba(243, 244, 255, 0.6);
-  --border: rgba(255, 255, 255, 0.15);
-  --accent: #43e1ff;
-  --accent-strong: #70abff;
-  --shadow: 0 45px 90px rgba(2, 6, 18, 0.65);
+  --bg: linear-gradient(180deg, #f7f9fd, #e7edfb);
+  --panel: #fefefe;
+  --panel-soft: rgba(255, 255, 255, 0.9);
+  --panel-bright: rgba(255, 255, 255, 1);
+  --text: #121630;
+  --muted: rgba(18, 22, 48, 0.6);
+  --border: rgba(18, 22, 48, 0.18);
+  --accent: #1f52d1;
+  --accent-strong: #4b8cff;
+  --shadow: 0 25px 40px rgba(37, 54, 82, 0.12);
   --radius-lg: 38px;
   --radius-md: 24px;
   --radius-pill: 999px;
+  --heading-font: "Libre Baskerville", "Spectral", serif;
+  --body-font: "Inter", "Poppins", sans-serif;
 }
 
 * {
@@ -21,9 +23,18 @@
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: "Poppins", "Libre Baskerville", serif;
+  font-family: var(--body-font);
   background: var(--bg);
   color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+.shell,
+.card,
+.scorecard-panel,
+.scorecard-table,
+.match-scorecard-table {
+  font-family: var(--body-font);
 }
 
 body.popup-open {
@@ -52,13 +63,13 @@ body.popup-open {
 .bg-shapes::before {
   top: -120px;
   right: -70px;
-  background: radial-gradient(circle, rgba(67, 225, 255, 0.35), rgba(0, 0, 0, 0));
+  background: radial-gradient(circle, rgba(44, 110, 247, 0.2), transparent);
 }
 
 .bg-shapes::after {
   bottom: -90px;
   left: -150px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.3), rgba(0, 0, 0, 0));
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.5), transparent);
 }
 
 .shell {
@@ -69,14 +80,14 @@ body.popup-open {
 }
 
 .top-nav {
-  padding: 14px 32px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
-  background: linear-gradient(135deg, rgba(9, 24, 50, 0.95), rgba(2, 8, 25, 0.92));
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(244, 247, 255, 0.8));
   backdrop-filter: blur(18px);
   position: sticky;
   top: 0;
   z-index: 5;
-  box-shadow: 0 32px 60px rgba(2, 6, 18, 0.75);
+  box-shadow: 0 20px 45px rgba(37, 54, 82, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -148,13 +159,13 @@ body.popup-open {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  padding: 7.5px 13.5px;
+  padding: 8px 16px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(27, 36, 51, 0.2);
+  background: rgba(27, 36, 51, 0.08);
   color: var(--text);
   text-decoration: none;
-  font-size: 0.55rem;
+  font-size: 0.6rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
@@ -162,8 +173,8 @@ body.popup-open {
 
 .top-nav__pill.is-active {
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #030812;
-  box-shadow: 0 20px 40px rgba(67, 225, 255, 0.4);
+  color: #fcfdff;
+  box-shadow: 0 16px 30px rgba(44, 110, 247, 0.35);
 }
 
 .top-nav__pill:hover {
@@ -177,27 +188,28 @@ body.popup-open {
   align-items: flex-start;
   gap: 1rem;
   position: absolute;
-  top: 12px;
+  top: 16px;
   right: 32px;
 }
 
 .dashboard-cta {
   padding: 10px 22px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(27, 36, 51, 0.2);
+  background: rgba(255, 255, 255, 0.85);
   color: var(--text);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   letter-spacing: 0.3em;
   text-transform: uppercase;
   cursor: pointer;
   margin-left: auto;
+  box-shadow: 0 12px 24px rgba(37, 54, 82, 0.15);
 }
 
 .dashboard-cta:hover,
 .dashboard-cta:focus-visible {
-  border-color: rgba(0, 255, 163, 0.45);
-  background: rgba(10, 10, 40, 0.85);
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .top-nav__admin-menu,
@@ -216,8 +228,8 @@ body.popup-open {
   gap: 10px;
   padding: 10px 20px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  background: rgba(27, 36, 51, 0.08);
   color: var(--text);
   font-size: 0.7rem;
   letter-spacing: 0.3em;
@@ -230,7 +242,7 @@ body.popup-open {
 .top-nav__scoring-toggle:focus-visible,
 .top-nav__tournament-toggle:hover,
 .top-nav__tournament-toggle:focus-visible {
-  border-color: rgba(0, 255, 163, 0.35);
+  border-color: var(--accent);
 }
 
 .top-nav__admin-toggle::-webkit-details-marker,
@@ -245,7 +257,7 @@ body.popup-open {
 .tournament-picker-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 3, 10, 0.8);
+  background: rgba(247, 249, 255, 0.95);
   display: none;
   align-items: center;
   justify-content: center;
@@ -258,12 +270,12 @@ body.popup-open {
 }
 
 .tournament-picker-card {
-  background: #060c16;
+  background: var(--panel);
   border-radius: var(--radius-lg);
   padding: 32px 28px;
   width: min(420px, 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -271,22 +283,22 @@ body.popup-open {
 
 .tournament-picker-card select {
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  background: rgba(27, 36, 51, 0.05);
   color: var(--text);
   padding: 10px 12px;
   font-size: 0.95rem;
 }
 
 .tournament-picker-card select option {
-  background: rgba(5, 9, 18, 0.95);
+  background: var(--panel);
   color: var(--text);
 }
 
 .tournament-picker-card select option:hover,
 .tournament-picker-card select option:focus {
-  color: #f8fafc;
-  background: rgba(15, 23, 42, 0.95);
+  color: var(--text);
+  background: rgba(44, 110, 247, 0.1);
 }
 
 .tournament-picker-actions {
@@ -321,9 +333,9 @@ body.popup-open {
   width: 260px;
   padding: 12px;
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(3, 10, 28, 0.98);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: 0 16px 30px rgba(37, 54, 82, 0.12);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -341,7 +353,7 @@ body.popup-open {
   text-decoration: none;
   color: var(--text);
   border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(27, 36, 51, 0.05);
   transition: border-color 0.2s ease, background 0.2s ease;
 }
 
@@ -351,8 +363,8 @@ body.popup-open {
 .top-nav__scoring-item:focus-visible,
 .top-nav__tournament-item:hover,
 .top-nav__tournament-item:focus-visible {
-  border-color: rgba(0, 255, 163, 0.35);
-  background: rgba(0, 255, 163, 0.05);
+  border-color: var(--accent);
+  background: rgba(44, 110, 247, 0.08);
 }
 
 .top-nav__admin-item-icon,
@@ -401,7 +413,7 @@ body.popup-open {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(247, 249, 255, 0.95);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
@@ -422,11 +434,11 @@ body.popup-open {
   position: relative;
   width: min(600px, 90%);
   max-height: 90%;
-  background: rgba(7, 12, 28, 0.95);
+  background: var(--panel);
   border-radius: var(--radius-md);
   padding: 26px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 25px 60px rgba(2, 6, 18, 0.85), inset 0 0 30px rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow), inset 0 0 20px rgba(0, 0, 0, 0.05);
   overflow: hidden;
 }
 
@@ -456,8 +468,8 @@ body.popup-open {
   flex: 1;
   padding: 10px 14px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  background: rgba(27, 36, 51, 0.05);
   color: var(--text);
 }
 
@@ -469,7 +481,7 @@ body.popup-open {
   letter-spacing: 0.3em;
   font-size: 0.7rem;
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #030812;
+  color: #fcfdff;
   cursor: pointer;
 }
 
@@ -500,8 +512,8 @@ body.popup-open {
   gap: 12px;
   padding: 12px 14px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--border);
 }
 
 .course-popup__details {
@@ -521,7 +533,7 @@ body.popup-open {
   border: none;
   padding: 8px 18px;
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #030812;
+  color: #fcfdff;
   text-transform: uppercase;
   letter-spacing: 0.3em;
   font-size: 0.65rem;
@@ -552,25 +564,25 @@ body.popup-open {
   text-decoration: none;
   padding: 11px 16px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: transparent;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.9);
   color: var(--text);
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .page-nav a.is-active {
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #030812;
-  box-shadow: 0 18px 30px rgba(67, 225, 255, 0.45);
+  color: #fff;
+  box-shadow: 0 18px 30px rgba(44, 110, 247, 0.2);
   transform: translateX(0);
 }
 
 .card {
-  background: linear-gradient(160deg, rgba(6, 15, 29, 0.95), rgba(11, 25, 47, 0.9));
+  background: var(--panel);
   border-radius: var(--radius-lg);
   padding: 36px;
   border: 1px solid var(--border);
-  box-shadow: var(--shadow), inset 0 0 40px rgba(255, 255, 255, 0.04);
+  box-shadow: var(--shadow);
   animation: rise 0.6s ease-out;
 }
 
@@ -594,15 +606,15 @@ body.popup-open {
   text-transform: uppercase;
   padding: 6px 12px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--border);
   color: var(--text);
   text-decoration: none;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.9);
   transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .edit-roster-btn:hover {
-  background: rgba(67, 225, 255, 0.15);
+  background: rgba(31, 82, 209, 0.12);
   transform: translateY(-1px);
 }
 
@@ -613,7 +625,7 @@ body.popup-open {
   font-size: 0.65rem;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted);
 }
 
 .match-list-filter select {
@@ -691,9 +703,9 @@ body.popup-open {
 
 .status {
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--border);
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.9);
   margin-top: 16px;
 }
 
@@ -710,9 +722,9 @@ body.popup-open {
   gap: 12px;
   padding: 18px 22px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow);
   transition: transform 0.2s ease, border-color 0.2s ease;
   text-decoration: none;
   color: inherit;
@@ -727,13 +739,13 @@ body.popup-open {
 
 .match-list-card {
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(4, 7, 20, 0.8);
+  border: 1px solid var(--border);
+  background: var(--panel);
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow);
 }
 
 .match-list-card__header {
@@ -747,7 +759,7 @@ body.popup-open {
   font-size: 0.75rem;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted);
   margin: 4px 0 0;
 }
 
@@ -826,11 +838,11 @@ body.popup-open {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  background: linear-gradient(180deg, rgba(8, 18, 40, 0.95), rgba(4, 9, 22, 0.95));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(244, 248, 255, 0.95));
   border-radius: var(--radius-lg);
   padding: 32px 30px 28px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45), inset 0 0 30px rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
 }
 
 .scorecard-layout {
@@ -853,9 +865,8 @@ body.popup-open {
 .scorecard-holes-column {
   padding: 0;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.4);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(18, 22, 48, 0.08);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -901,10 +912,10 @@ body.popup-open {
 }
 
 .scorecard-selector {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(27, 36, 51, 0.05);
   border-radius: var(--radius-md);
   padding: 6px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(27, 36, 51, 0.12);
 }
 
 .scorecard-selector label {
@@ -919,12 +930,11 @@ body.popup-open {
   border: none;
   padding: 6px 8px;
   border-radius: var(--radius-md);
-  background: rgba(24, 38, 68, 0.95);
+  background: rgba(255, 255, 255, 0.95);
   color: var(--text);
   font-size: 0.75rem;
   appearance: none;
   font-weight: 600;
-  text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
   min-width: 220px;
 }
 
@@ -935,14 +945,14 @@ body.popup-open {
 
 .scorecard-selector select option {
   font-size: 0.65rem;
-  background: rgba(7, 9, 20, 0.95);
-  color: #f7f7ff;
+  background: var(--panel);
+  color: var(--text);
 }
 
 .scorecard-selector select option:hover,
 .scorecard-selector select option:focus {
-  color: #ffffff;
-  background: rgba(67, 225, 255, 0.18);
+  color: var(--text);
+  background: rgba(67, 110, 247, 0.15);
 }
 
 .scorecard-selector select:focus-visible {
@@ -974,7 +984,7 @@ body.popup-open {
   font-size: 0.75rem;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--muted);
   margin: 6px 0 0 0;
 }
 .scorecard-data__selector {
@@ -994,16 +1004,16 @@ body.popup-open {
   font-size: 0.65rem;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--muted);
   display: inline-flex;
   flex-direction: column;
   gap: 4px;
 }
 .scorecard-data__selector select {
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(4, 6, 16, 0.6);
-  color: #fff;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text);
   padding: 6px 12px;
   font-size: 0.75rem;
   letter-spacing: 0.2em;
@@ -1012,15 +1022,16 @@ body.popup-open {
 .scorecard-select-status {
   font-size: 0.75rem;
   letter-spacing: 0.3em;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--muted);
 }
 
 .group-scorecard-card {
   margin-top: 28px;
   padding: 28px;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  background: var(--panel);
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
 }
 
 .group-scorecard-header {
@@ -1045,10 +1056,9 @@ body.popup-open {
 
 .group-scorecard {
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(27, 36, 51, 0.15);
   padding: 16px;
-  background: rgba(5, 11, 22, 0.85);
-  box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.04);
+  background: rgba(27, 36, 51, 0.05);
 }
 
 .group-scorecard-headline {
@@ -1123,25 +1133,25 @@ body.popup-open {
   font-size: 0.65rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(27, 36, 51, 0.05);
+  border: 1px solid rgba(27, 36, 51, 0.1);
 }
 
 .status-pill--in_progress {
-  background: rgba(255, 199, 44, 0.15);
-  border-color: rgba(255, 199, 44, 0.4);
-  color: #ffc72c;
+  background: rgba(31, 82, 209, 0.12);
+  border-color: rgba(31, 82, 209, 0.3);
+  color: #1f52d1;
 }
 
 .status-pill--not_started {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.35);
+  color: var(--text);
 }
 
 .status-pill--completed {
-  background: rgba(0, 255, 152, 0.12);
-  border-color: rgba(0, 255, 152, 0.35);
-  color: #00ff98;
+  background: rgba(76, 255, 178, 0.15);
+  border-color: rgba(76, 255, 178, 0.3);
+  color: #2eb86f;
 }
 
 .status-detail {
@@ -1158,8 +1168,8 @@ body.popup-open {
 }
 
 .match-status-btn {
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.9);
   border-radius: var(--radius-pill);
   padding: 6px 12px;
   color: inherit;
@@ -1171,11 +1181,12 @@ body.popup-open {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  box-shadow: var(--shadow);
 }
 
 .match-status-btn.active {
-  border-color: rgba(67, 225, 255, 0.6);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+  border-color: var(--accent);
+  box-shadow: 0 8px 16px rgba(44, 110, 247, 0.2);
 }
 
 .match-status-btn__title {
@@ -1219,21 +1230,22 @@ body.popup-open {
 .scorecard-points-chip {
   flex: 1;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border);
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 120px;
   align-items: center;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
 }
 
 .scorecard-points-chip span {
   font-size: 0.65rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted);
 }
 
 .scorecard-points-chip strong {
@@ -1275,12 +1287,13 @@ body.popup-open {
   justify-content: center;
   padding: 6px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(18, 22, 48, 0.15);
+  background: rgba(255, 255, 255, 0.9);
   font-size: 0.95rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--text);
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
 }
 
 .match-handicaps {
@@ -1404,10 +1417,10 @@ body.popup-open {
 
 .scorecard-table {
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(3, 8, 22, 0.9);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.95);
   overflow: hidden;
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.05);
 }
 
 .scorecard-table-head {
@@ -1419,7 +1432,7 @@ body.popup-open {
   letter-spacing: 0.25em;
   font-size: 0.65rem;
   color: var(--muted);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border);
 }
 
 .scorecard-table-body {
@@ -1429,7 +1442,7 @@ body.popup-open {
   padding: 14px 16px;
   max-height: 360px;
   overflow-y: auto;
-  background: rgba(10, 19, 42, 0.9);
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .scorecard-table-body .hole-card {
@@ -1438,8 +1451,11 @@ body.popup-open {
 
 .scorecard-table-body .hole-card div {
   padding: 4px 2px;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   text-align: center;
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: 0.05em;
 }
 
 .scorecard-table-body .status {
@@ -1491,11 +1507,11 @@ body.popup-open {
 .scorecard-summary-block {
   padding: 12px;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.95);
   color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .scorecard-points {
@@ -1505,19 +1521,20 @@ body.popup-open {
 }
 
 .scorecard-points div {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 10px 12px;
   min-width: 100px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.04);
 }
 
 .scorecard-points span {
   display: block;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.15em;
+  font-size: 0.7rem;
+  color: var(--muted);
 }
 
 .scorecard-points strong {
@@ -1528,10 +1545,10 @@ body.popup-open {
 
 .match-scorecard-table {
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--border);
   overflow: hidden;
-  background: linear-gradient(145deg, rgba(8, 16, 34, 0.92), rgba(4, 9, 23, 0.95));
-  box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.55);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.08);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1546,16 +1563,16 @@ body.popup-open {
   font-size: 0.78rem;
   align-items: center;
   text-align: center;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text);
 }
 
 .match-scorecard-head {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(18, 22, 48, 0.05);
   font-size: 0.65rem;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--muted);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border);
 }
 
 .col-label {
@@ -1580,13 +1597,13 @@ body.popup-open {
 }
 
 .match-scorecard-row:nth-child(even):not(.match-scorecard-head) {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(244, 248, 255, 0.8);
 }
 
 .match-scorecard-totals {
-  background: rgba(255, 255, 255, 0.05);
-  border-top: 2px solid rgba(255, 255, 255, 0.08);
-  font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.9);
+  border-top: 2px solid var(--border);
+  font-size: 0.9rem;
   letter-spacing: 0.1em;
 }
 
@@ -1596,7 +1613,7 @@ body.popup-open {
 }
 
 .match-scorecard-table abbr {
-  border-bottom: 1px dotted rgba(255, 255, 255, 0.4);
+  border-bottom: 1px dotted rgba(18, 22, 48, 0.3);
   cursor: help;
   letter-spacing: 0.1em;
 }
@@ -1646,18 +1663,19 @@ body.popup-open {
   gap: 8px;
   padding: 10px 16px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--border);
   color: var(--text);
   text-decoration: none;
   font-weight: 700;
   letter-spacing: 0.02em;
+  background: rgba(27, 36, 51, 0.05);
   transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .pill-link:hover {
-  border-color: rgba(0, 255, 163, 0.45);
-  background: rgba(0, 255, 163, 0.08);
-  color: #c8fff0;
+  border-color: var(--accent);
+  background: rgba(44, 110, 247, 0.1);
+  color: var(--text);
 }
 
 .pill-link--disabled {
@@ -1874,9 +1892,9 @@ body.popup-open {
   gap: 6px;
   align-items: center;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
   padding: 6px 8px;
-  background: rgba(3, 9, 20, 0.8);
+  background: rgba(255, 255, 255, 0.8);
   font-size: 0.78rem;
 }
 
@@ -1898,7 +1916,7 @@ body.popup-open {
   border: none;
   border-radius: 10px;
   padding: 4px 6px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(27, 36, 51, 0.05);
   color: var(--text);
   font-size: 0.78rem;
   max-width: 3.6ch;
@@ -1916,16 +1934,16 @@ body.popup-open {
 
 .hole-handicap {
   max-width: 4ch;
-  background: rgba(255, 204, 0, 0.2);
-  border: 1px solid rgba(255, 204, 0, 0.6);
-  color: #ffd76a;
+  background: rgba(44, 110, 247, 0.1);
+  border: 1px solid rgba(44, 110, 247, 0.4);
+  color: #2547b5;
 }
 
 .hole-hcp-label {
   font-size: 0.65rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(255, 204, 0, 0.9);
+  color: rgba(44, 110, 247, 0.85);
   margin-top: 6px;
 }
 
@@ -2140,11 +2158,19 @@ body.popup-open {
 
 .division-card {
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.04);
-  padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.04);
+  background: var(--panel);
+  padding: 24px;
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 40px rgba(37, 54, 82, 0.08);
   width: 100%;
+}
+
+.division-card .division-table-shell {
+  background: rgba(244, 248, 255, 0.95);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  border: 1px solid rgba(18, 22, 48, 0.08);
+  box-shadow: inset 0 0 20px rgba(18, 22, 48, 0.05);
 }
 
 .division-title {
@@ -2153,14 +2179,14 @@ body.popup-open {
   font-size: 0.75rem;
   letter-spacing: 0.3em;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--muted);
+  border-bottom: 1px solid rgba(18, 22, 48, 0.1);
+  color: rgba(18, 22, 48, 0.7);
 }
 
 .division-label {
   font-size: 0.65rem;
   letter-spacing: 0.25em;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(18, 22, 48, 0.55);
 }
 
 .standings-table {
@@ -2169,25 +2195,30 @@ body.popup-open {
   border-collapse: collapse;
   border-spacing: 0;
   table-layout: fixed;
-  font-size: 0.8rem;
+  font-size: 0.95rem;
 }
 
 .standings-table th,
 .standings-table td {
   padding: 12px 10px;
   text-align: left;
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
 }
 
 .standings-table thead th {
-  font-size: 0.7rem;
-  letter-spacing: 0.25em;
+  font-size: 0.75rem;
+  letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: var(--muted);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(18, 22, 48, 0.7);
+  border-bottom: 1px solid rgba(18, 22, 48, 0.1);
+  background: rgba(244, 248, 255, 0.9);
 }
 
 .standings-table tbody tr {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(18, 22, 48, 0.08);
 }
 
 .standings-table tbody tr:last-child {
@@ -2195,7 +2226,11 @@ body.popup-open {
 }
 
 .standings-table tbody tr:nth-child(odd) {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(244, 248, 255, 0.9);
+}
+
+.standings-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .standing-cell.player {
@@ -2205,11 +2240,13 @@ body.popup-open {
 }
 
 .standing-cell.player strong {
-  color: #fff;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .standing-cell {
-  font-family: "Libre Baskerville", Georgia, serif;
+  font-family: var(--body-font);
   color: var(--text);
 }
 
@@ -2217,7 +2254,7 @@ body.popup-open {
   font-size: 0.6rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(18, 22, 48, 0.5);
 }
 
 .player-actions-cell {
@@ -2226,10 +2263,10 @@ body.popup-open {
 
 .player-actions-detail {
   margin-top: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 10px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .player-actions-detail summary {

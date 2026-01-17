@@ -1,5 +1,7 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -9,8 +11,19 @@ class Settings:
     golf_api_key: str
 
 
+def _normalize_database_url(value: Optional[str]) -> str:
+    if not value:
+        return "sqlite:///app/DATA/gspro_scoring.db"
+    normalized = value.strip()
+    if normalized.startswith("sqlite://"):
+        return normalized
+    if Path(normalized).suffix:  # treat as direct path
+        return f"sqlite:///{normalized}"
+    return normalized
+
+
 def load_settings() -> Settings:
-    database_url = os.getenv("DATABASE_URL", "postgresql://postgres@db:5432/gspro_scoring")
+    database_url = _normalize_database_url(os.getenv("DATABASE_URL"))
     scoring_pin = os.getenv("SCORING_PIN", "1234")
     golf_api_key = os.getenv("GOLF_API_KEY", "IGEEUMDFTUIYPPODWAO5XZSQNI")
     return Settings(

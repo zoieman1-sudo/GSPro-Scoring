@@ -1,0 +1,191 @@
+{% extends "kiosk_base.html" %}
+
+{% block content %}
+  <style>
+    .kiosk-standings-card {
+      width: 100%;
+      padding: 32px;
+      border-radius: 32px;
+      background: rgba(10, 14, 30, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 35px 60px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(18px);
+    }
+    .kiosk-standings-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+    .kiosk-eyebrow {
+      font-size: 0.75rem;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+    .kiosk-heading {
+      font-size: clamp(2.4rem, 3vw, 3rem);
+      margin: 0;
+      line-height: 1;
+    }
+    .kiosk-meta {
+      font-size: 0.95rem;
+      color: rgba(255, 255, 255, 0.65);
+      margin: 0;
+    }
+    .kiosk-standings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .kiosk-division {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 22px;
+      padding: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .kiosk-division-header {
+      font-size: 1.1rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    .kiosk-division-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 1.05rem;
+    }
+    .kiosk-division-row {
+      display: grid;
+      grid-template-columns: 2.4fr 0.6fr 0.6fr 0.8fr;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+    }
+    .kiosk-division-row--head {
+      font-size: 0.75rem;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.55);
+    }
+    .kiosk-player-name {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+    .kiosk-player-points,
+    .kiosk-player-remaining,
+    .kiosk-player-wlt {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.1em;
+    }
+    .kiosk-standings-empty {
+      text-transform: uppercase;
+      letter-spacing: 0.4em;
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.6);
+      text-align: center;
+    }
+    @media (max-width: 720px) {
+      .kiosk-division-row {
+        grid-template-columns: 1.8fr 0.7fr 0.7fr 1fr;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+  <section class="kiosk-standings-card">
+    <header class="kiosk-standings-header">
+      <p class="kiosk-eyebrow">GSPro League Standings</p>
+      <h1 class="kiosk-heading">Division Leaderboard</h1>
+      <p class="kiosk-meta">
+        Kiosk display · auto-refresh every 10 seconds
+        <span id="kiosk-standings-last-updated">{{ last_updated }}</span>
+      </p>
+    </header>
+
+    {% if divisions %}
+      <div id="kiosk-standings-refresh" class="kiosk-standings-refresh">
+        <div class="kiosk-standings-grid">
+          {% for division in divisions %}
+            <article class="kiosk-division" data-division="{{ division.division }}">
+              <header class="kiosk-division-header">
+                <span>Division {{ division.division }}</span>
+              </header>
+              <div class="kiosk-division-body">
+                <div class="kiosk-division-row kiosk-division-row--head">
+                  <span>Player</span>
+                  <span>Pts</span>
+                  <span>Rem</span>
+                  <span>W-L-T</span>
+                </div>
+                {% for player in division.players %}
+                  <div class="kiosk-division-row">
+                    <span class="kiosk-player-name">{{ player.name }}</span>
+                    <span class="kiosk-player-points">{{ player.points_for }}</span>
+                    <span class="kiosk-player-remaining">{{ player.pts_remaining }}</span>
+                    <span class="kiosk-player-wlt">
+                      {{ player.wins }}-{{ player.losses }}-{{ player.ties }}
+                    </span>
+                  </div>
+                {% endfor %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      </div>
+    {% else %}
+      <p class="kiosk-standings-empty">
+        No standings yet. Submit a match and reload to populate standings.
+      </p>
+    {% endif %}
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (function () {
+      const refreshSelector = "#kiosk-standings-refresh";
+      const container = document.querySelector(refreshSelector);
+      const lastUpdated = document.getElementById("kiosk-standings-last-updated");
+      const refreshInterval = 10000;
+      if (!container) {
+        return;
+      }
+
+      const schedule = () => {
+        window.setTimeout(refreshStandings, refreshInterval);
+      };
+
+      async function refreshStandings() {
+        try {
+          const response = await fetch(window.location.href, { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error("Unable to refresh standings");
+          }
+          const html = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, "text/html");
+          const updated = doc.querySelector(refreshSelector);
+          if (updated) {
+            container.innerHTML = updated.innerHTML;
+            if (lastUpdated) {
+              lastUpdated.textContent = new Date().toLocaleTimeString();
+            }
+          }
+        } catch (error) {
+          console.warn("standings kiosk refresh failed", error);
+        } finally {
+          schedule();
+        }
+      }
+
+      schedule();
+    })();
+  </script>
+{% endblock %}

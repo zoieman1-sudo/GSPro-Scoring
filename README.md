@@ -4,7 +4,7 @@ Starter scaffold for the GSPro Tournament Scoring App (FastAPI + Jinja2).
 
 ## Quick start
 - Create venv and install requirements from `requirements.txt`.
-- Set `DATABASE_URL` and `SCORING_PIN` (see `.env.example`); only the admin/admin setup pages still require the PIN, while scoring submissions are open for now.
+- Set `DATABASE_URL` and `SCORING_PIN` (see `.env.example`); by default the app uses the bundled SQLite file (`sqlite:///app/DATA/gspro_scoring.db`), so no external database service is required.
 - Run `python -m app.seed_db` once before starting the server to create the schema and a baseline tournament so matches can be activated without hitting missing-table errors.
 - Run `python -m app.demo_seed` if you want the demo tournament and players seeded before you open the UI; the FastAPI startup already executes this, but rerunning the script refreshes the demo fixtures.
 - Run FastAPI app locally with `python -m app.server`, the launcher that wraps `uvicorn` and toggles HTTPS when `SSL_CERT_FILE`/`SSL_KEY_FILE` point at valid PEM files.
@@ -12,11 +12,10 @@ Starter scaffold for the GSPro Tournament Scoring App (FastAPI + Jinja2).
 - Visit `/standings` to see the updated division leaderboard rendered as the familiar tabular format used in the `dashboard` sheet from `10-man_sim_golf_tournament_scoring_sheet_v2_single_round_robin_playoffs.xlsx`.
 
 ## Docker
-- Copy `.env.example` to `.env` and update values as needed (_defaults point at the bundled Postgres service_).
-- `docker compose up --build` (this now starts a `postgres:15` service with the configured password so the app can connect immediately).  
-- The app automatically runs `app.demo_seed` on startup (ensuring the demo event with player pairings and the `DEMOGROUP` definition exists), but you can still exec into the container and rerun `python -m app.demo_seed` if you need to refresh that sample data.
-- The app now publishes on port `18000` (`http://localhost:18000`) and Postgres is exposed as `localhost:15433`; if you connect from an external tool (pgAdmin, psql, etc.) use those host ports when specifying the service.
-- To enable HTTPS in Docker, bind-mount or copy your certificate/key into the container and set `SSL_CERT_FILE`/`SSL_KEY_FILE` in `.env` (for example `SSL_CERT_FILE=/certs/server.crt` and `SSL_KEY_FILE=/certs/server.key`). The launcher honors the same env vars and will publish HTTPS on whichever host port you expose (e.g., `https://localhost:18000` once you swap the URL scheme).
+- Copy `.env.example` to `.env` and update `DATABASE_URL` or `SCORING_PIN` if needed; by default the app uses the bundled SQLite file in `app/DATA`.
+- `docker compose up --build` launches only the `app` service, which binds `app/DATA` into the container so the SQLite database file persists between runs.
+- The app still seeds the demo tournament via `app.demo_seed` on startup, but you can `docker compose exec app python -m app.demo_seed` if you need to refresh that fixture.
+- The app publishes on port `18000` (`http://localhost:18000`). Pass `SSL_CERT_FILE`/`SSL_KEY_FILE` (and optionally `SSL_CA_FILE`/`SSL_KEY_PASSWORD`) through `.env` when you need HTTPS.
 
 ## Running prod and dev simultaneously
 
@@ -46,9 +45,8 @@ Each stack is tied to its Compose project name, so container identifiers keep th
 - CI is handled via `.github/workflows/ci.yml`, which runs `pytest` on every `push`/`pull_request` to `main` so the scoring logic stays covered.
 
 ## Notes
-- Our Compose stack now includes a Postgres service configured with `postgres/change_me` and `gspro_scoring`; update `DATABASE_URL` if you want to point at some other database.
-- The app creates the `match_results` table on startup if it does not exist.
-- pgAdmin is now attached to the `pgadmin` profile, so start it via `docker compose --profile pgadmin up -d` and browse `http://localhost:5050` (login `pgadmin@gspro.local`/`change_me`). Connect to `host=db`, port `5432`, database `gspro_scoring` and you’ll have GUI access to `hole_scores`, `match_results`, etc.
+- The application now persists all data in `app/DATA/gspro_scoring.db`; delete that file (or set `DATABASE_URL` to a different `sqlite:///` path) to reset the state.
+- The `/standings/kiosk/leaderboard` view now seeds and reads from a lightweight SQLite store located at `app/DATA/kiosk_leaderboard.db`, so it can render without connecting to any external service.
 
 ## HTTPS support
 

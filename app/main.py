@@ -1,3 +1,5 @@
+import csv
+import io
 import json
 import os
 import re
@@ -12,13 +14,13 @@ from itertools import zip_longest
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from fastapi import FastAPI, Form, HTTPException, Query, Request
+from fastapi import FastAPI, Body, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError
 from urllib.parse import quote_plus
-from psycopg.errors import UniqueViolation
+import sqlite3
 
 from app import golf_api
 from app.db import (
@@ -75,6 +77,7 @@ from app.db import (
     delete_match_result,
     finalize_match_result,
 )
+from app.kiosk_store import fetch_divisions as fetch_kiosk_divisions, fetch_matches as fetch_kiosk_matches
 from app.course_sync import ensure_georgia_course, ensure_pebble_beach_course, import_course_to_db
 from app.seed import (
     Match,
@@ -1173,7 +1176,8 @@ def build_standings(results: list[dict], tournament_id: int | None = None) -> li
         player for player in fetch_players(settings.database_url) if player.get("tournament_id") == tournament_id
     ]
     player_names = {player["name"] for player in tournament_players}
-    if not cache_rows or (player_names and any(row["player_name"] not in player_names for row in cache_rows)):
+    cached_names = {row["player_name"] for row in cache_rows}
+    if not cache_rows or (player_names and cached_names != player_names):
         _refresh_standings_cache(tournament_id, results)
         cache_rows = fetch_standings_cache(settings.database_url, tournament_id)
     if not cache_rows:
@@ -1415,6 +1419,27 @@ async def api_active_match():
     if not scorecard:
         return JSONResponse({"active_match": None})
     return JSONResponse({"active_match": _serialize_scorecard_for_studio(scorecard)})
+
+
+@app.get("/api/active_scorecard")
+async def api_active_scorecard():
+    match_key = _get_active_match_key()
+    if not match_key:
+        return JSONResponse({"scorecard": None, "match_key": None})
+    context = _scorecard_context(match_key)
+    scorecard = context.get("scorecard")
+    if not scorecard:
+        return JSONResponse({"scorecard": None, "match_key": match_key})
+    return JSONResponse({"scorecard": scorecard, "match_key": match_key})
+
+
+@app.post("/api/activate_match")
+async def api_activate_match(payload: dict = Body(...)):
+    match_key = (payload or {}).get("match_key")
+    if not match_key or not isinstance(match_key, str):
+        raise HTTPException(status_code=400, detail="match_key is required")
+    _set_active_match_key(match_key)
+    return JSONResponse({"active_match_key": match_key})
 
 
 @app.get("/api/match_scorecard")
@@ -1714,7 +1739,125 @@ def _admin_context(
 
     context["results"] = fetch_recent_results(settings.database_url, limit=20)
     context["backups"] = _list_backup_entries(limit=10)
+    context["tournaments"] = fetch_tournaments(settings.database_url)
     return context
+
+
+async def _read_csv_rows(upload: UploadFile) -> list[dict]:
+    content = await upload.read()
+    if not content:
+        return []
+    text = content.decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(text))
+    rows = []
+    for row in reader:
+        if any((value or "").strip() for value in row.values()):
+            normalized = {
+                re.sub(r"[^\w]+", "_", key.strip().lower()): value or ""
+                if key
+                else value or ""
+                for key, value in row.items()
+            }
+            rows.append(normalized)
+    return rows
+
+
+def _first_value(row: dict, keys: list[str]) -> str:
+    for key in keys:
+        value = row.get(key)
+        if value and isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _seed_players_from_rows(rows: list[dict], tournament_id: int) -> int:
+    inserted = 0
+    for row in rows:
+        name = _first_value(row, ["name", "player_name", "full_name"])
+        if not name:
+            first = _first_value(row, ["first"],)
+            last = _first_value(row, ["last"],)
+            if first or last:
+                name = f"{first} {last}".strip()
+        if not name:
+            continue
+        division = _first_value(row, ["division", "div", "group"]) or "Open"
+        handicap = _safe_int(row.get("handicap") or row.get("handicap_index")) or 0
+        seed = _safe_int(row.get("seed")) or 0
+        upsert_player(
+            settings.database_url,
+            None,
+            name,
+            division.upper(),
+            handicap,
+            seed,
+            tournament_id=tournament_id,
+        )
+        inserted += 1
+    return inserted
+
+
+def _seed_matches_from_rows(rows: list[dict], tournament_id: int) -> tuple[int, list[str]]:
+    inserted = 0
+    errors: list[str] = []
+    for idx, row in enumerate(rows, start=1):
+        try:
+            match_name = _first_value(row, ["match_name", "match", "title"]) or f"Match {idx}"
+            player_a = _first_value(row, ["player_a", "player_a_name", "a_player"])
+            player_b = _first_value(row, ["player_b", "player_b_name", "b_player"])
+            if not player_a or not player_b:
+                raise ValueError("Both player A and B must be set")
+            match_key = _first_value(row, ["match_key", "key"]) or f"{player_a}-{player_b}"
+            player_a_points = _safe_float(row.get("player_a_points")) or 0.0
+            player_b_points = _safe_float(row.get("player_b_points")) or 0.0
+            outcome = score_outcome(player_a_points, player_b_points)
+            player_a_bonus = outcome["player_a_bonus"]
+            player_b_bonus = outcome["player_b_bonus"]
+            player_a_total = outcome["player_a_total"]
+            player_b_total = outcome["player_b_total"]
+            player_a_info = fetch_player_by_name(settings.database_url, player_a) or {}
+            player_b_info = fetch_player_by_name(settings.database_url, player_b) or {}
+            player_a_id = player_a_info.get("id")
+            player_b_id = player_b_info.get("id")
+            tournament_id_override = _safe_int(row.get("tournament_id")) or tournament_id
+            course_id = _safe_int(row.get("course_id"))
+            course_tee_id = _safe_int(row.get("course_tee_id"))
+            player_a_handicap = _safe_int(row.get("player_a_handicap")) or player_a_info.get("handicap", 0)
+            player_b_handicap = _safe_int(row.get("player_b_handicap")) or player_b_info.get("handicap", 0)
+            hole_count = _safe_int(row.get("hole_count")) or 18
+            start_hole = _safe_int(row.get("start_hole")) or 1
+            match_code = _first_value(row, ["match_code"])
+
+            insert_match_result(
+                settings.database_url,
+                match_name,
+                player_a,
+                player_b,
+                match_key,
+                match_code or None,
+                player_a_points,
+                player_b_points,
+                player_a_bonus,
+                player_b_bonus,
+                player_a_total,
+                player_b_total,
+                outcome["winner"],
+                course_id=course_id,
+                course_tee_id=course_tee_id,
+                player_a_handicap=player_a_handicap,
+                player_b_handicap=player_b_handicap,
+                player_a_id=player_a_id,
+                player_b_id=player_b_id,
+                tournament_id=tournament_id_override,
+                hole_count=hole_count,
+                start_hole=start_hole,
+            )
+            inserted += 1
+        except Exception as error:  # noqa: BLE001
+            errors.append(f"row {idx}: {error}")
+    if inserted and tournament_id:
+        _refresh_standings_cache(tournament_id, fetch_all_match_results(settings.database_url))
+    return inserted, errors
 
 
 def _sanitize_backup_location(value: str | None) -> str:
@@ -1987,7 +2130,7 @@ async def create_tournament(
             description=(description or "").strip() or None,
             status=status or "upcoming",
         )
-    except UniqueViolation:
+    except sqlite3.IntegrityError:
         message = f"Tournament '{clean_name}' already exists."
         return RedirectResponse(
             url=f"/tournaments?status={quote_plus(message)}",
@@ -2197,6 +2340,7 @@ async def delete_tournament_player(
     source: str | None = Form(None),
 ):
     delete_player(settings.database_url, player_id)
+    _refresh_standings_cache(tournament_id)
     redirect_target = "/admin/tournament_setup"
     if source == "player_entry":
         redirect_target = "/admin/player_entry"
@@ -2421,7 +2565,7 @@ async def tournament_setup_two_save(
             description=(description or "").strip() or None,
             status=status or "upcoming",
         )
-    except UniqueViolation:
+    except sqlite3.IntegrityError:
         message = f"Tournament '{clean_name}' already exists."
         return RedirectResponse(
             url=f"/admin/tournament_setup2?status={quote_plus(message)}",
@@ -2463,6 +2607,57 @@ async def admin_cleanup_standings(request: Request, pin: str = Form("")):
             status_message = (
                 f"Cleared {deleted} match{'es' if deleted != 1 else ''} and rebuilt standings."
             )
+    return templates.TemplateResponse(
+        "admin.html",
+        _admin_context(request, pin, authorized, status_message=status_message),
+    )
+
+
+@app.post("/admin/seed_players", response_class=HTMLResponse)
+async def admin_seed_players(
+    request: Request,
+    tournament_id: int = Form(...),
+    file: UploadFile = File(...),
+    pin: str = Form(""),
+):
+    authorized = pin == settings.scoring_pin
+    status_message = None
+    if not authorized:
+        status_message = "Invalid admin pin."
+    elif not tournament_id:
+        status_message = "Select a tournament first."
+    else:
+        rows = await _read_csv_rows(file)
+        inserted = _seed_players_from_rows(rows, tournament_id)
+        status_message = f"Seeded {inserted} player{'s' if inserted != 1 else ''}."
+    return templates.TemplateResponse(
+        "admin.html",
+        _admin_context(request, pin, authorized, status_message=status_message),
+    )
+
+
+@app.post("/admin/seed_matches", response_class=HTMLResponse)
+async def admin_seed_matches(
+    request: Request,
+    tournament_id: int = Form(...),
+    file: UploadFile = File(...),
+    pin: str = Form(""),
+):
+    authorized = pin == settings.scoring_pin
+    status_message = None
+    if not authorized:
+        status_message = "Invalid admin pin."
+    elif not tournament_id:
+        status_message = "Select a tournament first."
+    else:
+        rows = await _read_csv_rows(file)
+        inserted, errors = _seed_matches_from_rows(rows, tournament_id)
+        if errors:
+            status_message = (
+                f"Seeded {inserted} match{'es' if inserted != 1 else ''}. Errors: {len(errors)} rows failed."
+            )
+        else:
+            status_message = f"Seeded {inserted} match{'es' if inserted != 1 else ''}."
     return templates.TemplateResponse(
         "admin.html",
         _admin_context(request, pin, authorized, status_message=status_message),
@@ -3054,10 +3249,9 @@ def _enrich_holes_with_net(
 def _scorecard_context(match_key: str | None, tournament_id: int | None = None) -> dict:
     matches = _load_pairings()
     if not matches:
-        if not match_key:
-            return {"matches": [], "match_statuses": [], "active_matches": [], "scorecard": None}
+        return {"matches": [], "match_statuses": [], "active_matches": [], "scorecard": None}
 
-    selected = next((item for item in matches if item.match_id == match_key), None) or matches[0]
+    selected = next((item for item in matches if match_key and item.match_id == match_key), None) or matches[0]
     match_statuses: list[dict] = []
     selected_status: dict[str, int | str | None] | None = None
     for entry in matches:
@@ -3372,6 +3566,25 @@ async def scorecard_studio(request: Request):
     )
 
 
+@app.get("/scorecard/kiosk", response_class=HTMLResponse)
+async def scorecard_kiosk(request: Request, match_key: str | None = None):
+    context = _scorecard_context(match_key)
+    scorecard = context.get("scorecard")
+    active_matches = context.get("active_matches", [])
+    selected_key = scorecard.get("match", {}).get("match_key") if scorecard else None
+    if not selected_key and active_matches:
+        selected_key = active_matches[0].get("match_key")
+    return templates.TemplateResponse(
+        "kiosk_scorecard.html",
+        {
+            "request": request,
+            "scorecard": scorecard or {},
+            "active_matches": active_matches,
+            "active_match_key": selected_key,
+        },
+    )
+
+
 @app.get("/scorecard_data", response_class=HTMLResponse)
 async def scorecard_data(request: Request, match_key: str | None = None):
     context = _scorecard_context(match_key)
@@ -3405,6 +3618,56 @@ async def scorecard_data_source(request: Request, match_key: str | None = None):
         {
             "request": request,
             "scorecard": scorecard,
+        },
+    )
+
+
+@app.get("/scorecard_data/kiosk", response_class=HTMLResponse)
+async def scorecard_data_kiosk(request: Request, match_key: str | None = None):
+    context = _scorecard_context(match_key)
+    scorecard = context.get("scorecard") or {}
+    return templates.TemplateResponse(
+        "scorecard_data_kiosk.html",
+        {
+            "request": request,
+            "scorecard": scorecard,
+        },
+    )
+
+
+@app.get("/scorecard_data_kiosk", response_class=HTMLResponse)
+async def scorecard_data_kiosk_alias(request: Request, match_key: str | None = None):
+    context = _scorecard_context(match_key)
+    scorecard = context.get("scorecard") or {}
+    return templates.TemplateResponse(
+        "scorecard_data_kiosk.html",
+        {
+            "request": request,
+            "scorecard": scorecard,
+        },
+    )
+
+
+@app.get("/scorecard_pair/ab", response_class=HTMLResponse)
+async def scorecard_pair_ab(request: Request):
+    return templates.TemplateResponse(
+        "scorecard_pair_kiosk.html",
+        {
+            "request": request,
+            "pair_index": 0,
+            "pair_label": "Match A/B",
+        },
+    )
+
+
+@app.get("/scorecard_pair/cd", response_class=HTMLResponse)
+async def scorecard_pair_cd(request: Request):
+    return templates.TemplateResponse(
+        "scorecard_pair_kiosk.html",
+        {
+            "request": request,
+            "pair_index": 1,
+            "pair_label": "Match C/D",
         },
     )
 
@@ -4373,6 +4636,40 @@ async def api_refresh_standings():
         raise HTTPException(status_code=404, detail="No active tournament selected.")
     _refresh_standings_cache(tournament_id)
     return JSONResponse({"refreshed": True, "tournament_id": tournament_id})
+
+
+@app.get("/standings/kiosk", response_class=HTMLResponse)
+async def standings_kiosk(request: Request):
+    results = fetch_all_match_results(settings.database_url)
+    tournament_id = _get_active_tournament_id()
+    divisions = build_standings(results, tournament_id=tournament_id) if tournament_id is not None else []
+    return templates.TemplateResponse(
+        "kiosk_standings.html",
+        {
+            "request": request,
+            "divisions": divisions,
+            "last_updated": datetime.utcnow().strftime("%I:%M %p UTC"),
+        },
+    )
+
+
+@app.get("/standings/kiosk/leaderboard", response_class=HTMLResponse)
+async def standings_kiosk_leaderboard(request: Request):
+    divisions = fetch_kiosk_divisions()
+    matches = fetch_kiosk_matches()
+    active_matches = [match for match in matches if match["status"] != "completed"]
+    finalized_matches = [match for match in matches if match["status"] == "completed"]
+    return templates.TemplateResponse(
+        "kiosk_standings_leaderboard.html",
+        {
+            "request": request,
+            "divisions": divisions,
+            "active_matches": active_matches,
+            "finalized_matches": finalized_matches,
+            "active_match_count": len(active_matches),
+            "finalized_match_count": len(finalized_matches),
+        },
+    )
 
 
 @app.get("/standings", response_class=HTMLResponse)

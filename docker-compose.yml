@@ -4,55 +4,15 @@ services:
     ports:
       - "${APP_HOST_PORT:-18000}:8000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:SecretPass1234@db:5432/gspro_scoring}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///app/DATA/gspro_scoring.db}
       SCORING_PIN: ${SCORING_PIN:-1234}
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    depends_on:
-      - db
     restart: on-failure
-    networks:
-      - gspro-network
-
-  db:
-    image: postgres:15
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: SecretPass1234
-      POSTGRES_DB: gspro_scoring
     volumes:
-      - gspro-scoring-db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    ports:
-      - "${DB_HOST_PORT:-15433}:5432"
+      - ./app/DATA:/app/app/DATA
     networks:
       - gspro-network
-
-  pgadmin:
-    image: dpage/pgadmin4
-    restart: unless-stopped
-    profiles:
-      - pgadmin
-    depends_on:
-      - db
-    environment:
-      PGADMIN_DEFAULT_EMAIL: pgadmin@gspro.com
-      PGADMIN_DEFAULT_PASSWORD: SecretPass1234
-    ports:
-      - "${PGADMIN_HOST_PORT:-5051}:80"
-    volumes:
-      - pgadmin-data:/var/lib/pgadmin
-    networks:
-      - gspro-network
-
-volumes:
-  gspro-scoring-db:
-  pgadmin-data:
 
 networks:
   gspro-network:

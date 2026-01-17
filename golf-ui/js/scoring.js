@@ -506,6 +506,22 @@ function initializeMatchFromScorecard(scorecard, fallbackValue) {
   updateCourseTitle(state.courseName);
   goToHoleIndex(0);
   renderScores();
+  announceActiveMatch(matchKey);
+}
+
+function announceActiveMatch(matchKey) {
+  if (!matchKey) {
+    return;
+  }
+  fetch("/api/activate_match", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ match_key: matchKey }),
+  }).catch((error) => {
+    console.warn("Unable to activate match", error);
+  });
 }
 
 function updateScoresFromServer() {

@@ -1,0 +1,308 @@
+{% extends "kiosk_base.html" %}
+
+{% block content %}
+  <style>
+    .kiosk-scorecard-pair-shell {
+      width: 100%;
+      padding: 32px;
+      border-radius: 32px;
+      background: var(--panel-soft);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .kiosk-scorecard-pair-header {
+      text-transform: uppercase;
+      letter-spacing: 0.35em;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .kiosk-scorecard-pair-header h1 {
+      margin: 0;
+      font-size: clamp(2rem, 3vw, 2.8rem);
+      letter-spacing: 0.25em;
+      color: var(--text);
+    }
+    .kiosk-scorecard-pair-header p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: rgba(15, 23, 42, 0.65);
+      letter-spacing: 0.2em;
+    }
+    .kiosk-scorecard-pair-body {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .kiosk-scorecard-pair-card {
+      padding: 28px;
+      border-radius: 30px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(230, 236, 255, 0.95));
+      color: var(--text);
+      box-shadow: inset 0 0 30px rgba(228, 233, 255, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      border: 1px solid var(--border);
+    }
+    .kiosk-scorecard-pair-card h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+    }
+    .kiosk-scorecard-pair-points {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .kiosk-scorecard-pair-points__item {
+      padding: 14px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(18, 22, 48, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.65rem;
+      letter-spacing: 0.35em;
+      align-items: center;
+      justify-content: center;
+    }
+    .kiosk-scorecard-pair-points__item span {
+      font-size: 0.55rem;
+      color: var(--text);
+      letter-spacing: 0.45em;
+    }
+    .kiosk-scorecard-pair-points__value {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: var(--text);
+    }
+    .kiosk-scorecard-pair-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--body-font);
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .kiosk-scorecard-pair-table th,
+    .kiosk-scorecard-pair-table td {
+      padding: 6px 8px;
+      text-align: center;
+      border: none;
+      letter-spacing: 0.12em;
+    }
+    .kiosk-scorecard-pair-table thead th {
+      font-size: 0.65rem;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.15);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+    }
+    .kiosk-scorecard-pair-table tbody th {
+      text-align: left;
+      font-size: 0.75rem;
+      letter-spacing: 0.35em;
+      color: var(--text);
+    }
+    .kiosk-scorecard-pair-table td {
+      font-feature-settings: "tnum";
+      font-size: 1rem;
+    }
+    .kiosk-scorecard-pair-table tbody tr:nth-child(even) {
+      background: rgba(226, 234, 255, 0.6);
+    }
+    .kiosk-scorecard-pair-table td:last-child,
+    .kiosk-scorecard-pair-table th:last-child {
+      letter-spacing: 0.3em;
+      color: var(--text);
+    }
+    .kiosk-scorecard-pair-empty {
+      margin: 0;
+      text-align: center;
+      letter-spacing: 0.4em;
+      font-size: 0.9rem;
+      color: rgba(15, 23, 42, 0.7);
+    }
+    @media (max-width: 800px) {
+      .kiosk-scorecard-pair-card {
+        padding: 18px;
+      }
+      .kiosk-scorecard-pair-table {
+        font-size: 0.85rem;
+      }
+      .kiosk-scorecard-pair-points__item {
+        font-size: 0.65rem;
+      }
+    }
+  </style>
+
+  <section class="kiosk-scorecard-pair-shell">
+    <header class="kiosk-scorecard-pair-header">
+      <p class="muted-label">Scorecard</p>
+      <h1 id="pair-title">{{ pair_label }}</h1>
+      <p id="pair-meta" class="muted-label">Waiting for active match data…</p>
+    </header>
+    <div class="kiosk-scorecard-pair-body">
+      <article class="kiosk-scorecard-pair-card" id="pair-card">
+        <div id="pair-content"></div>
+        <p class="kiosk-scorecard-pair-empty" id="pair-empty">
+          Waiting for match data…
+        </p>
+      </article>
+    </div>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (function () {
+      const pairIndex = {{ pair_index }};
+      const pairContentEl = document.getElementById("pair-content");
+      const emptyEl = document.getElementById("pair-empty");
+      const pairMeta = document.getElementById("pair-meta");
+      const pairTitle = document.getElementById("pair-title");
+      let currentMatchKey = null;
+
+      const formatValue = (value) => {
+        if (value === null || value === undefined || value === "") {
+          return "—";
+        }
+        const num = Number(value);
+        if (Number.isFinite(num)) {
+          return Number.isInteger(num) ? `${num}` : num.toFixed(1);
+        }
+        return value;
+      };
+
+      const renderTable = (card) => {
+        const holes = card.rows || [];
+        const holeHeaders = holes
+          .map((hole) => `<th>${hole?.hole_number ?? "—"}</th>`)
+          .join("");
+        const hcpRow = holes
+          .map((hole) => `<td>${formatValue(hole?.handicap)}</td>`)
+          .join("");
+        const playerRows = card.players.map((player, idx) => {
+          const netRow = holes
+            .map((hole) => {
+              const netKey = idx === 0 ? "net_a" : "net_b";
+              return `<td>${formatValue(hole?.[netKey])}</td>`;
+            })
+            .join("");
+          return `
+            <tr>
+              <th>${player?.name ?? `Team ${idx + 1}`}</th>
+              ${netRow}
+              <td class="kiosk-scorecard-total">${formatValue((card.totals?.net || [])[idx])}</td>
+            </tr>
+          `;
+        });
+        const table = `
+          <div class="kiosk-scorecard-pair-table-wrapper">
+            <table class="kiosk-scorecard-pair-table">
+              <thead>
+                <tr>
+                  <th>Hole</th>
+                  ${holeHeaders}
+                  <th>Totals</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th>HCP</th>
+                  ${hcpRow}
+                  <td>—</td>
+                </tr>
+                ${playerRows.join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+        return table;
+      };
+
+      const renderCard = (scorecard, card) => {
+        const points = card.totals?.points || [];
+        const players = card.players || [];
+        const pointsHTML = `
+          <div class="kiosk-scorecard-pair-points">
+            <div class="kiosk-scorecard-pair-points__item">
+              <span>${players[0]?.name || "Player A"}</span>
+              <strong class="kiosk-scorecard-pair-points__value">${formatValue(points[0])}</strong>
+            </div>
+            <div class="kiosk-scorecard-pair-points__item">
+              <span>${players[1]?.name || "Player B"}</span>
+              <strong class="kiosk-scorecard-pair-points__value">${formatValue(points[1])}</strong>
+            </div>
+          </div>
+        `;
+        pairContentEl.innerHTML = `
+          ${pointsHTML}
+          ${renderTable(card)}
+        `;
+        emptyEl.hidden = true;
+        if (pairTitle) {
+          pairTitle.textContent = `${players[0]?.name ?? "Match"} vs ${players[1]?.name ?? "Players"}`;
+        }
+        const statusLabel = scorecard.match?.status_label || "Not started";
+        const holesRecorded = scorecard.match?.holes_recorded ?? 0;
+        const totalHoles = scorecard.match?.total_holes ?? 18;
+        pairMeta.textContent = `Match ${scorecard.match?.match_key || "—"} · Division ${scorecard.match?.division || "—"} · ${statusLabel} · ${holesRecorded} / ${totalHoles} holes`;
+      };
+
+      const showEmpty = (message) => {
+        pairContentEl.innerHTML = "";
+        emptyEl.textContent = message;
+        emptyEl.hidden = false;
+        pairMeta.textContent = message;
+      };
+
+      const refresh = async () => {
+        try {
+          const response = await fetch("/api/active_scorecard");
+          if (!response.ok) {
+            throw new Error("Unable to load active scorecard");
+          }
+          const payload = await response.json();
+          const scorecard = payload?.scorecard;
+          if (!scorecard) {
+            showEmpty("No active match selected");
+            currentMatchKey = null;
+            return;
+          }
+          const matchKey = payload.match_key || scorecard.match?.match_key;
+          if (!matchKey) {
+            showEmpty("Match key missing");
+            currentMatchKey = null;
+            return;
+          }
+          const card = (scorecard.pair_cards || [])[pairIndex];
+          if (!card) {
+            showEmpty("Pair card unavailable");
+            return;
+          }
+          if (matchKey !== currentMatchKey) {
+            currentMatchKey = matchKey;
+          }
+          renderCard(scorecard, card);
+        } catch (error) {
+          console.warn("Unable to refresh pair card:", error);
+          showEmpty("Unable to contact server");
+        }
+      };
+
+      refresh();
+      const intervalId = window.setInterval(refresh, 8000);
+      window.addEventListener("beforeunload", () => {
+        window.clearInterval(intervalId);
+      });
+    })();
+  </script>
+{% endblock %}

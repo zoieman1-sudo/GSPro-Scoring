@@ -12,6 +12,25 @@
       }
       .admin-actions form {
         margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .admin-actions form select,
+      .admin-actions form input[type="file"] {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        padding: 6px 8px;
+        font-size: 0.9rem;
+      }
+      .admin-actions form label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 0.85rem;
+        color: rgba(15, 23, 42, 0.6);
       }
       .backup-card {
         margin-bottom: 24px;
@@ -105,6 +124,46 @@
           <input type="hidden" name="pin" value="{{ pin }}" />
           <button class="pill-link pill-link--ghost" type="submit">
             Reset tournament standings
+          </button>
+        </form>
+        <form
+          method="post"
+          action="/admin/seed_players"
+          enctype="multipart/form-data"
+          aria-label="Seed players from CSV"
+        >
+          <input type="hidden" name="pin" value="{{ pin }}" />
+          <label>
+            <span class="eyebrow">Seed players</span>
+            <select name="tournament_id" class="pill-link pill-link--ghost">
+              {% for tournament in tournaments %}
+                <option value="{{ tournament.id }}">{{ tournament.name }}</option>
+              {% endfor %}
+            </select>
+            <input type="file" name="file" accept=".csv" required />
+          </label>
+          <button class="pill-link" type="submit">
+            Upload players CSV
+          </button>
+        </form>
+        <form
+          method="post"
+          action="/admin/seed_matches"
+          enctype="multipart/form-data"
+          aria-label="Seed matches from CSV"
+        >
+          <input type="hidden" name="pin" value="{{ pin }}" />
+          <label>
+            <span class="eyebrow">Seed match results</span>
+            <select name="tournament_id" class="pill-link pill-link--ghost">
+              {% for tournament in tournaments %}
+                <option value="{{ tournament.id }}">{{ tournament.name }}</option>
+              {% endfor %}
+            </select>
+            <input type="file" name="file" accept=".csv" required />
+          </label>
+          <button class="pill-link" type="submit">
+            Upload matches CSV
           </button>
         </form>
       </div>

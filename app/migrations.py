@@ -1,17 +1,20 @@
 from typing import Callable, Tuple
 
-import psycopg
+import sqlite3
 
-MigrationTask = Tuple[str, str, Callable[[psycopg.Cursor], None]]
+from app.db import _connect
+from app.settings import load_settings
+
+MigrationTask = Tuple[str, str, Callable[[sqlite3.Cursor], None]]
 
 
-def _ensure_migrations_table(cursor: psycopg.Cursor) -> None:
+def _ensure_migrations_table(cursor: sqlite3.Cursor) -> None:
     cursor.execute(
         """
-        create table if not exists schema_migrations (
-            id text primary key,
-            description text not null,
-            applied_at timestamptz not null default now()
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            id TEXT PRIMARY KEY,
+            description TEXT NOT NULL,
+            applied_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
         """
     )
@@ -21,30 +24,23 @@ MIGRATIONS: list[MigrationTask] = []
 
 
 def apply_migrations(database_url: str) -> None:
-    with psycopg.connect(database_url) as connection:
-        with connection.cursor() as cursor:
-            _ensure_migrations_table(cursor)
-        connection.commit()
+    with _connect(database_url) as connection:
+        cursor = connection.cursor()
+        _ensure_migrations_table(cursor)
+        existing = {row["id"] for row in cursor.execute("SELECT id FROM schema_migrations")}
         for migration_id, description, task in MIGRATIONS:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "select 1 from schema_migrations where id = %s;",
-                    (migration_id,),
-                )
-                if cursor.fetchone():
-                    continue
-                task(cursor)
-                cursor.execute(
-                    """
-                    insert into schema_migrations (id, description)
-                    values (%s, %s);
-                    """,
-                    (migration_id, description),
-                )
-            connection.commit()
+            if migration_id in existing:
+                continue
+            task(cursor)
+            cursor.execute(
+                """
+                INSERT INTO schema_migrations (id, description)
+                VALUES (?, ?);
+                """,
+                (migration_id, description),
+            )
+        connection.commit()
 
 
 if __name__ == "__main__":
-    from app.settings import load_settings
-
     apply_migrations(load_settings().database_url)
