@@ -3,19 +3,34 @@
 Starter scaffold for the GSPro Tournament Scoring App (FastAPI + Jinja2).
 
 ## Quick start
-- Create venv and install requirements from `requirements.txt`.
-- Set `DATABASE_URL` and `SCORING_PIN` (see `.env.example`); by default the app uses the bundled SQLite file (`sqlite:///app/DATA/gspro_scoring.db`), so no external database service is required.
-- Run `python -m app.seed_db` once before starting the server to create the schema and a baseline tournament so matches can be activated without hitting missing-table errors.
-- Run `python -m app.demo_seed` if you want the demo tournament and players seeded before you open the UI; the FastAPI startup already executes this, but rerunning the script refreshes the demo fixtures.
-- Run FastAPI app locally with `python -m app.server`, the launcher that wraps `uvicorn` and toggles HTTPS when `SSL_CERT_FILE`/`SSL_KEY_FILE` point at valid PEM files.
+- Create a venv and install requirements from `requirements.txt`.
+- Configure `DATABASE_URL`/`SCORING_PIN` (see `.env.example` if you run outside Docker); the app ignores Postgres/MySQL URLs and always writes to the bundled SQLite store (`sqlite:///app/DATA/gspro_scoring.db`) when you use the provided Compose file.
+- Run `python scripts/create_schema.py` to seed the bundled SQLite schema, emit the SQL DDL for reference, and build the default “GSPro League” tournament.
+- Optionally run `python -m app.demo_seed` if you want the demo tournament and players refreshed before opening the UI; startup already triggers the fixture, but rerunning the script can reset the demo state.
+- Run FastAPI locally with `python -m app.server`, which wraps `uvicorn` and toggles HTTPS when `SSL_CERT_FILE`/`SSL_KEY_FILE` point at valid PEM files.
 - Submit a few match scores via the primary scoring experience (`/` or `/scoring`); the `/matches/{id}` view lets you inspect hole-by-hole entries stored in `hole_scores`.
 - Visit `/standings` to see the updated division leaderboard rendered as the familiar tabular format used in the `dashboard` sheet from `10-man_sim_golf_tournament_scoring_sheet_v2_single_round_robin_playoffs.xlsx`.
 
 ## Docker
-- Copy `.env.example` to `.env` and update `DATABASE_URL` or `SCORING_PIN` if needed; by default the app uses the bundled SQLite file in `app/DATA`.
+- Copy `.env.example` to `.env` and adjust `SCORING_PIN` if needed; the Docker stack now hardcodes `DATABASE_URL=sqlite:///app/DATA/gspro_scoring.db`, so the Postgres path is ignored and the SQLite file is shared through `app/DATA`.
 - `docker compose up --build` launches only the `app` service, which binds `app/DATA` into the container so the SQLite database file persists between runs.
 - The app still seeds the demo tournament via `app.demo_seed` on startup, but you can `docker compose exec app python -m app.demo_seed` if you need to refresh that fixture.
 - The app publishes on port `18000` (`http://localhost:18000`). Pass `SSL_CERT_FILE`/`SSL_KEY_FILE` (and optionally `SSL_CA_FILE`/`SSL_KEY_PASSWORD`) through `.env` when you need HTTPS.
+
+## Schema and inspecting data
+- Run `python scripts/create_schema.py` to seed the bundled schema, print the SQL DDL, and ensure the default `GSPro League` tournament exists without touching Postgres.
+- Inspect the live SQLite file with the CLI (`sqlite3 app/DATA/gspro_scoring.db`) or install a GUI like DB Browser for SQLite (`sudo apt install sqlitebrowser`), remembering that Docker already binds `app/DATA` so `/app/DATA/gspro_scoring.db` is visible on the host.
+- The kiosk leaderboard uses its own sandboxed store at `app/DATA/kiosk_leaderboard.db`, and the kiosk views seed this file automatically when they are rendered.
+
+## Raspberry Pi appliance (baked image)
+- Copy the entire repository onto the Pi’s SD card (e.g., `/opt/gspro`) so `app/`, `golf-ui/`, `start.sh`, and the SQLite files live together.
+- Run `./start.sh` once to create the `.venv`, install Python dependencies, seed `gspro_scoring.db`, and launch the server; the script can also be wired into a plain shell shortcut or kiosk browser as the “run artifact.”
+- Drop `scripts/gspro.service` into `/etc/systemd/system/gspro.service`, then enable it with `sudo systemctl enable gspro.service` so the Pi boots straight into the FastAPI server on port 18000.
+- Optionally launch a kiosk browser pointing at `http://localhost:18000/standings` to make the Pi look like a TV-style scoreboard as soon as it finishes booting.
+- When the Pi boots for the first time (or if it loses Wi-Fi), run `scripts/start_setup_network.sh` (or include it in the appliance startup) to bring up a temporary open SSID (default `GSPro-Setup`/`gspro1234`) and point your phone/tablet at `http://192.168.4.1/setup/wifi`. After saving the credentials, run `scripts/stop_setup_network.sh` to tear the hotspot down.
+- The `start.sh` helper now detects when `app/DATA/wifi_config.json` is empty and automatically launches `scripts/start_setup_network.sh` before the FastAPI server starts, so the first boot brings up the setup SSID. Once `/setup/wifi` saves the network, the handler will call `scripts/stop_setup_network.sh`, allowing the Pi to join the configured network without manual hostapd interaction.
+- The appliance also publishes an mDNS alias (default `gspro.local`) using `scripts/publish_mdns.sh`, so the scoreboard is reachable at `http://gspro.local:18000/standings` or any alias you pass via the `GSCORES_HOST` environment variable on boot. Install `avahi-daemon`/`avahi-utils` so `avahi-publish` can run, or tweak the script to register whatever domain (`gspro.scoring.com`) your network prefers.
+- Visit `/setup/wifi` after the server is running to store your SSID/passphrase locally in `app/DATA/wifi_config.json`; the service will remind operators to apply those credentials using the OS-level Wi-Fi manager on the Pi.
 
 ## Running prod and dev simultaneously
 
@@ -30,7 +45,7 @@ Each stack is tied to its Compose project name, so container identifiers keep th
 
 ## Admin
 - Recent submissions: `/admin?pin=YOUR_PIN`
-- Tournament setup now lives on its own page (`/admin/setup?pin=YOUR_PIN`), where seed data from the default match list populates the roster and lets you name players, assign divisions, set handicaps, and define a seeding order per division (1..N). Everything is stored in the bundled Postgres container so the scoring and standings pages stay accurate.
+- Tournament setup now lives on its own page (`/admin/setup?pin=YOUR_PIN`), where seed data from the default match list populates the roster and lets you name players, assign divisions, set handicaps, and define a seeding order per division (1..N). Everything is stored in the bundled SQLite file (`app/DATA/gspro_scoring.db`), so the scoring and standings pages stay accurate without an external database.
 - Use `/admin/player_entry` to register players with names, handicaps, seeds, and divisions. Each match now pairs two-player teams (four people total) on `/admin/match_setup` before you launch Scorecard Studio via the Golf UI link for live scoring.
 - The UI now uses a darker, high-contrast palette tuned for larger displays, matching the TV-friendly columnar layout from the official Excel dashboard so standings tables remain legible from across a room.
 

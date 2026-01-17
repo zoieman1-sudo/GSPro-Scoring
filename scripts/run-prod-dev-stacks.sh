@@ -9,12 +9,8 @@ DEV_PROJECT="${DEV_PROJECT:-gspro-dev}"
 PROD_PROJECT="${PROD_PROJECT:-gspro-prod}"
 
 DEV_APP_PORT="${DEV_APP_PORT:-18000}"
-DEV_DB_PORT="${DEV_DB_PORT:-15433}"
-DEV_PGADMIN_PORT="${DEV_PGADMIN_PORT:-5050}"
 
 PROD_APP_PORT="${PROD_APP_PORT:-19000}"
-PROD_DB_PORT="${PROD_DB_PORT:-15434}"
-PROD_PGADMIN_PORT="${PROD_PGADMIN_PORT:-5051}"
 
 start_dev="1"
 start_prod="1"
@@ -37,11 +33,7 @@ Environment overrides:
   DEV_PROJECT        Compose project used for the dev stack (default: $DEV_PROJECT)
   PROD_PROJECT       Compose project used for the prod stack (default: $PROD_PROJECT)
   DEV_APP_PORT       HTTP port for dev app (default: $DEV_APP_PORT)
-  DEV_DB_PORT        Postgres port for dev database (default: $DEV_DB_PORT)
-  DEV_PGADMIN_PORT   pgAdmin port for dev stack (default: $DEV_PGADMIN_PORT)
   PROD_APP_PORT      HTTP port for prod app (default: $PROD_APP_PORT)
-  PROD_DB_PORT       Postgres port for prod database (default: $PROD_DB_PORT)
-  PROD_PGADMIN_PORT  pgAdmin port for prod stack (default: $PROD_PGADMIN_PORT)
 EOF
 }
 
@@ -81,25 +73,21 @@ run_stack() {
   local stack_dir="$1"
   local project="$2"
   local app_port="$3"
-  local db_port="$4"
-  local pgadmin_port="$5"
 
-  echo "Bringing up $project stack from $stack_dir (app:$app_port db:$db_port pgadmin:$pgadmin_port)"
+  echo "Bringing up $project stack from $stack_dir (app:$app_port)"
   (
     cd "$stack_dir"
     COMPOSE_PROJECT_NAME="$project" \
       APP_HOST_PORT="$app_port" \
-      DB_HOST_PORT="$db_port" \
-      PGADMIN_HOST_PORT="$pgadmin_port" \
       docker compose up --build -d
   )
 }
 
 if [ "$start_prod" = "1" ]; then
   ensure_prod_worktree
-  run_stack "$PROD_WORKTREE_DIR" "$PROD_PROJECT" "$PROD_APP_PORT" "$PROD_DB_PORT" "$PROD_PGADMIN_PORT"
+  run_stack "$PROD_WORKTREE_DIR" "$PROD_PROJECT" "$PROD_APP_PORT"
 fi
 
 if [ "$start_dev" = "1" ]; then
-  run_stack "$ROOT_DIR" "$DEV_PROJECT" "$DEV_APP_PORT" "$DEV_DB_PORT" "$DEV_PGADMIN_PORT"
+  run_stack "$ROOT_DIR" "$DEV_PROJECT" "$DEV_APP_PORT"
 fi

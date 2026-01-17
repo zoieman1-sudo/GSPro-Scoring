@@ -78,6 +78,7 @@ from app.db import (
     finalize_match_result,
 )
 from app.kiosk_store import fetch_divisions as fetch_kiosk_divisions, fetch_matches as fetch_kiosk_matches
+from app.wifi_config import load_wifi_config, save_wifi_config
 from app.course_sync import ensure_georgia_course, ensure_pebble_beach_course, import_course_to_db
 from app.seed import (
     Match,
@@ -1507,6 +1508,37 @@ async def api_set_active_tournament(payload: ActiveTournamentPayload):
         {
             "active_tournament_id": tournament_id,
         }
+    )
+
+
+@app.get("/setup/wifi")
+async def wifi_setup(request: Request):
+    config = load_wifi_config()
+    return templates.TemplateResponse(
+        "setup_wifi.html",
+        {
+            "request": request,
+            "config": config,
+            "message": None,
+        },
+    )
+
+
+@app.post("/setup/wifi")
+async def wifi_setup_submit(
+    request: Request,
+    ssid: str = Form(...),
+    password: str | None = Form(None),
+    hidden: str | None = Form(None),
+):
+    saved = save_wifi_config(ssid.strip(), password or "", bool(hidden))
+    return templates.TemplateResponse(
+        "setup_wifi.html",
+        {
+            "request": request,
+            "config": saved,
+            "message": "Network saved. Apply the credentials with your system Wi-Fi tool after reboot.",
+        },
     )
 
 

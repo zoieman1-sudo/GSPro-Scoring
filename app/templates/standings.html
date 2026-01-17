@@ -66,10 +66,6 @@
       .standing-cell.stack-data {
         text-align: center;
       }
-      .standing-cell.matches {
-        font-size: 0.75em;
-        text-align: center;
-      }
       .standing-cell.pts-col {
         width: 32px;
         text-align: center;
@@ -82,8 +78,13 @@
         padding-right: 2px;
       }
       .standing-cell.matches {
-        font-size: 0.75em;
+        font-size: 0.85em;
         text-align: center;
+        width: 36px;
+      }
+      .standing-cell.matches .label-main {
+        font-size: 0.85em;
+        letter-spacing: 0.35em;
       }
       .standings-table th.stack-header {
         padding-left: 2px;
@@ -158,10 +159,9 @@
                 <col style="width: 36%;" />
                 <col style="width: 12%;" />
                 <col style="width: 12%;" />
-                <col style="width: 10%;" />
-                <col style="width: 10%;" />
-                <col style="width: 10%;" />
-                <col style="width: 10%;" />
+                <col style="width: 12%;" />
+                <col style="width: 12%;" />
+                <col style="width: 12%;" />
               </colgroup>
               <thead>
                   <tr class="table-head" role="row">
@@ -169,12 +169,9 @@
                     <th class="standing-cell pts-col">
                       <span class="label-main">Pts</span>
                     </th>
-                    <th class="standing-cell stack-header">
-                      <span class="label-main">Pts</span>
-                      <span class="label-sub">Rem</span>
-                    </th>
                     <th class="standing-cell matches">
-                      <span class="label-main">Ma</span>
+                      <span class="label-main">Mat</span>
+                      <span class="label-sub">#</span>
                     </th>
                     <th class="standing-cell wlt">
                       <span class="label-main">W</span>
@@ -195,7 +192,6 @@
                         <span class="seed-tag">{{ player.division }}{{ player.seed }}</span>
                       </td>
                       <td class="standing-cell pts-col">{{ player.points_for }}</td>
-                      <td class="standing-cell stack-data">{{ player.pts_remaining }}</td>
                       <td class="standing-cell matches">{{ player.matches }}</td>
                       <td class="standing-cell wlt">{{ player.wins }}</td>
                       <td class="standing-cell wlt">{{ player.losses }}</td>
