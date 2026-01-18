@@ -6,3 +6,4 @@ venv/
 .envrc
 node_modules/
 .DS_Store
+app/DATA/gspro_scoring.db*
