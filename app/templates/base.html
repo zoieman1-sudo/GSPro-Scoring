@@ -12,19 +12,326 @@
   <body>
     <div class="bg-shapes" aria-hidden="true"></div>
     <div class="layout">
-      <aside class="sidebar">
-        <p class="sidebar-brand">GSPro Score</p>
-        <nav class="page-nav">
-          <a href="/scoring/mobile" class="{% if request.url.path == '/scoring/mobile' %}is-active{% endif %}">Mobile Scoring</a>
-          <a href="/scorecard" class="{% if 'scorecard' in request.url.path %}is-active{% endif %}">Scorecard</a>
-          <a href="/standings" class="{% if request.url.path.startswith('/standings') %}is-active{% endif %}">Standings</a>
-          <a href="/admin/setup" class="{% if request.url.path.startswith('/admin/setup') %}is-active{% endif %}">Tournament Setup</a>
-        </nav>
-      </aside>
+      <header class="top-nav">
+        <div class="top-nav__title">
+          <span class="top-nav__brand">GSPro Score</span>
+          <span class="top-nav__subline">Tournament operations</span>
+        </div>
+        <div class="top-nav__actions">
+        <details class="top-nav__scoring-menu">
+          <summary class="top-nav__scoring-toggle">
+            <span class="top-nav__scoring-icon" aria-hidden="true">⛳️</span>
+            Scoring
+          </summary>
+            <div class="top-nav__scoring-items">
+              <a class="top-nav__scoring-item" href="/admin/match_setup">
+                <span class="top-nav__scoring-item-icon" aria-hidden="true">🧩</span>
+                <div>
+                  <span class="top-nav__scoring-item-title">Match setup</span>
+                  <span class="top-nav__scoring-item-subtitle">match_setup</span>
+                </div>
+              </a>
+              <a class="top-nav__scoring-item" href="/scorecard_data">
+                <span class="top-nav__scoring-item-icon" aria-hidden="true">🧾</span>
+                <div>
+                  <span class="top-nav__scoring-item-title">Scorecards</span>
+                  <span class="top-nav__scoring-item-subtitle">scorecard_data</span>
+                </div>
+              </a>
+              <a class="top-nav__scoring-item" href="/admin/scheduled_matches">
+                <span class="top-nav__scoring-item-icon" aria-hidden="true">🕑</span>
+                <div>
+                  <span class="top-nav__scoring-item-title">Scheduled matches</span>
+                  <span class="top-nav__scoring-item-subtitle">scheduled_matches</span>
+                </div>
+              </a>
+              <a class="top-nav__scoring-item" href="/standings">
+                <span class="top-nav__scoring-item-icon" aria-hidden="true">📊</span>
+                <div>
+                  <span class="top-nav__scoring-item-title">Standings</span>
+                  <span class="top-nav__scoring-item-subtitle">standings</span>
+                </div>
+              </a>
+          </div>
+        </details>
+        <details class="top-nav__tournament-menu">
+          <summary class="top-nav__tournament-toggle">
+            <span class="top-nav__admin-icon" aria-hidden="true">🏟️</span>
+            Tournament
+          </summary>
+          <div class="top-nav__tournament-items">
+            <a class="top-nav__tournament-item" href="/admin/tournament_setup2">
+              <span class="top-nav__tournament-item-icon" aria-hidden="true">🏆</span>
+              <div>
+                <span class="top-nav__tournament-item-title">Tournament setup</span>
+                <span class="top-nav__tournament-item-subtitle">tournament_setup2</span>
+              </div>
+            </a>
+            <a class="top-nav__tournament-item" href="/admin/player_entry">
+              <span class="top-nav__tournament-item-icon" aria-hidden="true">👤</span>
+              <div>
+                <span class="top-nav__tournament-item-title">Player entry</span>
+                <span class="top-nav__tournament-item-subtitle">player_entry</span>
+              </div>
+            </a>
+            <a class="top-nav__tournament-item" href="/admin/setup/course">
+              <span class="top-nav__tournament-item-icon" aria-hidden="true">🗺️</span>
+              <div>
+                <span class="top-nav__tournament-item-title">Courses</span>
+                <span class="top-nav__tournament-item-subtitle">setup/course</span>
+              </div>
+            </a>
+          </div>
+        </details>
+        <details class="top-nav__admin-menu">
+            <summary class="top-nav__admin-toggle">
+              <span class="top-nav__admin-icon" aria-hidden="true">⚙️</span>
+              Admin
+            </summary>
+            <div class="top-nav__admin-items">
+              <a
+                class="top-nav__admin-item"
+                href="#"
+                role="button"
+                id="adminActivateTournament"
+              >
+                <span class="top-nav__admin-item-icon" aria-hidden="true">⚡</span>
+                <div>
+                  <span class="top-nav__admin-item-title">Activate tournament</span>
+                  <span class="top-nav__admin-item-subtitle">active_tournament</span>
+                </div>
+              </a>
+              <a class="top-nav__admin-item" href="/admin/match_results">
+                <span class="top-nav__admin-item-icon" aria-hidden="true">🧹</span>
+                <div>
+                  <span class="top-nav__admin-item-title">Match cleanup</span>
+                  <span class="top-nav__admin-item-subtitle">match_results</span>
+                </div>
+              </a>
+              <a class="top-nav__admin-item" href="/admin">
+                <span class="top-nav__admin-item-icon" aria-hidden="true">🗄️</span>
+                <div>
+                  <span class="top-nav__admin-item-title">Backups</span>
+                  <span class="top-nav__admin-item-subtitle">admin</span>
+                </div>
+              </a>
+            <button
+              class="top-nav__admin-item"
+              type="button"
+              id="adminResetStandingsButton"
+            >
+              <span class="top-nav__admin-item-icon" aria-hidden="true">🔄</span>
+              <div>
+                <span class="top-nav__admin-item-title">Reset standings</span>
+                <span class="top-nav__admin-item-subtitle">cleanup/standings</span>
+              </div>
+            </button>
+          </div>
+        </details>
+        </div>
+      </header>
       <main class="shell">
         {% block content %}{% endblock %}
       </main>
     </div>
+    <div id="tournamentPickerOverlay" class="tournament-picker-overlay" hidden data-open="false">
+      <div class="tournament-picker-card">
+        <p class="eyebrow">Tournament selection</p>
+        <h2>Select an event</h2>
+        <p class="muted-label">
+          Choose which tournament you want the dashboard to operate against today. This selection
+          will be remembered in your browser until you switch to a different tournament.
+        </p>
+        <select id="tournamentPickerSelect">
+          <option value="">Loading tournaments…</option>
+        </select>
+        <div class="tournament-picker-actions">
+          <button class="pill-link" id="tournamentPickerConfirm" type="button" disabled>Set active tournament</button>
+          <button class="pill-link pill-link--ghost" id="tournamentPickerCancel" type="button">Cancel</button>
+        </div>
+        <p class="muted-label" id="tournamentPickerStatus"></p>
+      </div>
+    </div>
     <script src="/static/js/app.js"></script>
+    <script>
+      (function () {
+        const overlay = document.getElementById("tournamentPickerOverlay");
+        const select = document.getElementById("tournamentPickerSelect");
+        const confirmBtn = document.getElementById("tournamentPickerConfirm");
+        const statusEl = document.getElementById("tournamentPickerStatus");
+
+        const setStatus = (message, isError = false) => {
+          if (!statusEl) return;
+          statusEl.textContent = message || "";
+          statusEl.classList.toggle("muted-label", !isError);
+          statusEl.classList.toggle("tournament-picker-status-error", isError);
+        };
+
+        const toggleConfirm = (enabled) => {
+          if (!confirmBtn) return;
+          confirmBtn.disabled = !enabled;
+        };
+
+        const showOverlay = () => {
+          if (!overlay) return;
+          overlay.hidden = false;
+          overlay.dataset.open = "true";
+        };
+        const hideOverlay = () => {
+          if (!overlay) return;
+          overlay.hidden = true;
+          overlay.dataset.open = "false";
+        };
+
+        const resetPicker = () => {
+          toggleConfirm(false);
+          if (select) {
+            select.value = "";
+          }
+        };
+
+        const fetchActiveTournament = async () => {
+          const response = await fetch("/api/active_tournament");
+          if (!response.ok) {
+            throw new Error("Unable to load the active tournament.");
+          }
+          return response.json();
+        };
+
+        const fetchTournaments = async () => {
+          const response = await fetch("/api/tournaments");
+          if (!response.ok) {
+            throw new Error("Unable to load tournaments.");
+          }
+          const payload = await response.json();
+          return Array.isArray(payload?.tournaments) ? payload.tournaments : [];
+        };
+
+        const persistSelection = async (tournamentId) => {
+          const response = await fetch("/api/active_tournament", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tournament_id: tournamentId }),
+          });
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.detail || "Unable to set the active tournament.");
+          }
+          window.localStorage.setItem("gspro.activeTournamentId", String(tournamentId));
+          window.location.reload();
+        };
+
+        select?.addEventListener("change", () => {
+          toggleConfirm(Boolean(select.value));
+          setStatus("");
+        });
+
+        confirmBtn?.addEventListener("click", () => {
+          if (!select || !select.value) {
+            setStatus("Select a tournament first.", true);
+            return;
+          }
+          setStatus("Saving selection…");
+          persistSelection(Number(select.value)).catch((error) => {
+            setStatus(error?.message || "Unable to save the selection.", true);
+          });
+        });
+
+        const loadTournamentOptions = async () => {
+          if (!select) return;
+          setStatus("Loading tournaments…");
+          select.innerHTML = "<option value=\"\">Loading tournaments…</option>";
+          toggleConfirm(false);
+          try {
+            const tournaments = await fetchTournaments();
+            if (!tournaments.length) {
+              select.innerHTML = '<option value="">No tournaments configured</option>';
+              setStatus("No tournaments are available yet.", true);
+              return;
+            }
+            select.innerHTML =
+              '<option value="">Choose a tournament…</option>' +
+              tournaments
+                .map(
+                  (tournament) =>
+                    `<option value="${tournament.id}">${tournament.name}</option>`
+                )
+                .join("");
+          } catch (error) {
+            select.innerHTML = `<option value="">Unable to load tournaments</option>`;
+            setStatus(error?.message || "Unable to determine the active tournament.", true);
+          }
+        };
+
+        document.addEventListener("DOMContentLoaded", async () => {
+          if (!overlay || !select || !confirmBtn) {
+            return;
+          }
+          try {
+            const active = await fetchActiveTournament();
+            if (active?.active_tournament_id) {
+              setStatus("");
+              window.localStorage.setItem(
+                "gspro.activeTournamentId",
+                String(active.active_tournament_id)
+              );
+            }
+          } catch (error) {
+            console.warn("Unable to fetch active tournament", error);
+          }
+        });
+
+        const adminPickerTrigger = document.getElementById("adminActivateTournament");
+        const cancelBtn = document.getElementById("tournamentPickerCancel");
+        const adminMenu = document.querySelector(".top-nav__admin-menu");
+
+        const openTournamentPicker = () => {
+          resetPicker();
+          setStatus("");
+          loadTournamentOptions();
+          showOverlay();
+          adminMenu?.removeAttribute("open");
+        };
+
+        const resetStandingsButton = document.getElementById("adminResetStandingsButton");
+        const promptForPin = () => window.prompt("Enter admin PIN to reset standings:");
+        resetStandingsButton?.addEventListener("click", async (event) => {
+          event.preventDefault();
+          const pin = promptForPin();
+          if (!pin) {
+            return;
+          }
+          try {
+            const body = new URLSearchParams();
+            body.set("pin", pin);
+            const response = await fetch("/admin/cleanup-standings", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: body.toString(),
+            });
+            if (!response.ok) {
+              throw new Error("Unable to reset standings");
+            }
+            window.location.href = `/admin?pin=${encodeURIComponent(pin)}`;
+          } catch (error) {
+            alert(error?.message || "Standings reset failed");
+          }
+        });
+
+        hideOverlay();
+
+        adminPickerTrigger?.addEventListener("click", (event) => {
+          event.preventDefault();
+          openTournamentPicker();
+        });
+
+        cancelBtn?.addEventListener("click", () => {
+          hideOverlay();
+        });
+      })();
+    </script>
+    {% block scripts %}{% endblock %}
   </body>
 </html>

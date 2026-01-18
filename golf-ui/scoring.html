@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>GolfApp – Scoring</title>
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body>
+    <div id="codeOverlay" class="code-screen" role="dialog" aria-modal="true">
+      <div class="code-dialog">
+        <p class="eyebrow">Enter your scoring code</p>
+        <h2>Unlock the match</h2>
+        <form id="codeForm" class="code-form">
+          <input
+            id="matchCodeInput"
+            name="match_code"
+            type="text"
+            placeholder="123456789"
+            autocomplete="off"
+            required
+          />
+          <button id="matchCodeSubmit" type="submit">Enter</button>
+        </form>
+        <p class="hint">Use the code generated on the Play Match screen.</p>
+        <div id="codeError" class="code-error" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+    <header class="topbar">
+      <div class="left">
+        <button class="icon-btn" aria-label="Menu">
+          <div class="hamburger"><span></span></div>
+        </button>
+      </div>
+      <div class="topbar__titles">
+        <h1 id="courseTitle">Scoring</h1>
+      </div>
+    </header>
+
+    <section class="holebar" aria-label="Hole">
+      <button class="holebar__nav holebar__nav--prev" type="button" id="prevHole" aria-label="Previous hole">
+        <span class="holebar__nav-arrow" aria-hidden="true">◀</span>
+        <span class="holebar__nav-number" id="prevHoleNumber">—</span>
+      </button>
+      <div class="center">
+        <div class="hole" id="holeText">Hole 12</div>
+        <div class="meta" id="holeMeta">Par 5 • 533 yds (BLU)</div>
+      </div>
+      <button class="holebar__nav holebar__nav--next" type="button" id="nextHole" aria-label="Next hole">
+        <span class="holebar__nav-number" id="nextHoleNumber">—</span>
+        <span class="holebar__nav-arrow" aria-hidden="true">▶</span>
+      </button>
+    </section>
+
+    <main class="container" style="padding-top:12px;">
+      <section class="scoreboard" aria-label="Scoreboard">
+        <div id="scoreList" class="scoreboard__list" aria-label="Score Entry List"></div>
+      </section>
+
+      <section class="keypad-wrap" aria-label="Keypad">
+        <div class="keypad" id="keypad"></div>
+      </section>
+
+      <section class="actions" aria-label="Actions">
+        <button class="action-btn undo" id="undoBtn" type="button">Undo Changes</button>
+        <button class="action-btn save" id="saveBtn" type="button">Save Scores</button>
+      </section>
+    </main>
+
+    <script src="js/scoring.js"></script>
+  </body>
+</html>

@@ -1,5 +1,7 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -9,8 +11,23 @@ class Settings:
     golf_api_key: str
 
 
+def _normalize_database_url(value: Optional[str]) -> str:
+    default_url = "sqlite:///app/DATA/gspro_scoring.db"
+    if not value:
+        return default_url
+    normalized = value.strip()
+    normalized_lower = normalized.lower()
+    if normalized_lower.startswith(("postgresql://", "postgres://", "mysql://", "mariadb://")):
+        return default_url
+    if normalized.startswith("sqlite://"):
+        return normalized
+    if Path(normalized).suffix:
+        return f"sqlite:///{normalized}"
+    return normalized
+
+
 def load_settings() -> Settings:
-    database_url = os.getenv("DATABASE_URL", "postgresql://postgres@localhost:5432/gspro_scoring")
+    database_url = _normalize_database_url(os.getenv("DATABASE_URL"))
     scoring_pin = os.getenv("SCORING_PIN", "1234")
     golf_api_key = os.getenv("GOLF_API_KEY", "IGEEUMDFTUIYPPODWAO5XZSQNI")
     return Settings(
@@ -20,23 +37,49 @@ def load_settings() -> Settings:
     )
 
 
-def score_outcome(player_a_points: int, player_b_points: int) -> dict:
+def bonus_for_points(points: float, opponent_points: float) -> float:
+    if points > opponent_points and points >= 5:
+        return 1.0
+    if points == opponent_points and points >= 4.5:
+        return 0.5
+    return 0.0
+
+
+def compute_bonus_points(
+    player_a_points: float,
+    player_b_points: float,
+    *,
+    allow_bonus: bool = True,
+) -> tuple[float, float]:
+    if not allow_bonus:
+        return 0.0, 0.0
+    return (
+        bonus_for_points(player_a_points, player_b_points),
+        bonus_for_points(player_b_points, player_a_points),
+    )
+
+
+def score_outcome(
+    player_a_points: float,
+    player_b_points: float,
+    *,
+    allow_bonus: bool = True,
+) -> dict:
     if player_a_points > player_b_points:
-        player_a_bonus = 1
-        player_b_bonus = 0
         winner = "A"
-    elif player_b_points > player_a_points:
-        player_a_bonus = 0
-        player_b_bonus = 1
+    elif player_a_points < player_b_points:
         winner = "B"
     else:
-        player_a_bonus = 0
-        player_b_bonus = 0
         winner = "T"
 
+    player_a_bonus, player_b_bonus = compute_bonus_points(
+        player_a_points, player_b_points, allow_bonus=allow_bonus
+    )
     player_a_total = player_a_points + player_a_bonus
     player_b_total = player_b_points + player_b_bonus
     return {
+        "player_a_points": player_a_points,
+        "player_b_points": player_b_points,
         "player_a_bonus": player_a_bonus,
         "player_b_bonus": player_b_bonus,
         "player_a_total": player_a_total,

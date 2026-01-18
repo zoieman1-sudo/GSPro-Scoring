@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card admin-card">
+    <div class="match-meta">
+      <p class="eyebrow">Admin</p>
+      <h1 class="match-title">Manually add a course</h1>
+      <p class="match-sub">Insert club, course, tee, and hole data without using the GolfCourseAPI.</p>
+    </div>
+
+    {% if status %}
+      <div class="status">{{ status }}</div>
+    {% endif %}
+    {% if not authorized %}
+      <div class="status">Enter the admin PIN to save a manual course.</div>
+    {% endif %}
+
+    <form class="setup-form manual-course-form" method="post" action="/admin/courses/new">
+      <div class="field-grid">
+        <label>
+          Admin PIN<br />
+          <input
+            type="password"
+            name="pin"
+            value="{{ pin or "" }}"
+            placeholder="Administrator PIN"
+            required
+          />
+        </label>
+      </div>
+
+      <div class="manual-course-section">
+        <h2>Course info</h2>
+        <div class="field-grid">
+          <label>
+            Course ID (optional)<br />
+            <input type="text" name="course_id_override" placeholder="Leave blank to auto assign" />
+          </label>
+          <label>
+            Club name<br />
+            <input type="text" name="club_name" required />
+          </label>
+          <label>
+            Course name<br />
+            <input type="text" name="course_name" required />
+          </label>
+          <label>
+            City<br />
+            <input type="text" name="city" />
+          </label>
+          <label>
+            State<br />
+            <input type="text" name="state" />
+          </label>
+          <label>
+            Country<br />
+            <input type="text" name="country" />
+          </label>
+          <label>
+            Latitude<br />
+            <input type="text" name="latitude" />
+          </label>
+          <label>
+            Longitude<br />
+            <input type="text" name="longitude" />
+          </label>
+        </div>
+        <div class="field-grid">
+          <label>
+            Tee name<br />
+            <input type="text" name="tee_name" required />
+          </label>
+          <label>
+            Gender<br />
+            <select name="gender">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </label>
+          <label>
+            Course rating<br />
+            <input type="text" name="course_rating" />
+          </label>
+          <label>
+            Slope rating<br />
+            <input type="text" name="slope_rating" />
+          </label>
+          <label>
+            Total yards<br />
+            <input type="text" name="total_yards" />
+          </label>
+          <label>
+            Par total<br />
+            <input type="text" name="par_total" />
+          </label>
+        </div>
+      </div>
+
+      <div class="manual-course-section">
+        <h2>Holes</h2>
+        <p class="match-sub">Provide par, handicap, and optional yardage for each hole.</p>
+        <div class="hole-grid">
+          {% for hole in range(1, 19) %}
+            <div class="hole-row">
+              <span>Hole {{ hole }}</span>
+              <label>
+                Par<br />
+                <input type="text" name="hole_{{ hole }}_par" />
+              </label>
+              <label>
+                HCP<br />
+                <input type="text" name="hole_{{ hole }}_hcp" />
+              </label>
+              <label>
+                Yards<br />
+                <input type="text" name="hole_{{ hole }}_yardage" />
+              </label>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="setup-actions">
+        <button type="submit" class="submit-btn">Save manual course</button>
+        <a href="/admin/setup/course{% if pin %}?pin={{ pin }}{% endif %}" class="pill-link">Back to course setup</a>
+      </div>
+    </form>
+  </section>
+
+  <style>
+    .manual-course-form {
+      gap: 32px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .manual-course-section {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .hole-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .hole-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .hole-row span {
+      font-weight: 600;
+    }
+
+    .hole-row label {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+    }
+  </style>
+{% endblock %}

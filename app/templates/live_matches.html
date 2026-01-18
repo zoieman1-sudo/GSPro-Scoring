@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <div class="match-meta">
+      <p class="eyebrow">Live Matches</p>
+      <h1 class="match-title">Active Scorecards</h1>
+      <p class="match-sub">Matches currently in progress or marked active.</p>
+    </div>
+    {% if matches %}
+      <div class="match-grid">
+        {% for entry in matches %}
+          <article class="card">
+            <header>
+              <p class="eyebrow">Division {{ entry.match.division }}</p>
+              <h2>{{ entry.match.player_a_name }} vs {{ entry.match.player_b_name }}</h2>
+              <p>Status: {{ entry.match.status }}</p>
+            </header>
+            <dl>
+              <dt>Match Key</dt>
+              <dd>{{ entry.match.match_key }}</dd>
+              <dt>Course</dt>
+              <dd>{{ entry.match.course_id or "—" }}</dd>
+            </dl>
+            {% if entry.result %}
+              <div class="score-row">
+                <p>Points</p>
+                <p>{{ entry.result.player_a_points }} – {{ entry.result.player_b_points }}</p>
+              </div>
+            {% endif %}
+              <a class="ghost-btn" href="/golf-ui/scoring.html?match_key={{ entry.match.match_key }}" target="_blank">Launch Golf UI</a>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="status">No live matches at the moment.</p>
+    {% endif %}
+  </section>
+{% endblock %}

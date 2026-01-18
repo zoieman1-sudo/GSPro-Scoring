@@ -9,6 +9,12 @@ class Match:
     division: str
     player_a: str
     player_b: str
+    player_c: str | None = None
+    player_d: str | None = None
+    course_id: int | None = None
+    course_tee_id: int | None = None
+    hole_count: int = 18
+    start_hole: int = 1
 
 
 def _division_matches(division: str, players: list[str], start_index: int) -> list[Match]:
@@ -16,7 +22,7 @@ def _division_matches(division: str, players: list[str], start_index: int) -> li
     counter = start_index
     for player_a, player_b in combinations(players, 2):
         match_id = f"{division}-{counter:02d}"
-        matches.append(Match(match_id, division, player_a, player_b))
+        matches.append(Match(match_id, division, player_a, player_b, hole_count=18, start_hole=1))
         counter += 1
     return matches
 
@@ -38,6 +44,10 @@ def build_pairings_from_players(players: list[dict]) -> list[Match]:
 
 
 def match_display(match: Match) -> str:
+    if match.player_c or match.player_d:
+        team_a = " & ".join(filter(None, [match.player_a, match.player_c]))
+        team_b = " & ".join(filter(None, [match.player_b, match.player_d]))
+        return f"Division {match.division}: {team_a} vs {team_b}"
     return f"Division {match.division}: {match.player_a} vs {match.player_b}"
 
 

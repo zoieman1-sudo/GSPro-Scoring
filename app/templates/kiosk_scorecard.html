@@ -1,0 +1,377 @@
+{% extends "kiosk_base.html" %}
+
+{% macro format_points(value) -%}
+  {%- if value is none -%}
+    —
+  {%- elif value == value|int -%}
+    {{ value|int }}
+  {%- else -%}
+    {{ value|round(1) }}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro sum_attr(rows, key) -%}
+  {%- set total = 0 -%}
+  {%- for row in rows -%}
+    {%- set value = row.get(key) if row else none -%}
+    {%- if value is not none -%}
+      {%- set total = total + value -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {{ total }}
+{%- endmacro %}
+
+{% set match_info = scorecard.match if scorecard else {} %}
+{% set hole_rows = ((scorecard.holes if scorecard else []) or []) %}
+
+{% block content %}
+  <style>
+    .kiosk-scorecard-card {
+      width: 100%;
+      padding: 32px;
+      border-radius: 32px;
+      background: rgba(7, 11, 27, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(20px);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .kiosk-scorecard-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .kiosk-scorecard-points {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .kiosk-scorecard-team {
+      padding: 18px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .kiosk-scorecard-team-label {
+      font-size: 0.85rem;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.6);
+    }
+    .kiosk-scorecard-points-value {
+      font-size: 2.8rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+    }
+    .kiosk-scorecard-team-sub {
+      font-size: 0.95rem;
+      color: rgba(255, 255, 255, 0.65);
+    }
+    .kiosk-scorecard-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 0.95rem;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.65);
+    }
+    .kiosk-scorecard-holes-head,
+    .kiosk-scorecard-holes {
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.02);
+      overflow: hidden;
+    }
+    .kiosk-scorecard-holes-head {
+      display: grid;
+      grid-template-columns: 0.4fr 0.6fr 0.6fr 0.9fr 0.9fr;
+      padding: 10px 14px;
+      font-size: 0.75rem;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.6);
+    }
+    .kiosk-scorecard-holes {
+      max-height: 420px;
+      overflow-y: auto;
+    }
+    .kiosk-scorecard-hole-row {
+      display: grid;
+      grid-template-columns: 0.4fr 0.6fr 0.6fr 0.9fr 0.9fr;
+      padding: 12px 14px;
+      font-size: 1rem;
+      letter-spacing: 0.1em;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-feature-settings: "tnum";
+    }
+    .kiosk-scorecard-hole-row:last-child {
+      border-bottom: none;
+    }
+    .kiosk-scorecard-hole-row--totals {
+      font-weight: 700;
+      letter-spacing: 0.3em;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .kiosk-scorecard-hole-row span {
+      display: block;
+      text-align: center;
+    }
+    .kiosk-scorecard-hole-row span:first-child {
+      text-align: left;
+    }
+    .kiosk-scorecard-live-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .kiosk-scorecard-live-item {
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.02);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.9rem;
+    }
+    .kiosk-scorecard-live-item.active {
+      border-color: rgba(67, 225, 255, 0.8);
+      box-shadow: 0 8px 20px rgba(67, 225, 255, 0.25);
+    }
+    .kiosk-scorecard-live-item-title {
+      font-weight: 600;
+      letter-spacing: 0.25em;
+    }
+    .kiosk-scorecard-empty {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0.5em;
+      text-align: center;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.7);
+    }
+  </style>
+
+  <section class="kiosk-scorecard-card">
+    <header class="kiosk-scorecard-header">
+      <p class="kiosk-eyebrow">Live scorecard</p>
+      <h1 class="kiosk-heading" id="kiosk-scorecard-title">
+        {{ match_info.team_label_a or match_info.player_a_name or "Team A" }}
+         vs
+        {{ match_info.team_label_b or match_info.player_b_name or "Team B" }}
+      </h1>
+    </header>
+
+    {% if not match_info %}
+      <p class="kiosk-scorecard-empty">Waiting for match data…</p>
+    {% endif %}
+
+    <div class="kiosk-scorecard-points">
+      <div class="kiosk-scorecard-team">
+        <span class="kiosk-scorecard-team-label">Team A</span>
+        <strong class="kiosk-scorecard-points-value" id="kiosk-points-a">
+          {{ scorecard.point_chip_a or 0 }}
+        </strong>
+        <span class="kiosk-scorecard-team-sub" id="kiosk-team-a-name">
+          {{ match_info.player_a_name or "Team A" }}
+        </span>
+      </div>
+      <div class="kiosk-scorecard-team">
+        <span class="kiosk-scorecard-team-label">Team B</span>
+        <strong class="kiosk-scorecard-points-value" id="kiosk-points-b">
+          {{ scorecard.point_chip_b or 0 }}
+        </strong>
+        <span class="kiosk-scorecard-team-sub" id="kiosk-team-b-name">
+          {{ match_info.player_b_name or "Team B" }}
+        </span>
+      </div>
+    </div>
+
+    <div class="kiosk-scorecard-meta">
+      <span id="kiosk-scorecard-division">
+        Division {{ match_info.division or "—" }}
+      </span>
+      <span id="kiosk-scorecard-status">
+        {{ match_info.status_label or "Not started" }}
+      </span>
+      <span id="kiosk-scorecard-holes-logged">
+        {{ match_info.holes_recorded or 0 }} /
+        {{ match_info.total_holes or 18 }} holes recorded
+      </span>
+    </div>
+
+    <div class="kiosk-scorecard-holes-head">
+      <span>Hole</span>
+      <span>Par</span>
+      <span>HCP</span>
+      <span>Points A</span>
+      <span>Points B</span>
+    </div>
+    <div class="kiosk-scorecard-holes" id="kiosk-hole-stack">
+      {% for hole in hole_rows %}
+        <div class="kiosk-scorecard-hole-row" data-hole="{{ hole.hole_number }}">
+          <span>{{ hole.hole_number }}</span>
+          <span>{{ hole.par or "—" }}</span>
+          <span>{{ hole.handicap or "—" }}</span>
+          <span>{{ format_points(hole.points_a) }}</span>
+          <span>{{ format_points(hole.points_b) }}</span>
+        </div>
+      {% endfor %}
+      <div class="kiosk-scorecard-hole-row kiosk-scorecard-hole-row--totals">
+        <span>Totals</span>
+        <span>{{ sum_attr(hole_rows, "par") }}</span>
+        <span>—</span>
+        <span>{{ sum_attr(hole_rows, "points_a") }}</span>
+        <span>{{ sum_attr(hole_rows, "points_b") }}</span>
+      </div>
+    </div>
+
+    {% if active_matches %}
+      <div class="kiosk-scorecard-live-list">
+        {% for entry in active_matches %}
+          <div
+            class="kiosk-scorecard-live-item {% if entry.match_key == active_match_key %}active{% endif %}"
+          >
+            <span class="kiosk-scorecard-live-item-title">{{ entry.display }}</span>
+            <span class="kiosk-scorecard-live-item-meta">
+              {{ entry.status_label }} · {{ entry.holes or 0 }} holes
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const matchKey = {{ active_match_key | tojson }};
+      if (!matchKey) {
+        return;
+      }
+
+      const pointAEl = document.getElementById("kiosk-points-a");
+      const pointBEl = document.getElementById("kiosk-points-b");
+      const titleEl = document.getElementById("kiosk-scorecard-title");
+      const teamAEl = document.getElementById("kiosk-team-a-name");
+      const teamBEl = document.getElementById("kiosk-team-b-name");
+      const statusEl = document.getElementById("kiosk-scorecard-status");
+      const divisionEl = document.getElementById("kiosk-scorecard-division");
+      const holesLoggedEl = document.getElementById("kiosk-scorecard-holes-logged");
+      const holeStack = document.getElementById("kiosk-hole-stack");
+      const refreshInterval = 8000;
+
+      const formatValue = (value) => {
+        if (value === null || value === undefined || value === "") {
+          return "—";
+        }
+        const numeric = Number(value);
+        if (Number.isFinite(numeric)) {
+          return Number.isInteger(numeric) ? `${numeric}` : numeric.toFixed(1);
+        }
+        return value;
+      };
+
+      const sumColumn = (rows, key) =>
+        (rows || []).reduce((total, row) => {
+          const raw = row && row[key];
+          const value = Number(raw);
+          return total + (Number.isFinite(value) ? value : 0);
+        }, 0);
+
+      const renderHoles = (holes) => {
+        if (!holeStack) {
+          return;
+        }
+        const rows = (holes || [])
+          .map((hole) => {
+            const pointsA = hole && hole.points_a;
+            const pointsB = hole && hole.points_b;
+            const holeNumber = hole && hole.hole_number != null ? hole.hole_number : "—";
+            const parValue = hole && hole.par != null ? hole.par : "—";
+            const handicapValue = hole && hole.handicap != null ? hole.handicap : "—";
+            return `
+              <div class="kiosk-scorecard-hole-row" data-hole="${holeNumber}">
+                <span>${holeNumber}</span>
+                <span>${parValue}</span>
+                <span>${handicapValue}</span>
+                <span>${formatValue(pointsA)}</span>
+                <span>${formatValue(pointsB)}</span>
+              </div>
+            `;
+          })
+          .join("");
+        const totalsRow = `
+          <div class="kiosk-scorecard-hole-row kiosk-scorecard-hole-row--totals">
+            <span>Totals</span>
+            <span>${formatValue(sumColumn(holes, "par"))}</span>
+            <span>—</span>
+            <span>${formatValue(sumColumn(holes, "points_a"))}</span>
+            <span>${formatValue(sumColumn(holes, "points_b"))}</span>
+          </div>
+        `;
+        holeStack.innerHTML = rows + totalsRow;
+      };
+
+      const updateMatchDetails = (payload) => {
+        const match = payload.match || {};
+        const teamLabelA = match.team_label_a || match.player_a_name || "Team A";
+        const teamLabelB = match.team_label_b || match.player_b_name || "Team B";
+        if (titleEl) {
+          titleEl.textContent = `${teamLabelA} vs ${teamLabelB}`;
+        }
+        if (teamAEl) {
+          teamAEl.textContent = match.player_a_name || "Team A";
+        }
+        if (teamBEl) {
+          teamBEl.textContent = match.player_b_name || "Team B";
+        }
+        if (divisionEl) {
+          divisionEl.textContent = `Division ${match.division ?? "—"}`;
+        }
+        if (statusEl) {
+          statusEl.textContent = match.status_label || "Not started";
+        }
+        if (holesLoggedEl) {
+          const recorded = match.holes_recorded ?? 0;
+          const total = match.total_holes ?? 18;
+          holesLoggedEl.textContent = `${recorded} / ${total} holes recorded`;
+        }
+        if (pointAEl) {
+          pointAEl.textContent = formatValue(payload.point_chip_a);
+        }
+        if (pointBEl) {
+          pointBEl.textContent = formatValue(payload.point_chip_b);
+        }
+      };
+
+      const refresh = async () => {
+        try {
+          const response = await fetch(`/api/scorecard/${matchKey}`);
+          if (!response.ok) {
+            throw new Error("Unable to refresh scorecard");
+          }
+          const payload = await response.json();
+          renderHoles(payload.holes || []);
+          updateMatchDetails(payload);
+        } catch (error) {
+          console.warn("Scorecard kiosk refresh failed", error);
+        }
+      };
+
+      refresh();
+      const intervalId = window.setInterval(refresh, refreshInterval);
+      window.addEventListener("beforeunload", () => {
+        window.clearInterval(intervalId);
+      });
+    });
+  </script>
+{% endblock %}

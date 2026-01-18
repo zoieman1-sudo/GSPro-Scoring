@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card scheduled-matches-panel">
+    <style>
+      .scorecard-block,
+      .scorecard-cards {
+        opacity: 1;
+      }
+      .scorecard-data__section {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 40px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.7),
+          0 30px 60px rgba(15, 23, 42, 0.18);
+        padding: 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      .scorecard-data__header {
+        text-transform: uppercase;
+        letter-spacing: 0.35em;
+        font-size: 0.8rem;
+        color: rgba(15, 23, 42, 0.65);
+      }
+      .scorecard-data__header h1 {
+        margin: 0;
+        font-size: clamp(2rem, 3vw, 2.8rem);
+        letter-spacing: 0.25em;
+        color: rgba(15, 23, 42, 0.9);
+      }
+      .scorecard-data__table-wrapper {
+        overflow-x: auto;
+        border-radius: 24px;
+        background: rgba(15, 23, 42, 0.08);
+        padding: 16px;
+      }
+      .scorecard-data-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: rgba(255, 255, 255, 0.4);
+        border-radius: 18px;
+        overflow: hidden;
+      }
+      .scorecard-data-table th,
+      .scorecard-data-table td {
+        border: none;
+        padding: 6px 10px;
+        font-size: 0.75rem;
+        text-align: center;
+        color: rgba(15, 23, 42, 0.9);
+      }
+      .scorecard-data-table th:first-child,
+      .scorecard-data-table td:first-child {
+        width: 140px;
+        text-align: left;
+        font-size: 0.7rem;
+        letter-spacing: 0.25em;
+        color: rgba(15, 23, 42, 0.7);
+      }
+      .scorecard-data-table thead th {
+        background: rgba(15, 23, 42, 0.08);
+        border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+      }
+      .scorecard-data-table tbody th {
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        color: rgba(15, 23, 42, 0.75);
+      }
+      .scorecard-data__status-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+      }
+      .scorecard-data__status-card {
+        padding: 16px;
+        border-radius: 14px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.5),
+          0 12px 30px rgba(15, 23, 42, 0.12);
+        color: rgba(15, 23, 42, 0.75);
+      }
+      .scorecard-data__status-card strong {
+        font-size: 1.8rem;
+        letter-spacing: 0.2em;
+      }
+      .scorecard-data__status-card-list li span {
+        color: rgba(15, 23, 42, 0.7);
+      }
+    </style>
+
+    {% macro format_value(value) -%}
+      {%- if value is none -%}
+      {%- elif value == value|int -%}
+        {{ value|int }}
+      {%- else -%}
+        {{ value }}
+      {%- endif -%}
+    {%- endmacro %}
+    {% macro format_hcp(value) -%}
+      {%- if value in (None, 0, 0.0) -%}
+      {%- elif value == 1 -%}
+        *
+      {%- elif value == 0.5 -%}
+        ½
+      {%- else -%}
+        {{ value }}
+      {%- endif -%}
+    {%- endmacro %}
+    {% macro format_net(value) -%}
+      {%- if value is none -%}
+      {%- elif value == value|int -%}
+        {{ value|int }}
+      {%- else -%}
+        {{ value }}
+      {%- endif -%}
+    {%- endmacro %}
+    {% macro net_score(value, par) -%}
+      {%- if value is none -%}
+        {{ format_net(value) }}
+      {%- elif par is not none and (value | float) < (par | float) -%}
+        <span class="scorecard-score--under-par">{{ format_net(value) }}</span>
+      {%- else -%}
+        {{ format_net(value) }}
+      {%- endif -%}
+    {%- endmacro %}
+    {% macro format_count(value) -%}
+      {%- if value is none -%}
+      {%- elif value == value|int -%}
+        {{ value|int }}
+      {%- else -%}
+        {{ value }}
+      {%- endif -%}
+    {%- endmacro %}
+    {% macro format_stroke_total(value) -%}
+      {%- if value in (None, 0, 0.0) -%}
+      {%- else -%}
+        {%- set numeric = (value | float) if value is not none else 0 %}
+        {%- set whole = numeric | int %}
+        {%- set remainder = (numeric - whole) %}
+        {%- if remainder == 0 %}
+          {{ whole }}
+        {%- elif remainder == 0.5 %}
+          {{ whole }} ½
+        {%- else -%}
+          {{ numeric }}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endmacro %}
+    {% macro last_name(value) -%}
+      {%- if value -%}
+        {{ value.split()[-1] }}
+      {%- else -%}
+        —
+      {%- endif -%}
+    {%- endmacro %}
+      {% set active_match_tiles = active_match_tiles or [] %}
+      {% set finalized_match_tiles = finalized_match_tiles or [] %}
+      {% set active_match_count = active_match_count or 0 %}
+      {% set finalized_match_count = finalized_match_count or 0 %}
+      {% set match_info = scorecard.match or {} %}
+      {% set meta = scorecard.meta or {} %}
+      {% set pair_cards = scorecard.pair_cards or [] %}
+      {% set selected_key = selected_match_key or (matches[0].match_id if matches else None) %}
+      {% set status_entry = match_status_map[selected_key] if selected_key and match_status_map else None %}
+      <div class="scorecard-data">
+        <div class="scorecard-data__header">
+          <h1>Scorecard</h1>
+          <div class="scorecard-data__summary">
+            <span>Match {{ match_info.match_key }}</span>
+            <span>{{ match_info.division }}</span>
+            <span>Status: {{ match_info.status_label or match_info.status or "—" }}</span>
+          </div>
+          <div class="scorecard-data__status-row">
+            <article class="scorecard-data__status-card scorecard-data__status-card--active">
+              <div class="scorecard-data__status-card-header">
+                <p class="eyebrow">Active</p>
+                <strong>{{ active_match_count or 0 }}</strong>
+              </div>
+              <p class="match-sub">Matches currently in play.</p>
+              <ul class="scorecard-data__status-card-list">
+                {% for match in active_match_tiles[:3] %}
+                  <li>
+                    <span>{{ match.division }} {{ match.match_key }}</span>
+                    <span class="scorecard-data__status-chip">{{ match.status_label }}</span>
+                  </li>
+                {% else %}
+                  <li class="muted-label">No active matches tracked yet.</li>
+                {% endfor %}
+              </ul>
+            </article>
+            <article class="scorecard-data__status-card scorecard-data__status-card--finalized">
+              <div class="scorecard-data__status-card-header">
+                <p class="eyebrow">Finalized</p>
+                <strong>{{ finalized_match_count or 0 }}</strong>
+              </div>
+              <p class="match-sub">Matches that already landed in the result cache.</p>
+              <ul class="scorecard-data__status-card-list">
+                {% for match in finalized_match_tiles[:3] %}
+                  <li>
+                    <span>{{ match.division }} {{ match.match_key }}</span>
+                    <span class="scorecard-data__status-chip">{{ match.status_label }}</span>
+                  </li>
+                {% else %}
+                  <li class="muted-label">Nothing finalized yet.</li>
+                {% endfor %}
+              </ul>
+            </article>
+          </div>
+        </div>
+        {% if matches %}
+          <div class="scorecard-data__selector">
+            <form method="get" action="/scorecard_data">
+              <label>
+                Match
+                <select name="match_key" onchange="this.form.submit()">
+                  {% for match in matches %}
+                    <option
+                      value="{{ match.match_id }}"
+                      {% if match.match_id == selected_key %}selected{% endif %}
+                    >
+                      {{ match.division }} {{ match.match_id }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+              {% if status_entry %}
+                <span class="scorecard-select-status">
+                  Status: {{ status_entry.status_label or status_entry.status }}
+                </span>
+              {% endif %}
+              <noscript><button type="submit">Go</button></noscript>
+            </form>
+          </div>
+        {% endif %}
+      {% set player_totals = [] %}
+      {% for card in pair_cards %}
+        {% set player_totals = player_totals + [
+          {"name": card.players[0].name, "points": card.meta.total_points_a},
+          {"name": card.players[1].name, "points": card.meta.total_points_b},
+        ] %}
+      {% endfor %}
+      <div class="scorecard-block">
+        {% for player in player_totals[:4] %}
+          <div class="scorecard-block__item">
+            <div class="scorecard-block__label">{{ player.name }}</div>
+            <div class="scorecard-block__value">{{ format_value(player.points) }}</div>
+          </div>
+        {% endfor %}
+      </div>
+      {% if pair_cards %}
+        <div class="scorecard-cards">
+          {% for card in pair_cards %}
+            <article class="scorecard-card">
+              <header class="scorecard-card__header">
+                <span class="scorecard-card__label">Card {{ loop.index }}</span>
+                <p class="scorecard-card__players">{{ card.players[0].name }} vs {{ card.players[1].name }}</p>
+              </header>
+              <div class="scorecard-data__table-wrapper">
+                <table class="scorecard-data-table">
+                  <thead>
+                    <tr>
+                      <th>Hole</th>
+                      {% set holes = card.rows or [] %}
+                      {% for hole in holes %}
+                        <th>{{ hole.hole_number }}</th>
+                      {% endfor %}
+                      <th class="totals">Totals</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <th>HCP</th>
+                      {% for hole in holes %}
+                        <td>{{ hole.handicap if hole.handicap is not none else "" }}</td>
+                      {% endfor %}
+                      <td class="totals"></td>
+                    </tr>
+                    {% if card.strokes_present[0] %}
+                      <tr>
+                        <th>HCP {{ last_name(card.players[0].name) }}</th>
+                        {% for hole in holes %}
+                          <td>{{ format_hcp(hole.strokes_a) }}</td>
+                        {% endfor %}
+                        <td class="totals">{{ format_stroke_total(card.meta.strokes_a) }}</td>
+                      </tr>
+                    {% endif %}
+                    {% if card.strokes_present[1] %}
+                      <tr>
+                        <th>HCP {{ last_name(card.players[1].name) }}</th>
+                        {% for hole in holes %}
+                          <td>{{ format_hcp(hole.strokes_b) }}</td>
+                        {% endfor %}
+                        <td class="totals">{{ format_stroke_total(card.meta.strokes_b) }}</td>
+                      </tr>
+                    {% endif %}
+                    <tr>
+                      <th>{{ last_name(card.players[0].name) }}</th>
+                      {% for hole in holes %}
+                        <td>{{ net_score(hole.net_a, hole.par) }}</td>
+                      {% endfor %}
+                      <td class="totals">{{ format_net(card.totals.net[0]) }}</td>
+                    </tr>
+                    <tr>
+                      <th>{{ last_name(card.players[1].name) }}</th>
+                      {% for hole in holes %}
+                        <td>{{ net_score(hole.net_b, hole.par) }}</td>
+                      {% endfor %}
+                      <td class="totals">{{ format_net(card.totals.net[1]) }}</td>
+                    </tr>
+                    <tr class="divider-row">
+                      <td class="divider-cell" colspan="{{ (holes|length if holes else 0) + 2 }}"></td>
+                    </tr>
+                    <tr>
+                      <th>{{ last_name(card.players[0].name) }} pts</th>
+                      {% for hole in holes %}
+                        <td>{{ format_value(hole.points_a) }}</td>
+                      {% endfor %}
+                      <td class="totals">{{ format_value(card.meta.total_points_a) }}</td>
+                    </tr>
+                    <tr>
+                      <th>{{ last_name(card.players[1].name) }} pts</th>
+                      {% for hole in holes %}
+                        <td>{{ format_value(hole.points_b) }}</td>
+                      {% endfor %}
+                      <td class="totals">{{ format_value(card.meta.total_points_b) }}</td>
+                    </tr>
+                </tbody>
+              </table>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+    {% else %}
+      <p class="muted-label">No hole data recorded yet.</p>
+    {% endif %}
+  </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (function () {
+      const containerSelector = ".scorecard-data";
+      const refreshInterval = 7000;
+      const container = document.querySelector(containerSelector);
+      if (!container) {
+        return;
+      }
+
+      let timerId = null;
+      let fetching = false;
+
+      const scheduleRefresh = () => {
+        timerId = window.setTimeout(refreshScorecard, refreshInterval);
+      };
+
+      async function refreshScorecard() {
+        if (fetching) {
+          scheduleRefresh();
+          return;
+        }
+        fetching = true;
+        try {
+          const response = await fetch(window.location.href, {
+            cache: "no-store",
+            headers: { "X-Scorecard-Refresh": "1" },
+          });
+          if (!response.ok) {
+            throw new Error("Unable to reload scorecard");
+          }
+          const html = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, "text/html");
+          const replacement = doc.querySelector(containerSelector);
+          if (replacement) {
+            container.innerHTML = replacement.innerHTML;
+          }
+        } catch (error) {
+          console.warn("Scorecard refresh failed", error);
+        } finally {
+          fetching = false;
+          scheduleRefresh();
+        }
+      }
+
+      window.addEventListener("beforeunload", () => {
+        if (timerId) {
+          window.clearTimeout(timerId);
+        }
+      });
+
+      scheduleRefresh();
+    })();
+  </script>
+{% endblock %}

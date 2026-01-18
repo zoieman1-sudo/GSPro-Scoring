@@ -1,5 +1,121 @@
 {% extends "base.html" %}
 {% block content %}
+  <style>
+    .match-summary {
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 18px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .hole-table table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .hole-table th,
+    .hole-table td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .hole-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .hole-table .status {
+      text-align: center;
+      padding: 1.5rem;
+    }
+    .edit-hole-btn {
+      padding: 0.35rem 0.85rem;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      background: transparent;
+      color: #fff;
+    }
+    .scorecard-actions .pill-link + .pill-link {
+      margin-left: 0.75rem;
+    }
+    .scorecard-actions .pill-link {
+      cursor: pointer;
+      color: #f7fcff;
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .scorecard-actions .pill-link:hover {
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.6);
+      color: #fff;
+    }
+
+    .match-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .match-points-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .points-card {
+      padding: 18px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(7, 56, 86, 0.4), rgba(11, 38, 84, 0.75));
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      color: #d5f7ff;
+    }
+
+    .points-card--a {
+      background: linear-gradient(180deg, rgba(34, 91, 255, 0.4), rgba(9, 25, 53, 0.9));
+    }
+
+    .points-card--b {
+      background: linear-gradient(180deg, rgba(0, 200, 255, 0.3), rgba(5, 22, 42, 0.9));
+    }
+
+    .points-player-label {
+      font-size: 0.85rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.7);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .points-value {
+      font-size: 42px;
+      margin: 0;
+      line-height: 1;
+    }
+
+    .points-hint {
+      font-size: 0.75rem;
+      letter-spacing: 0.2em;
+      color: rgba(255, 255, 255, 0.55);
+      display: block;
+      margin-top: 4px;
+    }
+
+    .match-winner-badge {
+      margin-top: 4px;
+      padding: 0.7rem 1rem;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.04);
+      color: #85f9ff;
+      font-weight: 600;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+    }
+  </style>
   <section class="card standings-card detail-card">
     <div class="match-meta">
       <p class="eyebrow">Match Detail</p>
@@ -8,23 +124,32 @@
         {{ match.player_a_name }} vs {{ match.player_b_name }} &middot;
         {{ match.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if match.submitted_at else 'Unknown time' }}
       </p>
+      {% if match.finalized %}
+        <p class="match-sub match-sub--stacked">Match finalized &amp; locked</p>
+      {% endif %}
       <div class="scorecard-actions">
         <a class="pill-link" href="/matches/{{ match.id }}/scorecard">View scorecard</a>
+        <button type="button" id="reset-match-btn" class="pill-link">Reset match</button>
+        {% if not match.finalized %}
+          <button type="button" id="finalize-match-btn" class="pill-link">Finalize match</button>
+        {% endif %}
       </div>
     </div>
     <div class="match-summary">
-      <div>
-        <span>Player A</span>
-        <strong>{{ match.player_a_name }}</strong>
-        <p class="match-score-large">{{ hole_total_a }}</p>
-      </div>
-      <div>
-        <span>Player B</span>
-        <strong>{{ match.player_b_name }}</strong>
-        <p class="match-score-large">{{ hole_total_b }}</p>
+      <div class="match-points-grid">
+        <div class="points-card points-card--a">
+          <span class="points-player-label">Player A · {{ match.player_a_name }}</span>
+          <strong class="points-value">{{ match_points.a | round(1) }}</strong>
+          <span class="points-hint">Points total</span>
+        </div>
+        <div class="points-card points-card--b">
+          <span class="points-player-label">Player B · {{ match.player_b_name }}</span>
+          <strong class="points-value">{{ match_points.b | round(1) }}</strong>
+          <span class="points-hint">Points total</span>
+        </div>
       </div>
       <div class="match-winner-badge">
-        Winner: {{ match.player_a_name if match.winner == 'A' else match.player_b_name if match.winner == 'B' else 'Draw' }}
+        Winner: {{ match_points.winner_label }}
       </div>
     </div>
 
@@ -32,34 +157,60 @@
 
   <section class="hole-section" aria-label="Recorded holes">
     <div class="setup-head">
-      <h2>Hole list (1–18)</h2>
-      <p class="match-sub">Saved holes show gross, auto net, and the net differential.</p>
+      <h2>Recorded holes</h2>
+      <p class="match-sub">
+        Saved holes show gross, net, and the net differential; click any row to copy it into the editor for revision.
+      </p>
     </div>
-    <div class="hole-list">
-      {% if holes %}
-        {% for hole in holes %}
-          <article class="hole-card">
-            <div class="hole-card-head">
-              <span>Hole {{ hole.hole_number }}</span>
-              <span class="hole-card-diff">{{ '+' if hole.net_diff > 0 else '' }}{{ hole.net_diff }}</span>
-            </div>
-            <div class="hole-card-scores">
-              <div>
-                <p>{{ match.player_a_name }}</p>
-                <strong>{{ hole.player_a_score }}</strong>
-                <small>Net {{ hole.player_a_net }}</small>
-              </div>
-              <div>
-                <p>{{ match.player_b_name }}</p>
-                <strong>{{ hole.player_b_score }}</strong>
-                <small>Net {{ hole.player_b_net }}</small>
-              </div>
-            </div>
-          </article>
-        {% endfor %}
-      {% else %}
-        <p class="status">No hole data yet.</p>
-      {% endif %}
+    <div class="hole-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Hole</th>
+            <th>Net diff</th>
+            <th>{{ match.player_a_name }} gross</th>
+            <th>{{ match.player_a_name }} net</th>
+            <th>{{ match.player_b_name }} gross</th>
+            <th>{{ match.player_b_name }} net</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if holes %}
+            {% for hole in holes %}
+              <tr class="hole-row" data-hole-number="{{ hole.hole_number }}">
+                <td>{{ hole.hole_number }}</td>
+                <td class="hole-diff">
+                  {% if hole.net_diff is not none %}
+                    {{ "%+d"|format(hole.net_diff) }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>{{ hole.player_a_score or "—" }}</td>
+                <td>{{ hole.player_a_net or "—" }}</td>
+                <td>{{ hole.player_b_score or "—" }}</td>
+                <td>{{ hole.player_b_net or "—" }}</td>
+                <td>
+                  <button
+                    type="button"
+                    class="ghost-btn edit-hole-btn"
+                    data-hole="{{ hole.hole_number }}"
+                    data-score-a="{{ hole.player_a_score }}"
+                    data-score-b="{{ hole.player_b_score }}"
+                  >
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="7" class="status">No hole data yet.</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
     </div>
   </section>
 
@@ -69,13 +220,13 @@
     data-player-b-handicap="{{ player_b_handicap }}"
   >
     <div class="setup-head">
-      <h2>Enter hole scores</h2>
+      <h2>Enter or edit hole scores</h2>
       <p class="match-sub">Enter gross for each hole and the net is calculated automatically below.</p>
     </div>
     <form id="hole-form" class="hole-entry-form">
       <div id="hole-rows" class="hole-inputs"></div>
       <div class="setup-actions">
-        <button type="button" id="add-hole-btn" class="add-player-btn">Add hole</button>
+        <button type="button" id="add-hole-btn" class="add-player-btn">Add hole row</button>
         <button type="submit" class="submit-btn">Save hole scores</button>
       </div>
     </form>
@@ -114,13 +265,15 @@
   </template>
 
   <script>
-    const entrySection = document.querySelector(\".hole-entry-section\");
-    const form = document.getElementById(\"hole-form\");
-    const holeContainer = document.getElementById(\"hole-rows\");
-    const template = document.getElementById(\"hole-input-template\");
-    const footerA = document.getElementById(\"footer-total-a\");
-    const footerB = document.getElementById(\"footer-total-b\");
-    const footerDiff = document.getElementById(\"footer-diff\");
+    const existingHoles = {{ holes | tojson }};
+    const entrySection = document.querySelector(".hole-entry-section");
+    const form = document.getElementById("hole-form");
+    const holeContainer = document.getElementById("hole-rows");
+    const template = document.getElementById("hole-input-template");
+    const footerA = document.getElementById("footer-total-a");
+    const footerB = document.getElementById("footer-total-b");
+    const footerDiff = document.getElementById("footer-diff");
+    const holeTableBody = document.querySelector(".hole-table tbody");
     const playerAHandicap = Number(entrySection.dataset.playerAHandicap || 0);
     const playerBHandicap = Number(entrySection.dataset.playerBHandicap || 0);
 
@@ -132,22 +285,22 @@
     };
 
     const updateRow = (row) => {
-      const holeInput = row.querySelector('input[name=\"hole_number\"]');
-      const aInput = row.querySelector('input[name=\"player_a_score\"]');
-      const bInput = row.querySelector('input[name=\"player_b_score\"]');
+      const holeInput = row.querySelector('input[name="hole_number"]');
+      const aInput = row.querySelector('input[name="player_a_score"]');
+      const bInput = row.querySelector('input[name="player_b_score"]');
       const holeNumber = Number(holeInput.value) || Number(row.dataset.defaultHole) || 1;
       const netA =
-        aInput.value !== \"\"
+        aInput.value !== ""
           ? Number(aInput.value) - netAdjustment(playerAHandicap, holeNumber)
           : null;
       const netB =
-        bInput.value !== \"\"
+        bInput.value !== ""
           ? Number(bInput.value) - netAdjustment(playerBHandicap, holeNumber)
           : null;
-      const netSpanA = row.querySelector('[data-net-role=\"a\"]');
-      const netSpanB = row.querySelector('[data-net-role=\"b\"]');
-      netSpanA.textContent = netA !== null ? netA : \"—\";
-      netSpanB.textContent = netB !== null ? netB : \"—\";
+      const netSpanA = row.querySelector('[data-net-role="a"]');
+      const netSpanB = row.querySelector('[data-net-role="b"]');
+      netSpanA.textContent = netA !== null ? netA : "—";
+      netSpanB.textContent = netB !== null ? netB : "—";
     };
 
     const updateFooter = () => {
@@ -155,14 +308,14 @@
       const baseB = Number(footerB.dataset.base || 0);
       let deltaA = 0;
       let deltaB = 0;
-      holeContainer.querySelectorAll(\".hole-entry-row\").forEach((row) => {
-        const holeNumber = Number(row.querySelector('input[name=\"hole_number\"]').value) || 0;
-        const netA = Number(row.querySelector('[data-net-role=\"a\"]').textContent) || 0;
-        const netB = Number(row.querySelector('[data-net-role=\"b\"]').textContent) || 0;
-        if (holeNumber && row.querySelector('input[name=\"player_a_score\"]').value !== \"\") {
+      holeContainer.querySelectorAll(".hole-entry-row").forEach((row) => {
+        const holeNumber = Number(row.querySelector('input[name="hole_number"]').value) || 0;
+        const netA = Number(row.querySelector('[data-net-role="a"]').textContent) || 0;
+        const netB = Number(row.querySelector('[data-net-role="b"]').textContent) || 0;
+        if (holeNumber && row.querySelector('input[name="player_a_score"]').value !== "") {
           deltaA += netA;
         }
-        if (holeNumber && row.querySelector('input[name=\"player_b_score\"]').value !== \"\") {
+        if (holeNumber && row.querySelector('input[name="player_b_score"]').value !== "") {
           deltaB += netB;
         }
       });
@@ -174,8 +327,8 @@
     };
 
     const bindRow = (row) => {
-      row.querySelectorAll(\"input\").forEach((input) => {
-        input.addEventListener(\"input\", () => {
+      row.querySelectorAll("input").forEach((input) => {
+        input.addEventListener("input", () => {
           updateRow(row);
           updateFooter();
         });
@@ -183,27 +336,41 @@
       updateRow(row);
     };
 
-    const addHoleRow = (holeNumber = \"\") => {
+    const addHoleRow = (holeNumber = "", data = {}) => {
       const clone = template.content.cloneNode(true);
-      const row = clone.querySelector(\".hole-entry-row\");
+      const row = clone.querySelector(".hole-entry-row");
       if (holeNumber) {
-        row.querySelector('input[name=\"hole_number\"]').value = holeNumber;
+        row.querySelector('input[name="hole_number"]').value = holeNumber;
         row.dataset.defaultHole = holeNumber;
+      }
+      if (data.player_a_score !== undefined) {
+        row.querySelector('input[name="player_a_score"]').value = data.player_a_score;
+      }
+      if (data.player_b_score !== undefined) {
+        row.querySelector('input[name="player_b_score"]').value = data.player_b_score;
       }
       holeContainer.appendChild(row);
       bindRow(row);
+      return row;
     };
 
-    document.getElementById(\"add-hole-btn\").addEventListener(\"click\", () => addHoleRow());
-    for (let i = 1; i <= 18; i += 1) {
-      addHoleRow(i);
-    }
+    const populateForm = () => {
+      holeContainer.innerHTML = "";
+      if (existingHoles.length) {
+        existingHoles.forEach((hole) => addHoleRow(hole.hole_number, hole));
+      } else {
+        addHoleRow();
+      }
+      updateFooter();
+    };
 
-    form.addEventListener(\"submit\", async (event) => {
+    document.getElementById("add-hole-btn").addEventListener("click", () => addHoleRow());
+
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const rows = Array.from(holeContainer.querySelectorAll(\".hole-entry-row\"))
+      const rows = Array.from(holeContainer.querySelectorAll(".hole-entry-row"))
         .map((row) => {
-          const inputs = row.querySelectorAll(\"input\");
+          const inputs = row.querySelectorAll("input");
           if (!row.dataset.defaultHole && !inputs[0].value) {
             return null;
           }
@@ -213,18 +380,88 @@
             player_b_score: inputs[2].value,
           };
         })
-        .filter((entry) => entry && entry.player_a_score !== \"\" && entry.player_b_score !== \"\");
+        .filter((entry) => entry && entry.player_a_score !== "" && entry.player_b_score !== "");
       if (!rows.length) {
         return;
       }
       const response = await fetch(`/matches/{{ match.id }}/holes`, {
-        method: \"POST\",
-        headers: { \"Content-Type\": \"application/json\" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ holes: rows }),
       });
       if (response.ok) {
         location.reload();
       }
+    });
+
+    const findRowForHole = (holeNumber) =>
+      Array.from(holeContainer.querySelectorAll(".hole-entry-row")).find(
+        (row) =>
+          Number(row.querySelector('input[name="hole_number"]').value || row.dataset.defaultHole) ===
+          Number(holeNumber)
+      );
+
+    const highlightRecordRow = (holeNumber, scoreA, scoreB) => {
+      let row = findRowForHole(holeNumber);
+      if (!row) {
+        row = addHoleRow(holeNumber, { player_a_score: scoreA, player_b_score: scoreB });
+      } else {
+        row.querySelector('input[name="player_a_score"]').value = scoreA || "";
+        row.querySelector('input[name="player_b_score"]').value = scoreB || "";
+        updateRow(row);
+      }
+      updateFooter();
+      row.querySelector('input[name="player_a_score"]').focus();
+    };
+
+    holeTableBody?.addEventListener("click", (event) => {
+      if (!event.target.matches(".edit-hole-btn")) {
+        return;
+      }
+      const button = event.target;
+      highlightRecordRow(button.dataset.hole, button.dataset.scoreA, button.dataset.scoreB);
+    });
+
+    populateForm();
+
+    const resetMatchBtn = document.getElementById("reset-match-btn");
+    resetMatchBtn?.addEventListener("click", async () => {
+      const confirmed = confirm("This clears all recorded holes for the match. Continue?");
+      if (!confirmed) {
+        return;
+      }
+      const response = await fetch(`/matches/{{ match.id }}/reset`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (response.ok) {
+        location.reload();
+        return;
+      }
+      const error = await response.json().catch(() => ({}));
+      alert(error.detail || "Unable to reset match data. Please try again.");
+    });
+
+    const finalizeMatchBtn = document.getElementById("finalize-match-btn");
+    finalizeMatchBtn?.addEventListener("click", async () => {
+      const confirmed = confirm("Finalizing locks the course, hole data, and points so they cannot change. Continue?");
+      if (!confirmed) {
+        return;
+      }
+      const response = await fetch(`/matches/{{ match.id }}/finalize`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (response.ok) {
+        location.reload();
+        return;
+      }
+      const error = await response.json().catch(() => ({}));
+      alert(error.detail || "Unable to finalize match. Please try again.");
     });
   </script>
 {% endblock %}

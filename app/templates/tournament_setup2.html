@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card tournament-setup-two">
+    <div class="tournament-setup-two__header">
+      <div class="tournament-setup-two__header-text">
+        <p class="eyebrow">Tournament Manager</p>
+  
+        <p class="muted-label">Create the event and define player capacity in a single step.</p>
+      </div>
+    </div>
+
+    <article class="tournament-setup-two__form">
+      {% if status %}
+        <p class="muted-label">{{ status }}</p>
+      {% endif %}
+      <form action="/admin/tournament_setup2/save" method="post" class="setup-form">
+        <label>
+          Name
+          <input type="text" name="name" placeholder="Tournament name" required />
+        </label>
+        <label>
+          Description
+          <textarea name="description" rows="3" placeholder="Add event notes (tee times, format, etc.)"></textarea>
+        </label>
+        <div class="form-row">
+          <label>
+            Player count
+            <input type="number" name="player_count" min="0" placeholder="Number of players" />
+          </label>
+          <label>
+            Division count
+            <input type="number" name="division_count" min="0" placeholder="Number of divisions" />
+          </label>
+        </div>
+        <button type="submit" class="submit-btn">Save Tournament & Capacity</button>
+      </form>
+    </article>
+  </section>
+{% endblock %}

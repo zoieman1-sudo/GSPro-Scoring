@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card scheduled-matches-panel">
+    <div class="match-meta">
+      <p class="eyebrow">System setup</p>
+      <h1 class="match-title">Wi-Fi configuration</h1>
+      <p class="match-sub">
+        Store the SSID and passphrase the device should use on boot. The service will remind you to run the native Wi-Fi tool (e.g., `nmcli`) after the card reboots.
+      </p>
+    </div>
+    <form method="post" class="scorecard-data__section" style="max-width: 540px;">
+      {% if message %}
+        <p class="match-sub" style="color: var(--success);">{{ message }}</p>
+      {% endif %}
+      <label>
+        <span>Network name (SSID)</span>
+        <input type="text" name="ssid" value="{{ config.ssid or '' }}" required />
+      </label>
+      <label>
+        <span>Passphrase</span>
+        <input type="password" name="password" value="{{ config.password or '' }}" />
+        <small>Leave blank for open networks.</small>
+      </label>
+      <label>
+        <input type="checkbox" name="hidden" value="1" {% if config.hidden %}checked{% endif %} />
+        <span>Hidden SSID</span>
+      </label>
+      <p class="match-sub">
+        Uploaded credentials are stored locally at <code>app/DATA/wifi_config.json</code>.
+      </p>
+      <button type="submit" class="btn btn-primary">Save network</button>
+    </form>
+  </section>
+{% endblock %}

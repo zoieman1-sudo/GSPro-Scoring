@@ -6,10 +6,216 @@
       <h1 class="match-title">Recent Match Submissions</h1>
       <p class="match-sub">Use `?pin=` to access this page.</p>
     </div>
+    <style>
+      .admin-actions {
+        margin-bottom: 16px;
+      }
+      .admin-actions form {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .admin-actions form select,
+      .admin-actions form input[type="file"] {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 8px;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        padding: 6px 8px;
+        font-size: 0.9rem;
+      }
+      .admin-actions form label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 0.85rem;
+        color: rgba(15, 23, 42, 0.6);
+      }
+      .backup-card {
+        margin-bottom: 24px;
+        background: #0f1729;
+        border-radius: 16px;
+        padding: 24px;
+        color: #f9fafb;
+      }
+      .backup-card__header h2 {
+        margin-top: 0;
+        margin-bottom: 8px;
+      }
+      .backup-card__sub {
+        margin: 0;
+        color: #cbd5f5;
+      }
+      .backup-card__controls {
+        margin-top: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: flex-end;
+      }
+      .backup-card__label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 0.9rem;
+      }
+      .backup-card__input {
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #475569;
+        background: #111827;
+        color: #fff;
+        min-width: 220px;
+      }
+      .backup-card__list-wrapper {
+        margin-top: 20px;
+      }
+      .backup-card__list-title {
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+        color: #cbd5f5;
+      }
+      .backup-card__list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .backup-card__list li {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 0.9rem;
+      }
+      .backup-card__entry-path {
+        font-family: "Courier New", Courier, monospace;
+        color: #f8fafc;
+      }
+      .backup-card__empty {
+        padding: 16px 0;
+        border-bottom: none;
+        color: #94a3b8;
+      }
+      .backup-card__entry-meta {
+        color: #94a3b8;
+        margin-left: 12px;
+      }
+      .backup-card__status {
+        min-height: 24px;
+        margin-top: 8px;
+        color: #f97316;
+      }
+      .backup-card__status.backup-card__status--success {
+        color: #4ade80;
+      }
+      .backup-card__status.backup-card__status--error {
+        color: #f24444;
+      }
+    </style>
 
-    {% if not authorized %}
-      <div class="status">Invalid or missing PIN.</div>
-    {% else %}
+    {% if status %}
+      <div class="status">{{ status }}</div>
+    {% endif %}
+    {% if authorized %}
+      <div class="admin-actions">
+        <form method="post" action="/admin/cleanup-standings">
+          <input type="hidden" name="pin" value="{{ pin }}" />
+          <button class="pill-link pill-link--ghost" type="submit">
+            Reset tournament standings
+          </button>
+        </form>
+        <form
+          method="post"
+          action="/admin/seed_players"
+          enctype="multipart/form-data"
+          aria-label="Seed players from CSV"
+        >
+          <input type="hidden" name="pin" value="{{ pin }}" />
+          <label>
+            <span class="eyebrow">Seed players</span>
+            <select name="tournament_id" class="pill-link pill-link--ghost">
+              {% for tournament in tournaments %}
+                <option value="{{ tournament.id }}">{{ tournament.name }}</option>
+              {% endfor %}
+            </select>
+            <input type="file" name="file" accept=".csv" required />
+          </label>
+          <button class="pill-link" type="submit">
+            Upload players CSV
+          </button>
+        </form>
+        <form
+          method="post"
+          action="/admin/seed_matches"
+          enctype="multipart/form-data"
+          aria-label="Seed matches from CSV"
+        >
+          <input type="hidden" name="pin" value="{{ pin }}" />
+          <label>
+            <span class="eyebrow">Seed match results</span>
+            <select name="tournament_id" class="pill-link pill-link--ghost">
+              {% for tournament in tournaments %}
+                <option value="{{ tournament.id }}">{{ tournament.name }}</option>
+              {% endfor %}
+            </select>
+            <input type="file" name="file" accept=".csv" required />
+          </label>
+          <button class="pill-link" type="submit">
+            Upload matches CSV
+          </button>
+        </form>
+      </div>
+    {% endif %}
+
+    {% if authorized %}
+      <section class="card backup-card">
+        <div class="backup-card__header">
+          <p class="eyebrow">Backups</p>
+          <h2>Create a restore point</h2>
+          <p class="backup-card__sub">
+            Save a copy of the tournament data to quickly recover from data loss. Specify a relative
+            location and click the button to trigger a new backup.
+          </p>
+        </div>
+        <div class="backup-card__controls">
+          <label class="backup-card__label" for="backupLocationInput">
+            Save location
+            <input
+              id="backupLocationInput"
+              class="backup-card__input"
+              type="text"
+              placeholder="ex: live-events/jan-week"
+              value="{{ default_backup_location }}"
+            />
+          </label>
+          <button type="button" class="pill-link" id="backupCreateButton">
+            Create backup
+          </button>
+        </div>
+        <p id="backupStatus" class="backup-card__status" aria-live="polite"></p>
+        <div class="backup-card__list-wrapper">
+          <h3 class="backup-card__list-title">Recent backups</h3>
+          <ul class="backup-card__list">
+            {% if backups %}
+              {% for backup in backups %}
+                <li>
+                  <span class="backup-card__entry-path">{{ backup.relative_path }}</span>
+                  <span class="backup-card__entry-meta">
+                    {{ backup.modified_at }} · {{ backup.size }}
+                  </span>
+                </li>
+              {% endfor %}
+            {% else %}
+              <li class="backup-card__empty">No backups created yet.</li>
+            {% endif %}
+          </ul>
+        </div>
+      </section>
+    {% endif %}
+
+    {% if authorized %}
       <div class="admin-table">
         <div class="admin-row admin-head">
           <span>Match</span>

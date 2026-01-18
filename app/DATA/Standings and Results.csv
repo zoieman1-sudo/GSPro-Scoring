@@ -1,0 +1,30 @@
+﻿Division ,A,Pts,Matches,Win,Loss,Tie
+Mike O'Hanlon,,16.5,3,2,1,0
+Gareth Petsch,,10.5,3,0,2,1
+Chris Stampe,,11.5,2,1,1,0
+Matt Van.Wie,,17,3,1,0,2
+Tom Bardanetted,,14.5,3,1,1,1
+,,,,,,
+Division ,B,Pts,Matches,Win,Loss,Tie
+Paul Gartland,,18,3,2,0,1
+Logan Conaughton,,20,3,2,0,1
+Ken Milton,,6.5,2,0,2,0
+Andy Alcarese,,10,2,0,0,2
+Tom Quirk,,5.5,2,0,2,0
+,,,,,,
+,,,,,,
+,,,,,,
+Results,,,,,,
+Stampe,7.5,Petsch,2.5,,,
+Van.Wie,5,Bardanette,5,,,
+Van.Wie,5,Petsch,5,,,
+Bardanette,6,Stampe,4,,,
+O'Hanlon,7,Petsch,3,,,
+Van.Wie,7,O'Hanlon,3,,,
+O'Hanlon,6.5,Bardanette,3.5,,,
+Gartland,6.5,Quirk,3.5,,,
+Conaughton,7,Milton,3,,,
+Conaughton,8,Quirk,2,,,
+Alcarese,5,Gartland,5,,,
+Gartland,6.5,Milton,3.5,,,
+Alcarese,5,Conaughton,5,,,

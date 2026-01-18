@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <div class="match-meta">
+      <p class="eyebrow">Match Setup</p>
+      <h1 class="match-title">Pairings &amp; live scoring</h1>
+      <p class="match-sub">
+        Once players are seeded in the Player Entry screen, use this page to pair them up and
+        launch Scorecard Studio with a live match.
+      </p>
+    </div>
+
+    {% if status %}
+      <div class="status">{{ status }}</div>
+    {% endif %}
+
+    {% if not active_tournament %}
+      <div class="status">Pick an active tournament to begin scheduling matches.</div>
+    {% endif %}
+
+    <div class="split-grid">
+      <article>
+        <h3>Create a match</h3>
+        {% if active_tournament %}
+          {% if players|length >= 2 %}
+            <form class="setup-form" method="post" action="/admin/match_setup">
+              <input type="hidden" name="tournament_id" value="{{ active_tournament.id }}" />
+              <label>
+                Course
+                <select
+                  name="course_id"
+                  id="match-course-select"
+                  {% if not course_catalog %}disabled{% endif %}
+                >
+                  <option value="">
+                    {% if course_catalog %}Select a course{% else %}No courses available{% endif %}
+                  </option>
+                  {% for course in course_catalog %}
+                    <option
+                      value="{{ course.id }}"
+                      {% if course.id == selected_course_id %}selected{% endif %}
+                    >
+                      {{ course.club_name }} — {{ course.course_name }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Tee
+                <select
+                  name="course_tee_id"
+                  id="match-tee-select"
+                  {% if not course_catalog %}disabled{% endif %}
+                >
+                  <option value="">Choose a tee</option>
+                </select>
+              </label>
+              <label>
+                Holes
+                <select name="hole_count" id="match-hole-count">
+                  <option value="18" {% if selected_hole_count != 9 %}selected{% endif %}>18 holes</option>
+                  <option value="9" {% if selected_hole_count == 9 %}selected{% endif %}>9 holes</option>
+                </select>
+              </label>
+              <label>
+                Format
+                <select name="match_mode" id="match-mode-select">
+                  <option value="four" selected>Four players</option>
+                  <option value="two">Two players</option>
+                </select>
+              </label>
+              <label id="match-start-hole-label" style="display:none;">
+                Starting hole
+                <select name="start_hole" id="match-start-hole">
+                  <option value="1" {% if selected_start_hole != 10 %}selected{% endif %}>Front (Hole 1)</option>
+                  <option value="10" {% if selected_start_hole == 10 %}selected{% endif %}>Back (Hole 10)</option>
+                </select>
+              </label>
+              <label>
+                Player A
+                <select name="player_a_id">
+                  {% for player in players %}
+                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Player B
+                <select name="player_b_id">
+                  {% for player in players %}
+                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label data-match-player="c">
+                Player C
+                <select name="player_c_id">
+                  {% for player in players %}
+                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label data-match-player="d">
+                Player D
+                <select name="player_d_id">
+                  {% for player in players %}
+                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                Match key (optional)
+                <input type="text" name="match_key" placeholder="e.g. A-01" />
+              </label>
+            <div class="setup-actions">
+              <button type="submit" class="submit-btn">Save match</button>
+            </div>
+          </form>
+          {% else %}
+            <p class="status">
+              Add at least two players to schedule a match.
+              <a class="pill-link" href="/admin/player_entry">Go to Player Entry</a>
+            </p>
+          {% endif %}
+        {% else %}
+          <p class="status">Create or select a tournament before pairing players.</p>
+        {% endif %}
+      </article>
+      <article class="match-setup-info">
+        <h3>Match setup intelligence</h3>
+        <p class="muted-label">
+          This sidebar keeps the active tournament, player pool, and scheduled-match counts visible while you build the next pairing.
+        </p>
+        <ul class="match-setup-summary">
+          <li>
+            <span>Active tournament</span>
+            <strong>{{ active_tournament.name if active_tournament else "None" }}</strong>
+          </li>
+          <li>
+            <span>Players seeded</span>
+            <strong>{{ players|length }}</strong>
+          </li>
+          <li>
+            <span>Matches scheduled</span>
+            <strong>{{ matches|length }}</strong>
+          </li>
+        </ul>
+        <div class="match-setup-insights">
+          <p>Tip: Reserve a match key for each tee slot so you can quickly locate and launch the pairing from the scheduled matches screen.</p>
+          <p>Reminder: Use the player mode toggle to hide the C/D slots when sending two players to a live pairing.</p>
+        </div>
+        <a class="pill-link pill-link--ghost" href="/admin/scheduled_matches">View scheduled matches</a>
+      </article>
+    </div>
+    <script>
+      (function () {
+        const courseTeeMap = {{ course_tee_map | tojson }};
+        const courseSelect = document.getElementById("match-course-select");
+        const teeSelect = document.getElementById("match-tee-select");
+        const holeCountSelect = document.getElementById("match-hole-count");
+        const startHoleLabel = document.getElementById("match-start-hole-label");
+        const startHoleSelect = document.getElementById("match-start-hole");
+        const matchModeSelect = document.getElementById("match-mode-select");
+        const playerSlotC = document.querySelector("[data-match-player='c']");
+        const playerSlotD = document.querySelector("[data-match-player='d']");
+        const initialCourse = {{ selected_course_id | tojson }};
+        const initialTee = {{ selected_course_tee_id | tojson }};
+        const defaultCourse = initialCourse == null ? "" : String(initialCourse);
+        const defaultTee = initialTee == null ? "" : String(initialTee);
+
+        function buildTeeOptions(courseId) {
+          if (!teeSelect) return;
+          const resolvedCourse = courseId ? String(courseId) : "";
+          const tees = resolvedCourse ? courseTeeMap[resolvedCourse] || [] : [];
+          teeSelect.innerHTML = '<option value="">Choose a tee</option>';
+          tees.forEach((tee) => {
+            const option = document.createElement("option");
+            option.value = String(tee.id);
+            option.textContent = tee.label || tee.tee_name || "Tee";
+            teeSelect.appendChild(option);
+          });
+          teeSelect.disabled = !tees.length;
+          if (defaultTee && tees.some((tee) => String(tee.id) === defaultTee)) {
+            teeSelect.value = defaultTee;
+          }
+        }
+
+        function updateStartHoleVisibility() {
+          if (!holeCountSelect || !startHoleLabel) return;
+          const isNine = Number(holeCountSelect.value) === 9;
+          startHoleLabel.style.display = isNine ? "block" : "none";
+          if (!isNine && startHoleSelect) {
+            startHoleSelect.value = "1";
+          }
+        }
+
+        courseSelect?.addEventListener("change", function () {
+          buildTeeOptions(this.value);
+        });
+
+        holeCountSelect?.addEventListener("change", updateStartHoleVisibility);
+
+        function updatePlayerMode() {
+          const isTwoPlayer = matchModeSelect?.value === "two";
+          [playerSlotC, playerSlotD].forEach((slot) => {
+            if (!slot) return;
+            const select = slot.querySelector("select");
+            slot.style.display = isTwoPlayer ? "none" : "";
+            if (select) {
+              select.disabled = isTwoPlayer;
+            }
+          });
+        }
+
+        matchModeSelect?.addEventListener("change", updatePlayerMode);
+
+        document.addEventListener("DOMContentLoaded", function () {
+          if (courseSelect && defaultCourse) {
+            courseSelect.value = defaultCourse;
+          }
+          buildTeeOptions(courseSelect?.value || "");
+          if (teeSelect && defaultTee) {
+            teeSelect.value = defaultTee;
+          }
+          updateStartHoleVisibility();
+          updatePlayerMode();
+        });
+      })();
+    </script>
+  </section>
+{% endblock %}

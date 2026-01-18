@@ -1,0 +1,514 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="studio-shell">
+    <style>
+      .studio-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        padding: 16px;
+      }
+      .studio-hero {
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: linear-gradient(145deg, rgba(255, 191, 71, 0.18), rgba(4, 8, 24, 0.95));
+        padding: 32px;
+        color: #fff;
+        box-shadow: 0 25px 65px rgba(0, 0, 0, 0.45);
+      }
+      .studio-hero .eyebrow {
+        letter-spacing: 0.4em;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        opacity: 0.65;
+      }
+      .studio-hero h1 {
+        margin: 8px 0 8px;
+        font-size: 2rem;
+      }
+      .studio-hero p {
+        margin: 0;
+      }
+      .studio-hero .hero-meta {
+        margin-top: 12px;
+        font-size: 0.8rem;
+        letter-spacing: 0.35em;
+      }
+      .studio-hero .course-meta {
+        margin-top: 6px;
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.9);
+      }
+      .hero-hole-reference {
+        margin-top: 18px;
+        display: grid;
+        grid-template-columns: 80px repeat(auto-fit, minmax(30px, 1fr));
+        gap: 6px;
+        font-size: 0.65rem;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.75);
+      }
+      .hero-hole-reference span {
+        padding: 4px 6px;
+        border-radius: var(--radius-pill);
+        background: rgba(255, 255, 255, 0.07);
+      }
+      .studio-matches {
+        display: grid;
+        gap: 20px;
+      }
+      .studio-match {
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 24px;
+        background: rgba(4, 6, 18, 0.90);
+        box-shadow: 0 30px 60px rgba(2, 3, 10, 0.6);
+      }
+      .studio-match__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .studio-match__header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+      }
+      .studio-match__header p {
+        margin: 2px 0 0;
+        color: rgba(255, 255, 255, 0.75);
+      }
+      .status-pill {
+        display: inline-flex;
+        padding: 6px 14px;
+        border-radius: var(--radius-pill);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        font-size: 0.65rem;
+      }
+      .status-pill--completed { background: rgba(67, 225, 255, 0.12); }
+      .status-pill--in_progress { background: rgba(255, 206, 85, 0.12); }
+      .status-pill--not_started { background: rgba(255, 255, 255, 0.06); }
+      .studio-scorecard {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 14px;
+        font-size: 0.85rem;
+      }
+      .studio-scorecard th,
+      .studio-scorecard td {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 6px;
+        text-align: center;
+      }
+      .studio-scorecard th {
+        background: rgba(255, 255, 255, 0.12);
+        font-weight: 600;
+        letter-spacing: 0.2em;
+      }
+      .studio-status-row td {
+        background: rgba(255, 255, 255, 0.05);
+        font-weight: 600;
+        border: 1px solid rgba(0, 0, 0, 0.8);
+      }
+      .studio-status-row td.status-cell {
+        padding: 6px 0;
+        text-align: center;
+      }
+      .status-cell__stack {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        align-items: center;
+      }
+      .status-cell__pair {
+        display: block;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        font-size: 0.65rem;
+        line-height: 1.2;
+        white-space: nowrap;
+        width: 100%;
+      }
+      .status-cell__pair + .status-cell__pair {
+        margin-top: 4px;
+        padding-top: 4px;
+        border-top: 2px solid #fff;
+      }
+      .studio-scorecard .player-row.team-a,
+      .studio-scorecard .player-row.team-b {
+        color: #fff;
+      }
+      .studio-scorecard .player-row--navy .player-score-cell--filled,
+      .studio-scorecard .player-row--navy td.player-total {
+        background: #000066;
+      }
+      .studio-scorecard .player-row--orange .player-score-cell--filled,
+      .studio-scorecard .player-row--orange td.player-total {
+        background: #ff9900;
+      }
+      .studio-scorecard .player-score-cell,
+      .studio-scorecard .player-total {
+        background: #04060e;
+        color: #fff;
+      }
+      .studio-scorecard .player-score-cell--filled {
+        font-weight: 700;
+      }
+      .studio-scorecard td.status-cell {
+        font-weight: 700;
+        color: #fff;
+      }
+      .studio-scorecard td.status-cell--navy {
+        background: #000066;
+      }
+      .studio-scorecard td.status-cell--orange {
+        background: #ff9900;
+      }
+      .studio-scorecard td.status-cell--as {
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .studio-scorecard .player-row td {
+        font-weight: 600;
+        letter-spacing: 0.1em;
+      }
+      .studio-summary-grid {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .studio-summary-block {
+        flex: 1;
+        min-width: 180px;
+        padding: 12px 14px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .studio-summary-block .muted-label {
+        font-size: 0.65rem;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.65);
+      }
+      .studio-summary-block strong {
+        display: block;
+        font-size: 1.2rem;
+        margin-top: 4px;
+      }
+      .pill-link--launch {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        padding: 8px 18px;
+        border-radius: var(--radius-pill);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        text-transform: uppercase;
+        letter-spacing: 0.3em;
+        color: #fff;
+        text-decoration: none;
+        font-size: 0.75rem;
+      }
+      .pill-link--launch:hover {
+        background: rgba(255, 179, 71, 0.2);
+        border-color: #ffb347;
+      }
+    </style>
+
+    {% macro hole_score(hole, index) -%}
+      {%- set rows = hole.player_scores or [] -%}
+      {%- if rows|length > index and rows[index].gross is not none -%}
+        {{ rows[index].gross }}
+      {%- else -%}
+        —
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% macro hole_score_has_value(hole, index) -%}
+      {%- set rows = hole.player_scores or [] -%}
+      {%- if rows|length > index and rows[index].gross is not none -%}
+        1
+      {%- else -%}
+        0
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% macro format_stroke_value(value) -%}
+      {%- if value is none -%}
+        —
+      {%- elif value == value|int -%}
+        {{ value|int }}
+      {%- else -%}
+        {{ value }}
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% macro format_points(value) -%}
+      {%- if value is not none -%}
+        {{ value }} pts
+      {%- else -%}
+        —
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% macro format_status_point(value) -%}
+      {%- if value is none -%}
+        —
+      {%- else -%}
+        {% set numeric = value | float %}
+        {%- if numeric == numeric | int -%}
+          {{ numeric | int }}
+        {%- elif numeric == 0.5 -%}
+          .5
+        {%- else -%}
+          {{ numeric }}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endmacro %}
+
+    {% set player_color_classes = ["player-row--navy", "player-row--orange", "player-row--orange", "player-row--navy"] %}
+    {% set status_color_map = {
+      "player-row--navy": "status-cell--navy",
+      "player-row--orange": "status-cell--orange",
+    } %}
+    {% set player_status_classes = [
+      status_color_map[player_color_classes[0]],
+      status_color_map[player_color_classes[1]],
+    ] %}
+
+    {% macro player_total(holes, index) -%}
+      {%- set total = 0 -%}
+      {%- set has_score = false -%}
+      {%- for hole in holes -%}
+        {%- set rows = hole.player_scores or [] -%}
+        {%- if rows|length > index and rows[index].gross is not none -%}
+          {%- set total = total + (rows[index].gross | float) -%}
+          {%- set has_score = true -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ total|int if has_score else "—" }}
+    {%- endmacro %}
+
+    {% set hero_holes = hero.holes or [] %}
+    <div id="studioContent">
+      <article class="studio-hero" style="display:none;">
+        <div class="hero-top">
+          <p class="eyebrow">Scorecard Studio</p>
+          <h1 id="heroTitle">{{ hero.title }}</h1>
+        <p class="hero-description" id="heroSummary">{{ hero.subtitle }}</p>
+      </div>
+      <p class="hero-meta">{{ hero.meta }}</p>
+      {% if hero.course and hero.course.course_name %}
+        <p class="hero-subtle course-meta">
+          {{ hero.course.club_name or "Course" }} — {{ hero.course.course_name }}
+          {% if hero.course.tee_name %}| Tee: {{ hero.course.tee_name }}{% endif %}
+        </p>
+      {% endif %}
+      <div class="hero-hole-reference">
+        <span>Hole</span>
+        {% for hole in hero_holes %}
+          <span>{{ hole.number }}</span>
+        {% endfor %}
+      </div>
+      <div class="hero-hole-reference">
+        <span>Par</span>
+        {% for hole in hero_holes %}
+          <span>{{ hole.par }}</span>
+        {% endfor %}
+      </div>
+      <div class="hero-hole-reference">
+        <span>HCP</span>
+        {% for hole in hero_holes %}
+          <span>{{ hole.hcp }}</span>
+        {% endfor %}
+      </div>
+    </article>
+
+    {% if studio_matches %}
+      <div class="studio-matches">
+        {% for studio_match in studio_matches %}
+          {% set scorecard = studio_match.scorecard %}
+          {% set holes = scorecard.holes[:9] if scorecard.holes else [] %}
+          {% set meta = scorecard.meta or {} %}
+          <article class="studio-match">
+            <header class="studio-match__header">
+              <div>
+                <p class="muted-label">Match {{ loop.index }}</p>
+                <h2>{{ studio_match.display }}</h2>
+                <p>
+                  Start hole {{ meta.start_hole or 1 }} •
+                  {{ meta.is_nine_hole and "9 holes" or "18 holes" }}
+                </p>
+              </div>
+              <div>
+                <span class="status-pill status-pill--{{ studio_match.status }}">
+                  {{ studio_match.status_label }}
+                </span>
+                <p class="match-status-detail">
+                  {{ studio_match.holes_recorded or 0 }} / {{ scorecard.match.total_holes }} holes recorded
+                </p>
+              </div>
+            </header>
+            {% if holes %}
+              <table class="studio-scorecard">
+                <thead>
+                  <tr>
+                    <th>Hole</th>
+                    {% for hole in holes %}
+                      <th>{{ hole.hole_number }}</th>
+                    {% endfor %}
+                    <th class="player-total">ToT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th>HCP</th>
+                    {% for hole in holes %}
+                      <td>{{ hole.handicap }}</td>
+                    {% endfor %}
+                    <td>—</td>
+                  </tr>
+      <tr class="stroke-row">
+                    <th>Strokes</th>
+                    {% for hole in holes %}
+                      {% if hole.stroke_owner %}
+                        <td>
+                          {{ hole.stroke_owner }} +{{ format_stroke_value(hole.stroke_count) }}
+                        </td>
+                      {% else %}
+                        <td>—</td>
+                      {% endif %}
+                    {% endfor %}
+                    <td>—</td>
+                  </tr>
+                  {% set players_count = scorecard.players|length if scorecard.players else 0 %}
+                  {% set team_a_count = players_count if players_count <= 2 else 2 %}
+                  {% for idx in range(0, team_a_count) %}
+                    {% set color_class = player_color_classes[idx] %}
+                    <tr class="player-row team-a {{ color_class }}">
+                      <th>{{ scorecard.players[idx].name }}</th>
+                      {% for hole in holes %}
+                        {% set hole_value = hole_score(hole, idx) %}
+                        {% set hole_has_value = hole_score_has_value(hole, idx) == "1" %}
+                        <td class="player-score-cell {% if hole_has_value %}player-score-cell--filled{% endif %}">
+                          {{ hole_value }}
+                        </td>
+                      {% endfor %}
+                      <td class="player-total">{{ player_total(holes, idx) }}</td>
+                    </tr>
+                  {% endfor %}
+                  {% set visible_players = players_count if players_count <= 2 else 2 %}
+                  {% set player_point_totals = scorecard.player_point_totals if scorecard.player_point_totals else [0, 0, 0, 0] %}
+                  {% for player_idx in range(visible_players) %}
+                    {% set player_label = scorecard.players[player_idx].name %}
+                    <tr class="studio-status-row">
+                      <th>{{ player_label }}</th>
+                      {% for hole in holes %}
+                        {% set hole_points = hole.player_points or [None, None, None, None] %}
+                        {% set player_value = hole_points[player_idx] %}
+                        <td class="status-cell">
+                          <div class="status-cell__stack">
+                            <span class="status-cell__pair {{ player_status_classes[player_idx] }}">
+                              {{ format_status_point(player_value) }}
+                            </span>
+                          </div>
+                        </td>
+                      {% endfor %}
+                      <td class="status-cell">
+                        <div class="status-cell__stack">
+                          <span class="status-cell__pair {{ player_status_classes[player_idx] }}">
+                            {{ format_points(player_point_totals[player_idx] if player_point_totals|length > player_idx else None) }}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                  {% set team_b_count = (players_count - 2) if players_count > 2 else 0 %}
+                  {% set team_b_limit = 2 if team_b_count >= 2 else team_b_count %}
+                  {% for idx in range(2, 2 + team_b_limit) %}
+                    {% set color_class = player_color_classes[idx] %}
+                    <tr class="player-row team-b {{ color_class }}">
+                      <th>{{ scorecard.players[idx].name }}</th>
+                      {% for hole in holes %}
+                        {% set hole_value = hole_score(hole, idx) %}
+                        {% set hole_has_value = hole_score_has_value(hole, idx) == "1" %}
+                        <td class="player-score-cell {% if hole_has_value %}player-score-cell--filled{% endif %}">
+                          {{ hole_value }}
+                        </td>
+                      {% endfor %}
+                      <td class="player-total">{{ player_total(holes, idx) }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% else %}
+              <p class="muted-label">No hole data recorded yet.</p>
+            {% endif %}
+            <div class="studio-summary-grid">
+              <div class="studio-summary-block">
+                <span class="muted-label">Points A</span>
+                <strong>{{ meta.total_points_a|default(0) }}</strong>
+              </div>
+              <div class="studio-summary-block">
+                <span class="muted-label">Points B</span>
+                <strong>{{ meta.total_points_b|default(0) }}</strong>
+              </div>
+              <div class="studio-summary-block">
+                <span class="muted-label">Stroke Allocation</span>
+                <strong>
+                  {{ meta.stroke_owner == 'A' and 'A' or meta.stroke_owner == 'B' and 'B' or '—' }}
+                  {{ meta.stroke_count|default(0) }}
+                </strong>
+              </div>
+              <div class="studio-summary-block">
+                <span class="muted-label">Launch</span>
+                <a class="pill-link--launch" href="/golf-ui/scoring.html?match_key={{ studio_match.match_id }}" target="_blank">Play</a>
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted-label">No Scorecard Studio matches available right now.</p>
+    {% endif %}
+    </div>
+    <script>
+      (function () {
+        const studioContainer = document.getElementById("studioContent");
+        if (!studioContainer) {
+          return;
+        }
+        let refreshTimer = null;
+        const refreshInterval = 10000;
+        async function refreshStudio() {
+          try {
+            const url = window.location.href;
+            const response = await fetch(url, { cache: "no-store" });
+            if (!response.ok) {
+              return;
+            }
+            const text = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, "text/html");
+            const updated = doc.getElementById("studioContent");
+            if (updated) {
+              studioContainer.innerHTML = updated.innerHTML;
+            }
+          } catch (error) {
+            console.error("Unable to refresh Scorecard Studio:", error);
+          }
+        }
+        refreshTimer = window.setInterval(refreshStudio, refreshInterval);
+        window.addEventListener("beforeunload", () => {
+          if (refreshTimer) {
+            window.clearInterval(refreshTimer);
+          }
+        });
+      })();
+    </script>
+  </section>
+{% endblock %}

@@ -87,3 +87,193 @@ if (form) {
     }
   });
 }
+
+const coursePopup = document.getElementById("course-popup");
+const openCoursePopup = document.getElementById("open-course-popup");
+const closeCoursePopup = document.getElementById("course-popup-close");
+const courseSearchForm = document.getElementById("course-search-form");
+const courseSearchInput = document.getElementById("course-search-input");
+const courseResultsList = document.getElementById("course-results-list");
+const coursePopupStatus = document.getElementById("course-popup-status");
+
+const toggleCoursePopup = (open) => {
+  if (!coursePopup) {
+    return;
+  }
+  coursePopup.dataset.open = open ? "true" : "false";
+  coursePopup.setAttribute("aria-hidden", !open);
+  document.body.classList.toggle("popup-open", open);
+  if (!open && courseResultsList) {
+    courseResultsList.innerHTML = "";
+  }
+  if (!open && coursePopupStatus) {
+    coursePopupStatus.textContent = "Enter a query to search the API.";
+  }
+};
+
+const updateCourseStatus = (message, error = false) => {
+  if (!coursePopupStatus) {
+    return;
+  }
+  coursePopupStatus.textContent = message;
+  coursePopupStatus.style.color = error ? "#ff8a68" : "var(--muted)";
+};
+
+const getCourseId = (course) => course?.id || course?.course_id || course?.courseId || course?.courseID || course?.uid;
+
+const renderCourseResults = (courses, query) => {
+  if (!courseResultsList) {
+    return;
+  }
+  courseResultsList.innerHTML = "";
+  if (!courses.length) {
+    updateCourseStatus(query ? `No results for "${query}".` : "No courses found.");
+    return;
+  }
+  updateCourseStatus(`Showing ${courses.length} result${courses.length === 1 ? "" : "s"}.`);
+  courses.forEach((course) => {
+    const courseId = getCourseId(course);
+    if (!courseId) {
+      return;
+    }
+    const item = document.createElement("li");
+    item.className = "course-popup__item";
+
+    const details = document.createElement("div");
+    details.className = "course-popup__details";
+    const title = document.createElement("strong");
+    title.textContent = course?.course_name || course?.name || course?.course || "Untitled";
+    const meta = document.createElement("span");
+    const location = course?.location || {};
+    const locationParts = [location.city || course?.city, location.state || course?.state, location.country || course?.country].filter(Boolean);
+    meta.textContent = locationParts.length ? locationParts.join(", ") : "Location unavailable";
+    details.append(title, meta);
+
+    const addButton = document.createElement("button");
+    addButton.className = "course-popup__add";
+    addButton.type = "button";
+    addButton.textContent = "Add";
+    addButton.dataset.courseId = courseId;
+    addButton.addEventListener("click", async () => {
+      if (!addButton || !courseId) {
+        return;
+      }
+      addButton.disabled = true;
+      const originalText = addButton.textContent;
+      addButton.textContent = "Adding…";
+      try {
+        const response = await fetch(`/api/courses/import/${courseId}`, {
+          method: "POST",
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.detail || "Unable to import course.");
+        }
+        addButton.textContent = "Added";
+        updateCourseStatus(`Course "${title.textContent}" added.`, false);
+      } catch (error) {
+        addButton.disabled = false;
+        addButton.textContent = originalText;
+        updateCourseStatus(error.message || "Import failed.", true);
+      }
+    });
+
+    item.append(details, addButton);
+    courseResultsList.append(item);
+  });
+};
+
+if (openCoursePopup) {
+  openCoursePopup.addEventListener("click", () => toggleCoursePopup(true));
+}
+if (closeCoursePopup) {
+  closeCoursePopup.addEventListener("click", () => toggleCoursePopup(false));
+}
+if (coursePopup) {
+  coursePopup.addEventListener("click", (event) => {
+    if (event.target === coursePopup) {
+      toggleCoursePopup(false);
+    }
+  });
+}
+
+if (courseSearchForm && courseSearchInput) {
+  courseSearchForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const query = courseSearchInput.value.trim();
+    if (!query) {
+      updateCourseStatus("Type a term to start searching.", true);
+      return;
+    }
+    updateCourseStatus("Searching…");
+    try {
+      const response = await fetch(`/api/courses/search?query=${encodeURIComponent(query)}`);
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.detail || "Search failed");
+      }
+      const courses = Array.isArray(payload?.courses)
+        ? payload.courses
+        : Array.isArray(payload?.data?.courses)
+        ? payload.data.courses
+        : [];
+      renderCourseResults(courses, query);
+    } catch (error) {
+      updateCourseStatus(error.message || "Search failed.", true);
+    }
+  });
+}
+
+const backupButton = document.getElementById("backupCreateButton");
+const backupLocationInput = document.getElementById("backupLocationInput");
+const backupStatus = document.getElementById("backupStatus");
+
+const setBackupStatus = (message, isError = false) => {
+  if (!backupStatus) return;
+  backupStatus.textContent = message;
+  backupStatus.classList.toggle("backup-card__status--error", isError);
+  backupStatus.classList.toggle("backup-card__status--success", !isError && !!message);
+};
+
+if (backupButton && backupLocationInput) {
+  backupButton.addEventListener("click", async () => {
+    const baseText = backupButton.textContent;
+    const payload = {
+      save_location: backupLocationInput.value.trim(),
+    };
+    backupButton.disabled = true;
+    backupButton.textContent = "Backing up…";
+    setBackupStatus("Creating backup…");
+    try {
+      const response = await fetch("/api/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || data.error || "Unable to create backup.");
+      }
+      setBackupStatus(`Saved: ${data.path}`, false);
+    } catch (error) {
+      setBackupStatus(
+        error instanceof Error ? error.message : "Backup failed.",
+        true
+      );
+    } finally {
+      backupButton.disabled = false;
+      backupButton.textContent = baseText;
+    }
+  });
+}
+
+const navDetails = document.querySelectorAll(
+  ".top-nav__scoring-menu, .top-nav__tournament-menu, .top-nav__admin-menu"
+);
+document.addEventListener("click", (event) => {
+  navDetails.forEach((detail) => {
+    if (!detail.contains(event.target)) {
+      detail.removeAttribute("open");
+    }
+  });
+});

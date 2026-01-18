@@ -15,6 +15,126 @@
       .standing-cell.player .seed-tag {
         display: none;
       }
+      .standings-card {
+        padding: 28px 24px 32px;
+      }
+      .standings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        width: 100%;
+        max-width: none;
+        margin: 0 auto;
+      }
+      .division-card {
+        padding: 24px;
+        border-radius: var(--radius-lg);
+        background: transparent;
+        border: none;
+        box-shadow: none;
+      }
+      .division-table-shell {
+        background: rgba(244, 248, 255, 0.95);
+        border-radius: var(--radius-md);
+        padding: 18px;
+        border: 1px solid rgba(18, 22, 48, 0.08);
+        box-shadow: inset 0 0 20px rgba(18, 22, 48, 0.05);
+      }
+      .standings-table {
+        width: 100%;
+        font-size: 0.8rem;
+        letter-spacing: 0.25em;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .standings-table th,
+      .standings-table td {
+        padding: 4px 5px;
+        vertical-align: bottom;
+      }
+      .standings-row:nth-child(odd) td {
+        background: rgba(18, 22, 48, 0.05);
+      }
+      .standings-row:nth-child(even) td {
+        background: rgba(255, 255, 255, 0.95);
+      }
+      .standing-cell.wlt {
+        padding: 4px 3px;
+        width: 36px;
+        text-align: center;
+      }
+      .standing-cell.stack-data {
+        text-align: center;
+      }
+      .standing-cell.pts-col {
+        width: 32px;
+        text-align: center;
+        padding-left: 2px;
+        padding-right: 2px;
+      }
+      .standing-cell.stack-header,
+      .standing-cell.matches {
+        padding-left: 2px;
+        padding-right: 2px;
+      }
+      .standing-cell.matches {
+        font-size: 0.85em;
+        text-align: center;
+        width: 36px;
+      }
+      .standing-cell.matches .label-main {
+        font-size: 0.85em;
+        letter-spacing: 0.35em;
+      }
+      .standings-table th.stack-header {
+        padding-left: 2px;
+        padding-right: 2px;
+      }
+      .standings-table th.stack-header {
+        text-align: center;
+      }
+      .stack-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        line-height: 1.2;
+        letter-spacing: 0.3em;
+      }
+      .stack-header span:last-child {
+        font-size: 0.6em;
+        letter-spacing: 0.25em;
+      }
+      .label-main {
+        display: block;
+      }
+      .standings-table thead {
+        display: table-header-group;
+      }
+      .standings-table thead th {
+        font-size: 0.85rem;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: 6px 8px;
+        font-weight: 600;
+      }
+      .standings-table thead th .label-sub {
+        font-size: 0.6rem;
+        letter-spacing: 0.35em;
+        margin-top: -2px;
+      }
+      .division-title {
+        border-bottom: none;
+      }
+      .standings-table,
+      .standings-table thead th,
+      .standings-table tbody tr {
+        border: none;
+      }
+      .standings-table thead th {
+        border-bottom: none;
+      }
     </style>
 
     <div class="match-meta">
@@ -24,48 +144,66 @@
     </div>
 
     {% if divisions %}
-      <div class="standings-grid">
-        {% for division in divisions %}
-          <article class="division-card">
-            <div class="division-title">
-              <span>Division {{ division.division }}</span>
-            </div>
-
-            <table class="standings-table"
-                   role="table"
-                   aria-label="Division {{ division.division }} standings">
+      <div class="standings-refresh">
+        <div class="standings-grid">
+          {% for division in divisions %}
+            <article class="division-card">
+              <div class="division-title">
+                <span>Division {{ division.division }}</span>
+              </div>
+              <div class="division-table-shell">
+                <table class="standings-table"
+                       role="table"
+                       aria-label="Division {{ division.division }} standings">
+              <colgroup>
+                <col style="width: 36%;" />
+                <col style="width: 12%;" />
+                <col style="width: 12%;" />
+                <col style="width: 12%;" />
+                <col style="width: 12%;" />
+                <col style="width: 12%;" />
+              </colgroup>
               <thead>
-                <tr class="table-head" role="row">
-                  <th class="standing-cell">Rank</th>
-                  <th class="standing-cell player">Player</th>
-                  <th class="standing-cell">Pts</th>
-                  <th class="standing-cell">Pts Rmn</th>
-                  <th class="standing-cell">Matches</th>
-                  <th class="standing-cell">W</th>
-                  <th class="standing-cell">L</th>
-                  <th class="standing-cell">T</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for player in division.players %}
-                  <tr class="standings-row" role="row">
-                    <td class="standing-cell">{{ loop.index }}</td>
-                    <td class="standing-cell player">
-                      <strong>{{ player.name }}</strong>
-                      <span class="seed-tag">{{ player.division }}{{ player.seed }}</span>
-                    </td>
-                    <td class="standing-cell">{{ player.points_for }}</td>
-                    <td class="standing-cell">{{ player.pts_remaining }}</td>
-                    <td class="standing-cell">{{ player.matches }}</td>
-                    <td class="standing-cell">{{ player.wins }}</td>
-                    <td class="standing-cell">{{ player.losses }}</td>
-                    <td class="standing-cell">{{ player.ties }}</td>
+                  <tr class="table-head" role="row">
+                    <th class="standing-cell player" aria-hidden="true">&nbsp;</th>
+                    <th class="standing-cell pts-col">
+                      <span class="label-main">Pts</span>
+                    </th>
+                    <th class="standing-cell matches">
+                      <span class="label-main">Mat</span>
+                      <span class="label-sub">#</span>
+                    </th>
+                    <th class="standing-cell wlt">
+                      <span class="label-main">W</span>
+                    </th>
+                    <th class="standing-cell wlt">
+                      <span class="label-main">L</span>
+                    </th>
+                    <th class="standing-cell wlt">
+                      <span class="label-main">T</span>
+                    </th>
                   </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </article>
-        {% endfor %}
+                </thead>
+                <tbody>
+                  {% for player in division.players %}
+                    <tr class="standings-row" role="row">
+                      <td class="standing-cell player">
+                        <strong>{{ player.name }}</strong>
+                        <span class="seed-tag">{{ player.division }}{{ player.seed }}</span>
+                      </td>
+                      <td class="standing-cell pts-col">{{ player.points_for }}</td>
+                      <td class="standing-cell matches">{{ player.matches }}</td>
+                      <td class="standing-cell wlt">{{ player.wins }}</td>
+                      <td class="standing-cell wlt">{{ player.losses }}</td>
+                      <td class="standing-cell wlt">{{ player.ties }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+                </table>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
       </div>
     {% else %}
       <p class="status">
@@ -73,4 +211,59 @@
       </p>
     {% endif %}
   </section>
+
+{% block scripts %}
+  <script>
+    (function () {
+      const refreshSelector = ".standings-refresh";
+      const refreshInterval = 8000;
+      const container = document.querySelector(refreshSelector);
+      if (!container) {
+        return;
+      }
+      let timerId = null;
+      let running = false;
+
+      const schedule = () => {
+        timerId = window.setTimeout(() => {
+          refresh();
+        }, refreshInterval);
+      };
+
+      async function refresh() {
+        if (running) {
+          schedule();
+          return;
+        }
+        running = true;
+        try {
+          const response = await fetch(window.location.href, { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error("Unable to refresh standings");
+          }
+          const html = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, "text/html");
+          const updated = doc.querySelector(refreshSelector);
+          if (updated) {
+            container.innerHTML = updated.innerHTML;
+          }
+        } catch (error) {
+          console.warn("standings refresh failed", error);
+        } finally {
+          running = false;
+          schedule();
+        }
+      }
+
+      window.addEventListener("beforeunload", () => {
+        if (timerId) {
+          window.clearTimeout(timerId);
+        }
+      });
+
+      schedule();
+    })();
+  </script>
+{% endblock %}
 {% endblock %}

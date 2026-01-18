@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="card">
+    <div class="match-meta">
+      <p class="eyebrow">Tournament History</p>
+      <h1 class="match-title">Match Archive</h1>
+    </div>
+    <form method="get" action="/tournament_history" class="setup-form">
+      <label>
+        Tournament
+        <select name="tournament_id">
+          {% for tournament in tournaments %}
+            <option value="{{ tournament.id }}" {% if tournament.id == selected_tournament_id %}selected{% endif %}>
+              {{ tournament.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="submit-btn">Load matches</button>
+    </form>
+
+    <table class="standings-table">
+      <thead>
+        <tr>
+          <th>Match Key</th>
+          <th>Division</th>
+          <th>Players</th>
+          <th>Status</th>
+          <th>Winner</th>
+          <th>Points A</th>
+          <th>Points B</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in history %}
+          <tr>
+            <td>{{ entry.match.match_key }}</td>
+            <td>{{ entry.match.division }}</td>
+            <td>{{ entry.match.player_a_name }} vs {{ entry.match.player_b_name }}</td>
+            <td>{{ entry.match.status }}</td>
+            <td>{{ entry.result.winner if entry.result else "—" }}</td>
+            <td>{{ entry.result.player_a_total if entry.result else "—" }}</td>
+            <td>{{ entry.result.player_b_total if entry.result else "—" }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7">No matches recorded for this tournament yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}
