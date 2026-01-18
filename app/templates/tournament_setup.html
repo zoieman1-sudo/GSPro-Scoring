@@ -84,19 +84,15 @@
         {% if player_count and division_count %}
           <form action="/admin/tournament_setup/player" method="post" class="setup-form">
             <input type="hidden" name="tournament_id" value="{{ selected_tournament.id }}" />
-            <div class="form-row">
-              <label>
-                First name
-                <input type="text" name="first_name" required />
-              </label>
-              <label>
-                Last name
-                <input type="text" name="last_name" required />
-              </label>
-              <label>
-                Division
-                <input type="text" name="division" value="A" />
-              </label>
+          <div class="form-row">
+            <label>
+              Name
+              <input type="text" name="name" required />
+            </label>
+            <label>
+              Division
+              <input type="text" name="division" value="A" />
+            </label>
               <label>
                 Handicap Index
                 <input type="number" step="0.1" name="handicaps_index" value="0" />

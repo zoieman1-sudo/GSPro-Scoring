@@ -2290,12 +2290,11 @@ async def tournament_settings_update(
 async def add_tournament_player(
     tournament_id: int = Form(...),
     division: str = Form("A"),
-    first_name: str = Form(...),
-    last_name: str = Form(...),
+    name: str = Form(...),
     handicaps_index: str = Form("0"),
     seed: int = Form(0),
 ):
-    name = f"{first_name.strip()} {last_name.strip()}".strip()
+    name = name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Player name required")
     upsert_player(settings.database_url, None, name, division.upper(), int(float(handicaps_index)), seed or 0, tournament_id=tournament_id)
@@ -2331,12 +2330,11 @@ async def player_entry_page(request: Request, tournament_id: int | None = None):
 async def player_entry_submit(
     tournament_id: int = Form(...),
     division: str = Form("A"),
-    first_name: str = Form(...),
-    last_name: str = Form(...),
+    name: str = Form(...),
     handicaps_index: str = Form("0"),
     seed: int = Form(0),
 ):
-    name = f"{first_name.strip()} {last_name.strip()}".strip()
+    name = name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Player name required")
     upsert_player(

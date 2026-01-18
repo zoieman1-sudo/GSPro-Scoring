@@ -20,102 +20,111 @@
     {% endif %}
 
     <div class="split-grid">
-      <article>
+      <article class="match-setup-card">
         <h3>Create a match</h3>
         {% if active_tournament %}
           {% if players|length >= 2 %}
             <form class="setup-form" method="post" action="/admin/match_setup">
               <input type="hidden" name="tournament_id" value="{{ active_tournament.id }}" />
-              <label>
-                Course
-                <select
-                  name="course_id"
-                  id="match-course-select"
-                  {% if not course_catalog %}disabled{% endif %}
-                >
-                  <option value="">
-                    {% if course_catalog %}Select a course{% else %}No courses available{% endif %}
-                  </option>
-                  {% for course in course_catalog %}
-                    <option
-                      value="{{ course.id }}"
-                      {% if course.id == selected_course_id %}selected{% endif %}
+              <div class="match-form-sections">
+                <section class="match-form-section">
+                  <h4>Match details</h4>
+                  <label>
+                    Course
+                    <select
+                      name="course_id"
+                      id="match-course-select"
+                      {% if not course_catalog %}disabled{% endif %}
                     >
-                      {{ course.club_name }} — {{ course.course_name }}
-                    </option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                Tee
-                <select
-                  name="course_tee_id"
-                  id="match-tee-select"
-                  {% if not course_catalog %}disabled{% endif %}
-                >
-                  <option value="">Choose a tee</option>
-                </select>
-              </label>
-              <label>
-                Holes
-                <select name="hole_count" id="match-hole-count">
-                  <option value="18" {% if selected_hole_count != 9 %}selected{% endif %}>18 holes</option>
-                  <option value="9" {% if selected_hole_count == 9 %}selected{% endif %}>9 holes</option>
-                </select>
-              </label>
-              <label>
-                Format
-                <select name="match_mode" id="match-mode-select">
-                  <option value="four" selected>Four players</option>
-                  <option value="two">Two players</option>
-                </select>
-              </label>
-              <label id="match-start-hole-label" style="display:none;">
-                Starting hole
-                <select name="start_hole" id="match-start-hole">
-                  <option value="1" {% if selected_start_hole != 10 %}selected{% endif %}>Front (Hole 1)</option>
-                  <option value="10" {% if selected_start_hole == 10 %}selected{% endif %}>Back (Hole 10)</option>
-                </select>
-              </label>
-              <label>
-                Player A
-                <select name="player_a_id">
-                  {% for player in players %}
-                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                Player B
-                <select name="player_b_id">
-                  {% for player in players %}
-                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label data-match-player="c">
-                Player C
-                <select name="player_c_id">
-                  {% for player in players %}
-                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label data-match-player="d">
-                Player D
-                <select name="player_d_id">
-                  {% for player in players %}
-                    <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                Match key (optional)
-                <input type="text" name="match_key" placeholder="e.g. A-01" />
-              </label>
-            <div class="setup-actions">
-              <button type="submit" class="submit-btn">Save match</button>
-            </div>
+                      <option value="">
+                        {% if course_catalog %}Select a course{% else %}No courses available{% endif %}
+                      </option>
+                      {% for course in course_catalog %}
+                        <option
+                          value="{{ course.id }}"
+                          {% if course.id == selected_course_id %}selected{% endif %}
+                        >
+                          {{ course.club_name }} — {{ course.course_name }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Tee
+                    <select
+                      name="course_tee_id"
+                      id="match-tee-select"
+                      {% if not course_catalog %}disabled{% endif %}
+                    >
+                      <option value="">Choose a tee</option>
+                    </select>
+                  </label>
+                  <label>
+                    Holes
+                    <select name="hole_count" id="match-hole-count">
+                      <option value="18" {% if selected_hole_count != 9 %}selected{% endif %}>18 holes</option>
+                      <option value="9" {% if selected_hole_count == 9 %}selected{% endif %}>9 holes</option>
+                    </select>
+                  </label>
+                  <label>
+                    Format
+                    <select name="match_mode" id="match-mode-select">
+                      <option value="four" selected>Four players</option>
+                      <option value="two">Two players</option>
+                    </select>
+                  </label>
+                  <label id="match-start-hole-label" style="display:none;">
+                    Starting hole
+                    <select name="start_hole" id="match-start-hole">
+                      <option value="1" {% if selected_start_hole != 10 %}selected{% endif %}>Front (Hole 1)</option>
+                      <option value="10" {% if selected_start_hole == 10 %}selected{% endif %}>Back (Hole 10)</option>
+                    </select>
+                  </label>
+                </section>
+                <section class="match-form-section">
+                  <h4>Players &amp; match key</h4>
+                  <label>
+                    Player A
+                    <select name="player_a_id">
+                      {% for player in players %}
+                        <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Player B
+                    <select name="player_b_id">
+                      {% for player in players %}
+                        <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label data-match-player="c">
+                    Player C
+                    <select name="player_c_id">
+                      {% for player in players %}
+                        <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label data-match-player="d">
+                    Player D
+                    <select name="player_d_id">
+                      {% for player in players %}
+                        <option value="{{ player.id }}">{{ player.name }} ({{ player.division }})</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Match key (optional)
+                    <input type="text" name="match_key" placeholder="e.g. A-01" />
+                  </label>
+                </section>
+              </div>
+              <div class="setup-actions match-setup-actions">
+                <a class="pill-link pill-link--ghost" href="/admin/scheduled_matches">View scheduled matches</a>
+                <button type="submit" class="submit-btn">Save match</button>
+              </div>
           </form>
           {% else %}
             <p class="status">
@@ -126,31 +135,6 @@
         {% else %}
           <p class="status">Create or select a tournament before pairing players.</p>
         {% endif %}
-      </article>
-      <article class="match-setup-info">
-        <h3>Match setup intelligence</h3>
-        <p class="muted-label">
-          This sidebar keeps the active tournament, player pool, and scheduled-match counts visible while you build the next pairing.
-        </p>
-        <ul class="match-setup-summary">
-          <li>
-            <span>Active tournament</span>
-            <strong>{{ active_tournament.name if active_tournament else "None" }}</strong>
-          </li>
-          <li>
-            <span>Players seeded</span>
-            <strong>{{ players|length }}</strong>
-          </li>
-          <li>
-            <span>Matches scheduled</span>
-            <strong>{{ matches|length }}</strong>
-          </li>
-        </ul>
-        <div class="match-setup-insights">
-          <p>Tip: Reserve a match key for each tee slot so you can quickly locate and launch the pairing from the scheduled matches screen.</p>
-          <p>Reminder: Use the player mode toggle to hide the C/D slots when sending two players to a live pairing.</p>
-        </div>
-        <a class="pill-link pill-link--ghost" href="/admin/scheduled_matches">View scheduled matches</a>
       </article>
     </div>
     <script>
